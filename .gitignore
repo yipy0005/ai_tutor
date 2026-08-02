@@ -1,0 +1,23 @@
+# pixi
+.pixi/
+pixi.lock
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# Application data (contains your child's progress — keep it local)
+instance/
+*.sqlite3
+*.db
+
+# Environment
+.env
+
+# OS / editor
+.DS_Store
+.vscode/
+.idea/

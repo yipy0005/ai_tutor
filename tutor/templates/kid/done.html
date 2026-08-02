@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}{{ quest.title }} — results{% endblock %}
+
+{% block content %}
+<div class="stack-lg">
+  <section class="card center">
+    <div class="stars" aria-label="{{ summary.stars }} out of 3 stars">
+      {%- for i in range(3) -%}
+        <i class="{{ 'lit' if i < summary.stars }}">{{ '⭐' if i < summary.stars else '☆' }}</i>
+      {%- endfor -%}
+    </div>
+    <h1 style="margin-top:8px">{{ quest.title }}</h1>
+    <div class="score-grid">
+      <div><b>{{ summary.correct }}/{{ summary.answered }}</b><span>right</span></div>
+      <div><b>{{ summary.accuracy }}%</b><span>score</span></div>
+      <div><b>{{ summary.minutes }}</b><span>minutes</span></div>
+    </div>
+    <div class="stack">
+      <button type="button" class="btn big block leaf" data-start-quest
+              data-subject="{{ '' if quest.subject == 'mixed' else quest.subject }}"
+              data-mode="{{ quest.mode }}">🚀 Another quest</button>
+      <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+    </div>
+  </section>
+
+  {% if summary.review %}
+  <section aria-labelledby="review-heading">
+    <h2 id="review-heading">Your answers</h2>
+    <div class="rows">
+      {% for item in summary.review %}
+        <div class="row" style="align-items:flex-start;{{ 'border-color:#b5e3c1' if item.correct else 'border-color:#f5c2be' }}">
+          <span aria-hidden="true" style="font-size:1.4rem">{{ '✅' if item.correct else '💡' }}</span>
+          <div class="grow">
+            <b>{{ item.prompt }}</b>
+            <small>
+              {% if item.correct %}
+                You said <b>{{ item.given }}</b> — correct!
+              {% else %}
+                You said <b>{{ item.given or '—' }}</b>. The answer is <b>{{ item.answer }}</b>.
+              {% endif %}
+            </small>
+            {% if item.explain and not item.correct %}
+              <small style="display:block;margin-top:4px">{{ item.explain }}</small>
+            {% endif %}
+            <small style="display:block;margin-top:4px">
+              {% if item.year %}<span class="pill y{{ item.year }}">Year {{ item.year }}</span>{% endif %}
+              {{ item.skill }}
+            </small>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

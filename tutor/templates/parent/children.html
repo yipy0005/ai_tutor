@@ -1,0 +1,135 @@
+{% extends "parent/_base.html" %}
+{% block title %}Learners{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">Learners</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      Each learner keeps their own progress, settings and rewards.
+    </p>
+  </div>
+
+  {% for row in rows %}
+    <div class="p-card">
+      <div class="p-card-head">
+        <span class="p-avatar {{ row.child.avatar_colour }}">{{ row.child.avatar_emoji }}</span>
+        <h2 class="p-grow" style="margin:0">{{ row.child.name }}</h2>
+        <span class="p-tag">Year {{ row.child.year_group }}</span>
+        <span class="p-tag">Level {{ row.child.level }}</span>
+      </div>
+
+      <div class="p-grid four" style="margin-bottom:16px">
+        <div class="p-stat">
+          <div class="label">Quests</div><div class="value">{{ row.totals.quests }}</div>
+          <div class="sub">{{ row.totals.questions }} questions</div>
+        </div>
+        <div class="p-stat">
+          <div class="label">Accuracy</div><div class="value">{{ row.totals.accuracy }}%</div>
+          <div class="sub">all time</div>
+        </div>
+        <div class="p-stat">
+          <div class="label">Mastered</div>
+          <div class="value">{{ row.overview.skills_mastered }}</div>
+          <div class="sub">of {{ row.overview.skills_total }} skills</div>
+        </div>
+        <div class="p-stat">
+          <div class="label">Streak</div><div class="value">{{ row.child.streak_days }}</div>
+          <div class="sub">best {{ row.child.best_streak }}</div>
+        </div>
+      </div>
+
+      <form method="post" action="{{ url_for('parent.update_child', child_id=row.child.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="p-inline">
+          <div class="p-field">
+            <label for="name-{{ row.child.id }}">Name</label>
+            <input type="text" id="name-{{ row.child.id }}" name="name" value="{{ row.child.name }}" maxlength="60">
+          </div>
+          <div class="p-field">
+            <label for="year-{{ row.child.id }}">Year group</label>
+            <select id="year-{{ row.child.id }}" name="year_group">
+              {% for year in range(1, 7) %}
+                <option value="{{ year }}" {{ 'selected' if year == row.child.year_group }}>Year {{ year }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="p-field">
+            <button class="p-btn" type="submit">Save</button>
+          </div>
+        </div>
+      </form>
+
+      <details class="p-details">
+        <summary style="color:var(--p-bad)">Reset progress or delete this learner</summary>
+        <div class="p-grid two" style="margin-top:12px">
+          <form method="post" action="{{ url_for('parent.reset_progress', child_id=row.child.id) }}">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="p-field">
+              <label>Reset all progress</label>
+              <p class="help" style="margin:0 0 8px">
+                Deletes every quest, skill record, badge, XP and coin for
+                {{ row.child.name }}, keeping the profile and settings. This cannot be undone.
+              </p>
+              <input type="text" name="confirm" placeholder="Type “{{ row.child.name }}” to confirm"
+                     autocomplete="off" required>
+            </div>
+            <button class="p-btn ghost" type="submit">Reset progress</button>
+          </form>
+
+          <form method="post" action="{{ url_for('parent.delete_child', child_id=row.child.id) }}">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <div class="p-field">
+              <label>Delete the learner</label>
+              <p class="help" style="margin:0 0 8px">
+                Removes {{ row.child.name }} and everything associated with them. This cannot
+                be undone.
+              </p>
+              <input type="text" name="confirm" placeholder="Type “{{ row.child.name }}” to confirm"
+                     autocomplete="off" required>
+            </div>
+            <button class="p-btn danger" type="submit">Delete learner</button>
+          </form>
+        </div>
+      </details>
+    </div>
+  {% endfor %}
+
+  <div class="p-card">
+    <div class="p-card-head"><h2>Add another learner</h2></div>
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="p-inline">
+        <div class="p-field">
+          <label for="new-name">Name</label>
+          <input type="text" id="new-name" name="name" maxlength="60" required placeholder="e.g. Emma">
+        </div>
+        <div class="p-field">
+          <label for="new-year">Year group they are entering</label>
+          <select id="new-year" name="year_group">
+            {% for year in range(1, 7) %}
+              <option value="{{ year }}" {{ 'selected' if year == 3 }}>Year {{ year }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="p-field">
+          <label for="new-emoji">Character</label>
+          <select id="new-emoji" name="avatar_emoji">
+            {% for emoji in emojis %}<option value="{{ emoji }}">{{ emoji }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="p-field">
+          <label for="new-colour">Colour</label>
+          <select id="new-colour" name="avatar_colour">
+            {% for key, label in colours %}<option value="{{ key }}">{{ label }}</option>{% endfor %}
+          </select>
+        </div>
+        <div class="p-field">
+          <button class="p-btn" type="submit">Add learner</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endblock %}

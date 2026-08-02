@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}My profile{% endblock %}
+
+{% block content %}
+<div class="stack-lg">
+  <section class="card center">
+    <div class="avatar xl {{ child.avatar_colour }}" style="margin:0 auto" aria-hidden="true">
+      {{ child.avatar_emoji }}
+      {% if hat %}<span class="hat">{{ hat }}</span>{% endif %}
+    </div>
+    <h1 style="margin-top:12px">{{ child.name }}</h1>
+    <p class="muted" style="margin:0">
+      Level {{ child.level }} · {{ child.xp }} XP
+      {% if pet %} · {{ pet }}{% endif %}
+      {% if scene %} · {{ scene }}{% endif %}
+    </p>
+    <div class="xp" style="max-width:280px;margin:12px auto 6px" aria-hidden="true">
+      <span style="width: {{ child.level_progress_pct }}%"></span>
+    </div>
+    <p class="muted tiny">{{ child.xp_to_next_level }} XP to level {{ child.level + 1 }}</p>
+
+    <div class="score-grid" style="grid-template-columns:repeat(4,1fr)">
+      <div><b>{{ flame }} {{ child.streak_days }}</b><span>day streak</span></div>
+      <div><b>{{ totals.quests }}</b><span>quests</span></div>
+      <div><b>{{ totals.accuracy }}%</b><span>right</span></div>
+      <div><b>{{ totals.stars }}</b><span>stars</span></div>
+    </div>
+    <p class="muted tiny">Best streak: {{ child.best_streak }} days</p>
+  </section>
+
+  <form method="post" class="card stack">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <h2 style="margin:0">Change my look</h2>
+
+    <div class="field">
+      <label>Character</label>
+      <div class="picker">
+        {% for emoji in emojis %}
+          <input type="radio" id="em-{{ loop.index }}" name="avatar_emoji" value="{{ emoji }}"
+                 {{ 'checked' if emoji == child.avatar_emoji }}>
+          <label for="em-{{ loop.index }}">{{ emoji }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Colour</label>
+      <div class="picker colours">
+        {% for key, label in colours %}
+          <input type="radio" id="col-{{ key }}" name="avatar_colour" value="{{ key }}"
+                 {{ 'checked' if key == child.avatar_colour }}>
+          <label for="col-{{ key }}" class="avatar {{ key }}" style="width:auto;min-width:84px;height:52px">
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <button class="btn block leaf" type="submit">Save</button>
+  </form>
+
+  <div class="center">
+    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">👨‍👩‍👧 Parents</a>
+    {% if child_count > 1 %}
+      <form method="post" action="{{ url_for('kid.switch') }}" style="display:inline">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="parent-link" type="submit" style="border:none;cursor:pointer">🔄 Switch learner</button>
+      </form>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

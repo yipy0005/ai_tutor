@@ -1,0 +1,88 @@
+{% extends "parent/_base.html" %}
+{% block title %}{{ quest.title }} review{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <p class="p-tiny" style="margin:0">
+      <a href="{{ url_for('parent.activity') }}">← Activity history</a>
+    </p>
+    <h1 style="margin-bottom:2px">{{ quest.title }}</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      {{ quest.finished_at | longdate if quest.finished_at else 'Not finished' }}
+      {% if quest.finished_at %}at {{ quest.finished_at | clocktime }}{% endif %}
+      · {{ quest.mode }} quest
+    </p>
+  </div>
+
+  <div class="p-grid four">
+    <div class="p-stat accent">
+      <div class="label">Score</div>
+      <div class="value">{{ quest.correct_count }}/{{ quest.answered_count }}</div>
+      <div class="sub">{{ quest.accuracy_pct }}% correct</div>
+    </div>
+    <div class="p-stat">
+      <div class="label">Stars</div>
+      <div class="value">{{ '⭐' * quest.stars }}{{ '☆' * (3 - quest.stars) }}</div>
+      <div class="sub">{{ quest.xp_earned }} bonus XP</div>
+    </div>
+    <div class="p-stat">
+      <div class="label">Time</div>
+      <div class="value">{{ quest.minutes }}<span style="font-size:0.9rem"> min</span></div>
+      <div class="sub">
+        {{ (quest.seconds / quest.answered_count) | round(0) | int if quest.answered_count else 0 }}s per question
+      </div>
+    </div>
+    <div class="p-stat">
+      <div class="label">Clues used</div>
+      <div class="value">{{ rows | selectattr('used_hint') | list | length }}</div>
+      <div class="sub">of {{ rows | length }} questions</div>
+    </div>
+  </div>
+
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">Every question, exactly as it was asked</h2>
+    </div>
+    {% for row in rows %}
+      <div class="p-review {{ 'right' if row.correct else ('wrong' if row.correct is false else '') }}">
+        <div style="display:flex;gap:10px;align-items:baseline">
+          <span class="p-faint p-mono">{{ row.position }}.</span>
+          <div style="flex:1 1 auto;min-width:0">
+            <div class="q">{{ row.prompt }}</div>
+            {% if row.prompt_sub %}
+              <div class="p-faint p-tiny">{{ row.prompt_sub }}</div>
+            {% endif %}
+            {% if row.choices %}
+              <div class="p-faint p-tiny" style="margin-top:3px">
+                Options: {{ row.choices | join(' · ') }}
+              </div>
+            {% endif %}
+            <div class="a">
+              {% if row.correct is none %}
+                <span class="p-tag new">not answered</span>
+              {% elif row.correct %}
+                ✅ Answered <b>{{ row.given }}</b>
+                {% if row.tries > 1 %}<span class="p-tag warn">on try {{ row.tries }}</span>{% endif %}
+              {% else %}
+                ❌ Answered <b>{{ row.given or '—' }}</b> · correct answer <b>{{ row.answer }}</b>
+              {% endif %}
+            </div>
+            {% if row.explain %}<div class="why">{{ row.explain }}</div>{% endif %}
+            <div class="p-faint p-tiny" style="margin-top:5px">
+              {% if row.skill %}
+                <span class="p-tag y{{ row.skill.year }}">Y{{ row.skill.year }}</span>
+                <a href="{{ url_for('parent.progress', subject=row.skill.subject) }}">{{ row.skill.name }}</a>
+                · {{ row.skill.nc_ref }} ·
+              {% endif %}
+              {{ row.seconds }}s
+              {% if row.used_hint %} · used a clue{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

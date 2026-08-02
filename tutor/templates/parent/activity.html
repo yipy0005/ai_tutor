@@ -1,0 +1,138 @@
+{% extends "parent/_base.html" %}
+{% block title %}Activity{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">Activity history</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      Everything {{ view_child.name }} has done, day by day and quest by quest.
+    </p>
+  </div>
+
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">Last 12 weeks</h2>
+      <div class="p-heat-key">
+        less <i style="background:#eaeef5"></i><i style="background:#c7e9d0"></i>
+        <i style="background:#86d29b"></i><i style="background:#41a862"></i>
+        <i style="background:#1d7a3f"></i> more
+      </div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <div class="p-heat-labels" aria-hidden="true">
+        {% for label in heat.weekdays %}<span>{{ label }}</span>{% endfor %}
+      </div>
+      <div class="p-heat">
+        {% for week in heat.columns %}
+          <div class="wk">
+            {% for day in week %}
+              <div class="day l{{ day.level }} {{ 'future' if day.future }}"
+                   title="{{ day.label }}: {{ day.minutes }} min, {{ day.questions }} questions"></div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="p-grid two">
+    <div class="p-card">
+      <div class="p-card-head"><h2>Day by day</h2></div>
+      <div class="p-scroll" style="max-height:460px;overflow-y:auto">
+        <table class="p-table">
+          <thead>
+            <tr><th>Date</th><th class="num">Min</th><th class="num">Questions</th>
+                <th class="num">Correct</th><th class="num">Quests</th></tr>
+          </thead>
+          <tbody>
+            {% for day in series if day.questions or day.quests %}
+              <tr>
+                <td>{{ day.label }}</td>
+                <td class="num">{{ day.minutes }}</td>
+                <td class="num">{{ day.questions }}</td>
+                <td class="num">{{ day.correct }} <span class="p-faint">({{ day.accuracy }}%)</span></td>
+                <td class="num">{{ day.quests }}</td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5" class="p-muted p-tiny">No activity in the last 28 days.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Recent mistakes</h2>
+        <span class="p-tag warn">last {{ mistakes | length }}</span>
+      </div>
+      <p class="p-muted p-tiny" style="margin-top:-6px">
+        The quickest way to help: read a couple of these together at the kitchen table.
+      </p>
+      {% if mistakes %}
+        <div style="max-height:430px;overflow-y:auto">
+          {% for item in mistakes %}
+            <div class="p-review wrong">
+              <div class="q">{{ item.prompt }}</div>
+              <div class="a">
+                Answered <b>{{ item.given or '—' }}</b> · correct answer <b>{{ item.answer }}</b>
+              </div>
+              {% if item.explain %}<div class="why">{{ item.explain }}</div>{% endif %}
+              <div class="p-faint p-tiny" style="margin-top:5px">
+                {% if item.skill %}
+                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                  {{ item.skill.name }} ·
+                {% endif %}
+                {{ item.when | ago }}
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="p-muted p-tiny">No mistakes recorded — either a very good week, or no practice yet.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="p-card">
+    <div class="p-card-head"><h2>All quests</h2></div>
+    {% if recent %}
+      <div class="p-scroll">
+        <table class="p-table">
+          <thead>
+            <tr>
+              <th>Finished</th><th>Quest</th><th>Type</th><th>Stars</th>
+              <th class="num">Score</th><th class="num">Time</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for quest in recent %}
+              <tr>
+                <td class="p-tiny">
+                  {{ quest.finished_at | shortdate }}
+                  <span class="p-faint">{{ quest.finished_at | clocktime }}</span>
+                </td>
+                <td><b>{{ quest.title }}</b></td>
+                <td><span class="p-tag">{{ quest.mode }}</span></td>
+                <td>{{ '⭐' * quest.stars }}{{ '☆' * (3 - quest.stars) }}</td>
+                <td class="num">{{ quest.correct_count }}/{{ quest.answered_count }}
+                  <span class="p-faint">({{ quest.accuracy_pct }}%)</span></td>
+                <td class="num">{{ quest.minutes }} min</td>
+                <td class="num">
+                  <a class="p-btn ghost small" href="{{ url_for('parent.quest_detail', quest_id=quest.id) }}">
+                    Review
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="p-muted p-tiny">No completed quests yet.</p>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

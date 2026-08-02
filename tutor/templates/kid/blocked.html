@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}All done for now{% endblock %}
+
+{% block content %}
+<div class="stack-lg center" style="max-width:520px;margin:0 auto">
+  <div style="font-size:4rem" aria-hidden="true">🌙</div>
+  <h1>All done for now</h1>
+  <div class="note warm">{{ reason }}</div>
+
+  <section class="card">
+    <h3>What you did today</h3>
+    <div class="score-grid">
+      <div><b>{{ state.used_minutes }}</b><span>minutes</span></div>
+      <div><b>{{ state.questions_today }}</b><span>questions</span></div>
+      <div><b>{{ state.quests_today }}</b><span>quests</span></div>
+    </div>
+  </section>
+
+  <div class="stack">
+    <a class="btn block ghost" href="{{ url_for('kid.badges') }}">🏅 Look at my badges</a>
+    <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+  </div>
+</div>
+{% endblock %}

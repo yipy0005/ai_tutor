@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Parent area{% endblock %} · Learning Quest</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>📊</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/parent.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="parent">
+
+{% if parent_unlocked %}
+<header class="p-top">
+  <div class="p-top-inner">
+    <a class="p-brand" href="{{ url_for('parent.dashboard') }}">📊 Learning Quest</a>
+
+    <nav class="p-nav" aria-label="Parent area">
+      <a href="{{ url_for('parent.dashboard') }}" class="{{ 'on' if request.endpoint == 'parent.dashboard' }}">Overview</a>
+      <a href="{{ url_for('parent.progress') }}" class="{{ 'on' if request.endpoint == 'parent.progress' }}">Progress</a>
+      <a href="{{ url_for('parent.activity') }}" class="{{ 'on' if request.endpoint in ('parent.activity', 'parent.quest_detail') }}">Activity</a>
+      <a href="{{ url_for('parent.settings_page') }}" class="{{ 'on' if request.endpoint == 'parent.settings_page' }}">Settings</a>
+      <a href="{{ url_for('parent.children_page') }}" class="{{ 'on' if request.endpoint == 'parent.children_page' }}">Learners</a>
+      <a href="{{ url_for('parent.curriculum') }}" class="{{ 'on' if request.endpoint == 'parent.curriculum' }}">Curriculum</a>
+    </nav>
+
+    <div class="p-grow"></div>
+
+    <div class="p-who">
+      {% if children and children | length > 1 %}
+        {% for candidate in children %}
+          <form method="post" action="{{ url_for('parent.view_child', child_id=candidate.id) }}">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <button class="p-btn {{ '' if view_child and candidate.id == view_child.id else 'ghost' }} small" type="submit">
+              {{ candidate.avatar_emoji }} {{ candidate.name }}
+            </button>
+          </form>
+        {% endfor %}
+      {% elif view_child %}
+        <span class="p-avatar {{ view_child.avatar_colour }}">{{ view_child.avatar_emoji }}</span>
+        <b>{{ view_child.name }}</b>
+      {% endif %}
+      <a class="p-btn ghost small" href="{{ url_for('kid.index') }}">← Learner app</a>
+      <form method="post" action="{{ url_for('parent.logout') }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button class="p-btn ghost small" type="submit">Lock 🔒</button>
+      </form>
+    </div>
+  </div>
+</header>
+{% endif %}
+
+<main class="p-wrap" style="padding-top:20px">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="p-flash">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+
+{% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% block title %}My badges{% endblock %}
+
+{% block content %}
+<div class="stack-lg">
+  <div class="card center">
+    <h1 style="margin:0">🏅 My badges</h1>
+    <p class="muted" style="margin:6px 0 10px">{{ earned }} of {{ total }} collected</p>
+    <div class="meter sunshine" aria-hidden="true">
+      <span style="width: {{ (earned / total * 100) | round(0, 'floor') | int }}%"></span>
+    </div>
+  </div>
+
+  {% for group_key, label in group_names.items() %}
+    {% if groups.get(group_key) %}
+      <section aria-labelledby="bg-{{ group_key }}">
+        <h2 id="bg-{{ group_key }}" style="font-size:1.1rem">{{ label }}</h2>
+        <div class="badge-grid">
+          {% for entry in groups[group_key] %}
+            <div class="badge-tile {{ 'got' if entry.award else 'locked' }}">
+              <div class="em" aria-hidden="true">{{ entry.badge.emoji if entry.award else '🔒' }}</div>
+              <b>{{ entry.badge.name }}</b>
+              <small>{{ entry.badge.description }}</small>
+              {% if entry.award %}
+                <small style="display:block;margin-top:4px;color:var(--leaf-dark)">
+                  ✔ {{ entry.award.earned_at | shortdate }}
+                </small>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+</div>
+{% endblock %}

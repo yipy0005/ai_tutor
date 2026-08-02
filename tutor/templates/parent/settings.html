@@ -1,0 +1,398 @@
+{% extends "parent/_base.html" %}
+{% block title %}Settings{% endblock %}
+
+{% block content %}
+{% set s = view_child.settings %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">Settings for {{ view_child.name }}</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      Every setting applies to this learner only and takes effect on the next quest.
+    </p>
+  </div>
+
+  <div class="p-card">
+    <div class="p-card-head"><h3>Currently</h3></div>
+    <div class="p-grid three">
+      {% for label, value in summary %}
+        <div>
+          <div class="p-faint p-tiny" style="text-transform:uppercase;letter-spacing:0.05em;font-weight:700">
+            {{ label }}
+          </div>
+          <div style="font-weight:650">{{ value }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <form method="post" class="p-stack">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <!-- ============ Session shape ============ -->
+    <fieldset class="p-set">
+      <legend>⏱️ Session length and limits</legend>
+      <p class="p-muted p-tiny" style="margin-top:0">
+        The single most useful lever for a seven-year-old. Short and daily beats long and
+        occasional: 6–8 questions is about three minutes, which most children will finish
+        without being asked twice.
+      </p>
+
+      <div class="p-inline">
+        <div class="p-field">
+          <label for="quest_length">Questions per quest</label>
+          <div class="p-slider">
+            <input type="range" id="quest_length" name="quest_length" min="4" max="15"
+                   value="{{ s.quest_length }}"
+                   oninput="this.nextElementSibling.value = this.value">
+            <output>{{ s.quest_length }}</output>
+          </div>
+          <div class="help">4 is a warm-up, 8 is the sweet spot, 15 is a proper session.</div>
+        </div>
+
+        <div class="p-field">
+          <label for="daily_limit_minutes">Daily time limit (minutes)</label>
+          <div class="p-slider">
+            <input type="range" id="daily_limit_minutes" name="daily_limit_minutes" min="0" max="120"
+                   step="5" value="{{ s.daily_limit_minutes }}"
+                   oninput="this.nextElementSibling.value = this.value == 0 ? 'off' : this.value">
+            <output>{{ s.daily_limit_minutes if s.daily_limit_minutes else 'off' }}</output>
+          </div>
+          <div class="help">
+            Counts real time on task, not questions. At the limit the app says a kind goodbye
+            rather than cutting off mid-question. Set to 0 for no limit.
+          </div>
+        </div>
+      </div>
+
+      <div class="p-inline">
+        <div class="p-field">
+          <label for="break_after_minutes">Offer a wiggle break after (minutes)</label>
+          <div class="p-slider">
+            <input type="range" id="break_after_minutes" name="break_after_minutes" min="0" max="40"
+                   step="1" value="{{ s.break_after_minutes }}"
+                   oninput="this.nextElementSibling.value = this.value == 0 ? 'off' : this.value">
+            <output>{{ s.break_after_minutes if s.break_after_minutes else 'off' }}</output>
+          </div>
+          <div class="help">A suggestion to stand up and stretch, never a forced stop.</div>
+        </div>
+
+        <div class="p-field">
+          <label for="daily_quest_goal">Daily quest goal</label>
+          <div class="p-slider">
+            <input type="range" id="daily_quest_goal" name="daily_quest_goal" min="0" max="10"
+                   value="{{ s.daily_quest_goal }}"
+                   oninput="this.nextElementSibling.value = this.value == 0 ? 'off' : this.value">
+            <output>{{ s.daily_quest_goal if s.daily_quest_goal else 'off' }}</output>
+          </div>
+          <div class="help">Shown as a progress ring on the home screen.</div>
+        </div>
+
+        <div class="p-field">
+          <label for="weekly_quest_goal">Weekly quest goal</label>
+          <input type="number" id="weekly_quest_goal" name="weekly_quest_goal" min="0" max="100"
+                 value="{{ s.weekly_quest_goal }}">
+          <div class="help">Used for the weekly figure on your Overview page.</div>
+        </div>
+      </div>
+
+      <div class="p-inline">
+        <div class="p-field">
+          <label for="allowed_from_hour">App available from</label>
+          <select id="allowed_from_hour" name="allowed_from_hour">
+            {% for hour in range(24) %}
+              <option value="{{ hour }}" {{ 'selected' if hour == s.allowed_from_hour }}>
+                {{ '%02d:00' | format(hour) }}
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="p-field">
+          <label for="allowed_to_hour">until</label>
+          <select id="allowed_to_hour" name="allowed_to_hour">
+            {% for hour in range(24) %}
+              <option value="{{ hour }}" {{ 'selected' if hour == s.allowed_to_hour }}>
+                {{ '%02d:00' | format(hour) }}
+              </option>
+            {% endfor %}
+          </select>
+          <div class="help">
+            {% if s.allowed_from_hour == s.allowed_to_hour %}
+              <b>Currently available at any time.</b>
+              Set two different hours to restrict it — outside them the app shows a friendly
+              "see you tomorrow" screen instead of any practice.
+            {% else %}
+              Outside these hours the app shows a friendly "see you tomorrow" screen.
+              Set both to the same value to allow any time again.
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- ============ What to practise ============ -->
+    <fieldset class="p-set">
+      <legend>📚 What to practise</legend>
+
+      <div class="p-field">
+        <label>Subjects</label>
+        <div class="p-checks two">
+          {% for key in SUBJECT_ORDER %}
+            <label class="p-check">
+              <input type="checkbox" name="subjects_enabled" value="{{ key }}"
+                     {{ 'checked' if key in (s.subjects_enabled or []) }}>
+              <span>
+                <span class="t">{{ SUBJECTS[key].emoji }} {{ SUBJECTS[key].name }}</span>
+                <span class="d">{{ SUBJECTS[key].blurb }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="p-field">
+        <label>Year groups</label>
+        <div class="p-checks two">
+          {% for year in [1, 2, 3] %}
+            <label class="p-check">
+              <input type="checkbox" name="years_enabled" value="{{ year }}"
+                     {{ 'checked' if year in (s.years_enabled or []) }}>
+              <span>
+                <span class="t">{{ YEAR_LABELS[year] }}</span>
+                <span class="d">{{ YEAR_BLURBS[year] }}</span>
+              </span>
+            </label>
+          {% endfor %}
+        </div>
+      </div>
+
+      <div class="p-field">
+        <label>Balance between revision and getting ahead</label>
+        <p class="help" style="margin:0 0 10px">
+          These are relative weights, not percentages — the app normalises them. A summer
+          before Year 3 works well at roughly 15 / 35 / 50: enough Year 1 and 2 to keep it
+          fresh, with most of the effort on new material.
+        </p>
+        {% for year in [1, 2, 3] %}
+          <div class="p-field" style="margin-bottom:10px">
+            <label for="mix{{ year }}" style="font-weight:600;font-size:0.85rem">
+              <span class="p-tag y{{ year }}">{{ YEAR_LABELS[year] }}</span>
+            </label>
+            <div class="p-slider">
+              <input type="range" id="mix{{ year }}" name="year_mix_{{ year }}" min="0" max="100" step="5"
+                     value="{{ (s.year_mix or {}).get(year | string, 33) }}"
+                     oninput="this.nextElementSibling.value = this.value">
+              <output>{{ (s.year_mix or {}).get(year | string, 33) }}</output>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+
+      <div class="p-field">
+        <label for="difficulty_mode">Difficulty</label>
+        <select id="difficulty_mode" name="difficulty_mode">
+          {% for key, label in modes.items() %}
+            <option value="{{ key }}" {{ 'selected' if key == s.difficulty_mode }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="help">
+          Adaptive uses her own mastery per skill to pick the level of each question.
+          Gentle and Challenge override that everywhere.
+        </div>
+      </div>
+    </fieldset>
+
+    <!-- ============ Focus skills ============ -->
+    <fieldset class="p-set">
+      <legend>⭐ Focus skills</legend>
+      <p class="p-muted p-tiny" style="margin-top:0">
+        Anything ticked here is reserved a place in every quest for that subject, and is
+        weighted more heavily for the remaining questions too. Useful when school has flagged
+        something, or before a new topic starts. Up to a quarter of any quest goes to focus
+        skills, so the rest of the curriculum still gets covered.
+        {% if focus_skills %}
+          Currently <b>{{ focus_skills | length }}</b> selected.
+        {% endif %}
+      </p>
+
+      {% if suggested_focus %}
+        <div class="p-field">
+          <label>Suggested — currently below 70% mastery</label>
+          <div class="p-checks two">
+            {% for skill, progress in suggested_focus %}
+              <label class="p-check">
+                <input type="checkbox" name="focus_skills" value="{{ skill.id }}"
+                       {{ 'checked' if skill.id in focus_skills }}>
+                <span>
+                  <span class="t">{{ SUBJECTS[skill.subject].emoji }} {{ skill.name }}
+                    <span class="p-tag y{{ skill.year }}">Y{{ skill.year }}</span></span>
+                  <span class="d">{{ progress.mastery_pct }}% mastery over {{ progress.attempts }} questions</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+
+      <details class="p-details">
+        <summary>Choose from all {{ all_skills | length }} skills</summary>
+        {% set suggested_ids = suggested_focus | map(attribute='0') | map(attribute='id') | list %}
+        {% for subject_key in SUBJECT_ORDER %}
+          <h3 style="margin-top:14px">{{ SUBJECTS[subject_key].emoji }} {{ SUBJECTS[subject_key].name }}</h3>
+          <div class="p-checks two">
+            {% for skill in all_skills if skill.subject == subject_key and skill.id not in suggested_ids %}
+              <label class="p-check">
+                <input type="checkbox" name="focus_skills" value="{{ skill.id }}"
+                       {{ 'checked' if skill.id in focus_skills }}>
+                <span>
+                  <span class="t">{{ skill.name }}
+                    <span class="p-tag y{{ skill.year }}">Y{{ skill.year }}</span></span>
+                  <span class="d">{{ skill.topic }}</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </details>
+    </fieldset>
+
+    <!-- ============ Help and feedback ============ -->
+    <fieldset class="p-set">
+      <legend>🤝 How much help</legend>
+      <div class="p-checks two">
+        <label class="p-check">
+          <input type="checkbox" name="allow_hints" {{ 'checked' if s.allow_hints }}>
+          <span><span class="t">Offer clues</span>
+            <span class="d">A "give me a clue" button on every question.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="second_chance" {{ 'checked' if s.second_chance }}>
+          <span><span class="t">One second chance</span>
+            <span class="d">A wrong first answer gets a gentle nudge and another try before
+              the answer is shown.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="show_explanations" {{ 'checked' if s.show_explanations }}>
+          <span><span class="t">Show why</span>
+            <span class="d">Explain the answer after each question. Worth keeping on — this is
+              where most of the learning happens.</span></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <!-- ============ Comfort ============ -->
+    <fieldset class="p-set">
+      <legend>♿ Comfort and accessibility</legend>
+      <div class="p-checks two">
+        <label class="p-check">
+          <input type="checkbox" name="sound_enabled" {{ 'checked' if s.sound_enabled }}>
+          <span><span class="t">🔊 Sound effects</span>
+            <span class="d">Soft chimes for right answers, nothing harsh for wrong ones.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="animations_enabled" {{ 'checked' if s.animations_enabled }}>
+          <span><span class="t">✨ Animations</span>
+            <span class="d">Turn off to remove all movement and confetti.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="read_aloud" {{ 'checked' if s.read_aloud }}>
+          <span><span class="t">🗣️ Read-aloud button</span>
+            <span class="d">Reads the question using the device voice. Very helpful for
+              maths word problems.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="read_aloud_auto" {{ 'checked' if s.read_aloud_auto }}>
+          <span><span class="t">Read every question automatically</span>
+            <span class="d">Good for a reluctant reader; switch off once reading is fluent.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="dyslexia_font" {{ 'checked' if s.dyslexia_font }}>
+          <span><span class="t">Dyslexia-friendly font</span>
+            <span class="d">Rounder letterforms with wider letter and word spacing.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="large_text" {{ 'checked' if s.large_text }}>
+          <span><span class="t">Larger text</span>
+            <span class="d">Increases every text size across the learner app.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="high_contrast" {{ 'checked' if s.high_contrast }}>
+          <span><span class="t">High contrast</span>
+            <span class="d">Stronger outlines and darker text.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="show_timer" {{ 'checked' if s.show_timer }}>
+          <span><span class="t">⏱️ Show the timer</span>
+            <span class="d">Off by default. Visible timers make many children anxious and
+              rush, which is the opposite of what you want.</span></span>
+        </label>
+      </div>
+    </fieldset>
+
+    <!-- ============ Motivation ============ -->
+    <fieldset class="p-set">
+      <legend>🎁 Motivation</legend>
+      <div class="p-checks" style="margin-bottom:14px">
+        <label class="p-check">
+          <input type="checkbox" name="shop_enabled" {{ 'checked' if s.shop_enabled }}>
+          <span><span class="t">🛍️ Coin shop</span>
+            <span class="d">Cosmetic hats, pets and backgrounds bought with earned coins.
+              Nothing here affects the learning content.</span></span>
+        </label>
+      </div>
+
+      <div class="p-field">
+        <label for="cheer_note">A note on her home screen</label>
+        <textarea id="cheer_note" name="cheer_note" maxlength="300"
+                  placeholder="e.g. Great work on your times tables yesterday!">{{ s.cheer_note }}</textarea>
+        <div class="help">Shown at the top of the home screen. Leave blank to hide it.</div>
+      </div>
+
+      <div class="p-field">
+        <label for="reward_note">Reward you have agreed together</label>
+        <textarea id="reward_note" name="reward_note" maxlength="300"
+                  placeholder="e.g. Hit your weekly goal and we'll go swimming on Saturday.">{{ s.reward_note }}</textarea>
+        <div class="help">Shown lower down her home screen as a reminder of what she is working towards.</div>
+      </div>
+    </fieldset>
+
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="p-btn" type="submit">Save settings</button>
+      <a class="p-btn ghost" href="{{ url_for('parent.dashboard') }}">Cancel</a>
+    </div>
+  </form>
+
+  <!-- ============ PIN ============ -->
+  <fieldset class="p-set">
+    <legend>🔒 Parent PIN</legend>
+    <form method="post" action="{{ url_for('parent.change_pin') }}">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="p-inline">
+        <div class="p-field">
+          <label for="current_pin">Current PIN</label>
+          <input type="password" id="current_pin" name="current_pin" inputmode="numeric"
+                 autocomplete="current-password" required>
+        </div>
+        <div class="p-field">
+          <label for="new_pin">New PIN</label>
+          <input type="password" id="new_pin" name="new_pin" inputmode="numeric"
+                 pattern="[0-9]{4,8}" autocomplete="new-password" required>
+        </div>
+        <div class="p-field">
+          <label for="confirm_pin">Confirm new PIN</label>
+          <input type="password" id="confirm_pin" name="confirm_pin" inputmode="numeric"
+                 pattern="[0-9]{4,8}" autocomplete="new-password" required>
+        </div>
+        <div class="p-field">
+          <button class="p-btn ghost" type="submit">Change PIN</button>
+        </div>
+      </div>
+      <p class="help" style="margin:0">
+        The PIN guards this area from a curious child. It is stored hashed, and five wrong
+        attempts locks the form for five minutes.
+      </p>
+    </form>
+  </fieldset>
+
+</div>
+{% endblock %}

@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% block title %}{{ quest.title }}{% endblock %}
+{% block body_class %} playing{% endblock %}
+
+{# The player runs in focus mode: no top bar, no bottom nav, one job on screen. #}
+{% block chrome %}{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block main %}
+<div class="play-shell">
+
+  <div class="play-head">
+    <div class="play-head-inner">
+      <button type="button" class="quit" id="quit" aria-label="Stop this quest">✕</button>
+      <div style="min-width:0;flex:1 1 auto">
+        <div style="display:flex;align-items:baseline;gap:8px">
+          <b style="font-size:0.95rem">{{ quest.title }}</b>
+          <span class="muted tiny" id="counter"></span>
+        </div>
+        <div class="dots" id="dots" role="progressbar"
+             aria-label="Quest progress" aria-valuemin="0"
+             aria-valuemax="{{ payload.total }}" aria-valuenow="{{ payload.answered }}"></div>
+      </div>
+      {% if settings.show_timer %}
+        <span class="play-timer" id="timer"></span>
+      {% else %}
+        <span class="play-timer hidden" id="timer"></span>
+      {% endif %}
+      <span class="chip coins" title="Coins">🪙 <b id="hdr-coins">{{ child.coins }}</b></span>
+    </div>
+  </div>
+
+  <div class="play-body">
+    <div id="stage" aria-live="polite">
+      <div class="qcard center">
+        <p class="muted">Getting your questions ready…</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  window.QUEST_DATA = {{ payload | tojson }};
+</script>
+<script src="{{ url_for('static', filename='js/visuals.js') }}"></script>
+<script src="{{ url_for('static', filename='js/play.js') }}"></script>
+{% endblock %}

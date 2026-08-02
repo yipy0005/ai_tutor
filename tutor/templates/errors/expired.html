@@ -1,0 +1,13 @@
+{% extends "base.html" %}
+{% block title %}Please reload{% endblock %}
+{% block content %}
+<div class="center stack" style="max-width:460px;margin:40px auto">
+  <div style="font-size:4rem" aria-hidden="true">🔄</div>
+  <h1>This page went stale</h1>
+  <p class="muted">
+    The page had been open a while, so we could not be sure the form was safe to accept.
+    Reload and have another go.
+  </p>
+  <a class="btn block leaf" href="{{ url_for('kid.index') }}">🏠 Take me home</a>
+</div>
+{% endblock %}

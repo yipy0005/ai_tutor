@@ -1,0 +1,40 @@
+{% extends "parent/_base.html" %}
+{% block title %}Parent access{% endblock %}
+
+{% block content %}
+<div class="p-login">
+  <div class="p-card">
+    <div class="p-center" style="margin-bottom:18px">
+      <div style="font-size:2.6rem">🔒</div>
+      <h1 style="margin-bottom:4px">Parent area</h1>
+      <p class="p-muted p-tiny" style="margin:0">
+        Enter your PIN to see progress and change settings.
+      </p>
+    </div>
+
+    {% if locked %}
+      <div class="p-insight warn">
+        <span class="em">⏳</span>
+        <div>Too many incorrect attempts. Try again in about
+          <b>{{ (locked / 60) | round(0, 'ceil') | int }} minute(s)</b>.</div>
+      </div>
+    {% else %}
+      <form method="post">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <div class="p-field">
+          <label for="pin">PIN</label>
+          <input class="p-pin" type="password" id="pin" name="pin" inputmode="numeric"
+                 pattern="[0-9]*" maxlength="8" autocomplete="current-password"
+                 autofocus required aria-describedby="pin-help">
+          <div class="help" id="pin-help">The default PIN is 1234 until you change it.</div>
+        </div>
+        <button class="p-btn block" type="submit">Unlock</button>
+      </form>
+    {% endif %}
+
+    <p class="p-center p-tiny" style="margin:16px 0 0">
+      <a href="{{ url_for('kid.index') }}">← Back to the learner app</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

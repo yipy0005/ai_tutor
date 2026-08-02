@@ -1,0 +1,112 @@
+{
+  "e1.spell.plurals": [
+    {"kind": "choice", "prompt": "More than one cat is ...", "choices": ["cats", "cates", "catz", "cat's"], "answer": "cats", "hint": "Most words just add -s.", "explain": "cat -> cats. We add -s to make it plural."},
+    {"kind": "choice", "prompt": "More than one box is ...", "choices": ["boxes", "boxs", "boxies", "box's"], "answer": "boxes", "hint": "Words ending in x need -es.", "explain": "box -> boxes. Words ending in s, x, ch, sh or zz add -es."},
+    {"kind": "choice", "prompt": "More than one bus is ...", "choices": ["buses", "buss", "busies", "bus"], "answer": "buses", "hint": "Say it out loud. Can you hear the extra 'iz' sound?", "explain": "bus -> buses. Words ending in s add -es."},
+    {"kind": "choice", "prompt": "More than one brush is ...", "choices": ["brushes", "brushs", "brushies", "brushs'"], "answer": "brushes", "hint": "Words ending in sh need -es.", "explain": "brush -> brushes. Words ending in sh add -es."},
+    {"kind": "choice", "prompt": "More than one dog is ...", "choices": ["dogs", "doges", "dogges", "dog's"], "answer": "dogs", "hint": "You only need one extra letter.", "explain": "dog -> dogs. Just add -s."},
+    {"kind": "choice", "prompt": "More than one church is ...", "choices": ["churches", "churchs", "church", "churchies"], "answer": "churches", "hint": "Words ending in ch need -es.", "explain": "church -> churches. Words ending in ch add -es."},
+    {"kind": "choice", "prompt": "Which sentence is correct?", "choices": ["I can see three foxes.", "I can see three foxs.", "I can see three fox.", "I can see three foxies."], "answer": "I can see three foxes.", "hint": "fox ends in x.", "explain": "fox -> foxes, because it ends in x."},
+    {"kind": "choice", "prompt": "More than one wish is ...", "choices": ["wishes", "wishs", "wishies", "wish"], "answer": "wishes", "hint": "sh at the end means -es.", "explain": "wish -> wishes."},
+    {"kind": "choice", "prompt": "More than one hat is ...", "choices": ["hats", "hates", "hatses", "hat's"], "answer": "hats", "hint": "Just add one letter.", "explain": "hat -> hats."},
+    {"kind": "choice", "prompt": "Which word already means more than one?", "choices": ["shells", "shell", "shelly", "shelling"], "answer": "shells", "hint": "Look for the -s on the end.", "explain": "shells means more than one shell."}
+  ],
+
+  "e1.spell.prefix-un": [
+    {"kind": "choice", "prompt": "What is the opposite of 'happy'?", "choices": ["unhappy", "happyun", "nohappy", "dishappy"], "answer": "unhappy", "hint": "Put un- at the front.", "explain": "un- at the front of a word means 'not'. unhappy means not happy."},
+    {"kind": "choice", "prompt": "What is the opposite of 'kind'?", "choices": ["unkind", "kindun", "nokind", "unkindly"], "answer": "unkind", "hint": "un- means 'not'.", "explain": "unkind means not kind."},
+    {"kind": "choice", "prompt": "The shoelace came ... . Which word fits?", "choices": ["undone", "unhappy", "unkind", "unfair"], "answer": "undone", "hint": "The lace was done up, now it is not.", "explain": "undone means not done up any more."},
+    {"kind": "choice", "prompt": "Which word means 'not fair'?", "choices": ["unfair", "fairly", "fairness", "refair"], "answer": "unfair", "hint": "Add un- to fair.", "explain": "un- + fair = unfair, which means not fair."},
+    {"kind": "choice", "prompt": "Which word means 'not well'?", "choices": ["unwell", "wellun", "unwelling", "welly"], "answer": "unwell", "hint": "un- goes at the front.", "explain": "unwell means not well, or a bit poorly."},
+    {"kind": "choice", "prompt": "What does 'unlock' mean?", "choices": ["to open a lock", "to shut a lock", "a big lock", "a key"], "answer": "to open a lock", "hint": "un- undoes the action.", "explain": "unlock means to undo the locking, so the door opens."},
+    {"kind": "choice", "prompt": "Which word means 'not tidy'?", "choices": ["untidy", "tidyun", "tidier", "retidy"], "answer": "untidy", "hint": "Add un- to tidy.", "explain": "untidy means not tidy — a messy room!"},
+    {"kind": "choice", "prompt": "Which sentence uses un- correctly?", "choices": ["The gate was unlocked.", "The gate was lockun.", "The gate was unlockly.", "The gate was ununlock."], "answer": "The gate was unlocked.", "hint": "un- always goes at the front of the word.", "explain": "un- is a prefix, so it goes at the start: unlocked."}
+  ],
+
+  "e1.spell.suffix-ing-ed": [
+    {"kind": "choice", "prompt": "Yesterday I ... in the park. (jump)", "choices": ["jumped", "jumping", "jumps", "jumpd"], "answer": "jumped", "hint": "Yesterday means the past. Add -ed.", "explain": "jump + ed = jumped. We use -ed for something that already happened."},
+    {"kind": "choice", "prompt": "Right now I am ... a picture. (paint)", "choices": ["painting", "painted", "paints", "paintin"], "answer": "painting", "hint": "'am ...' needs -ing.", "explain": "paint + ing = painting. We use -ing for something happening now."},
+    {"kind": "choice", "prompt": "Add -ing to 'help'.", "choices": ["helping", "helpping", "helpeing", "helpng"], "answer": "helping", "hint": "Just add the letters. Nothing changes.", "explain": "help + ing = helping."},
+    {"kind": "choice", "prompt": "Add -ed to 'play'.", "choices": ["played", "plaied", "playd", "playeed"], "answer": "played", "hint": "Just add -ed to the end.", "explain": "play + ed = played."},
+    {"kind": "choice", "prompt": "Last night we ... to stay up late. (want)", "choices": ["wanted", "wanting", "wants", "wantd"], "answer": "wanted", "hint": "Last night is in the past, so add -ed.", "explain": "want + ed = wanted."},
+    {"kind": "choice", "prompt": "Add -ing to 'look'.", "choices": ["looking", "lookking", "lookeing", "lookng"], "answer": "looking", "hint": "Add three letters: i, n, g.", "explain": "look + ing = looking."},
+    {"kind": "choice", "prompt": "The dog is ... at the postman. (bark)", "choices": ["barking", "barked", "barks", "barkin"], "answer": "barking", "hint": "'is ...' needs -ing.", "explain": "bark + ing = barking, because it is happening now."},
+    {"kind": "choice", "prompt": "Which word is in the past?", "choices": ["walked", "walking", "walk", "walks"], "answer": "walked", "hint": "Look for -ed.", "explain": "walked has -ed on the end, so it already happened."},
+    {"kind": "choice", "prompt": "Add -ed to 'wash'.", "choices": ["washed", "washd", "wasded", "washeed"], "answer": "washed", "hint": "Add -ed straight onto the end.", "explain": "wash + ed = washed."},
+    {"kind": "choice", "prompt": "We are ... to school. (walk)", "choices": ["walking", "walked", "walk", "walkes"], "answer": "walking", "hint": "'are ...' needs -ing.", "explain": "walk + ing = walking."}
+  ],
+
+  "e1.spell.suffix-er-est": [
+    {"kind": "choice", "prompt": "This tree is tall. That tree is even ... .", "choices": ["taller", "tallest", "talling", "talled"], "answer": "taller", "hint": "Comparing just two things uses -er.", "explain": "When we compare two things we add -er: taller."},
+    {"kind": "choice", "prompt": "Out of all the trees, this one is the ... .", "choices": ["tallest", "taller", "tall", "talling"], "answer": "tallest", "hint": "The very top one out of many uses -est.", "explain": "For the very most out of all of them we add -est: tallest."},
+    {"kind": "choice", "prompt": "Add -er to 'quick'.", "choices": ["quicker", "quickest", "quicker'", "quickker"], "answer": "quicker", "hint": "Add two letters: e, r.", "explain": "quick + er = quicker."},
+    {"kind": "choice", "prompt": "Which word means 'the most small'?", "choices": ["smallest", "smaller", "small", "smalling"], "answer": "smallest", "hint": "-est means the most.", "explain": "smallest means the very smallest of them all."},
+    {"kind": "choice", "prompt": "A mouse is ... than an elephant.", "choices": ["smaller", "smallest", "small", "smalling"], "answer": "smaller", "hint": "Two things are being compared.", "explain": "We compare two things with -er: smaller."},
+    {"kind": "choice", "prompt": "Add -est to 'long'.", "choices": ["longest", "longer", "longist", "longgest"], "answer": "longest", "hint": "Add three letters: e, s, t.", "explain": "long + est = longest."},
+    {"kind": "choice", "prompt": "Which sentence is correct?", "choices": ["My bag is heavier than yours.", "My bag is heaviest than yours.", "My bag is heavy than yours.", "My bag is heavyer than yours."], "answer": "My bag is heavier than yours.", "hint": "The word 'than' tells you two things are compared.", "explain": "Comparing two things uses -er, and heavy changes its y to i: heavier."},
+    {"kind": "choice", "prompt": "Add -er to 'soft'.", "choices": ["softer", "softest", "softter", "softier"], "answer": "softer", "hint": "Nothing changes at the end of soft.", "explain": "soft + er = softer."}
+  ],
+
+  "e1.spell.tricky-words": [
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["said", "sed", "sead", "sayd"], "answer": "said", "hint": "It does not sound the way it looks.", "explain": "said is a tricky word. It sounds like 'sed' but is spelt s-a-i-d."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["because", "becos", "becuase", "becuse"], "answer": "because", "hint": "Big Elephants Can Always Understand Small Elephants.", "explain": "because is spelt b-e-c-a-u-s-e."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["friend", "frend", "freind", "frienf"], "answer": "friend", "hint": "There is a hidden 'i' after the r.", "explain": "friend has 'i' before 'e': f-r-i-e-n-d. A friend is there to the end."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["people", "peple", "peeple", "poeple"], "answer": "people", "hint": "It has 'eo' in the middle.", "explain": "people is spelt p-e-o-p-l-e."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["there", "thare", "theyr", "ther"], "answer": "there", "hint": "This one means a place: over there.", "explain": "there is spelt t-h-e-r-e. It contains the word 'here'."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["was", "wos", "wuz", "waz"], "answer": "was", "hint": "It sounds like 'woz' but is not spelt that way.", "explain": "was is spelt w-a-s."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["one", "wun", "won", "onne"], "answer": "one", "hint": "The number after zero.", "explain": "The number 1 is spelt o-n-e."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["school", "skool", "shool", "scool"], "answer": "school", "hint": "It has a silent h after the c.", "explain": "school is spelt s-c-h-o-o-l."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["they", "thay", "thei", "dey"], "answer": "they", "hint": "It ends in 'ey'.", "explain": "they is spelt t-h-e-y."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["once", "wunce", "onse", "wonce"], "answer": "once", "hint": "It starts like the number one.", "explain": "once is spelt o-n-c-e."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["house", "hous", "howse", "hause"], "answer": "house", "hint": "It has 'ou' in the middle.", "explain": "house is spelt h-o-u-s-e."},
+    {"kind": "choice", "prompt": "Which spelling is correct?", "choices": ["come", "cum", "coam", "kome"], "answer": "come", "hint": "It rhymes with 'some'.", "explain": "come is spelt c-o-m-e."}
+  ],
+
+  "e1.phon.digraphs": [
+    {"kind": "choice", "prompt": "Which two letters make the sound at the start of 'ship'?", "choices": ["sh", "ch", "th", "ph"], "answer": "sh", "hint": "Say the word slowly: sh-i-p.", "explain": "'sh' makes one sound, like asking someone to be quiet."},
+    {"kind": "choice", "prompt": "Which word starts with the 'ch' sound?", "choices": ["chair", "share", "there", "phone"], "answer": "chair", "hint": "Listen for the sound a train makes: ch-ch-ch.", "explain": "chair begins with the 'ch' digraph."},
+    {"kind": "choice", "prompt": "Which two letters make the sound at the end of 'bath'?", "choices": ["th", "sh", "ch", "ph"], "answer": "th", "hint": "Poke your tongue out a little to say it.", "explain": "'th' makes one sound at the end of bath."},
+    {"kind": "choice", "prompt": "Which word has the 'ng' sound at the end?", "choices": ["ring", "rink", "rim", "rid"], "answer": "ring", "hint": "Say each word and listen to the very end.", "explain": "ring ends with the 'ng' digraph."},
+    {"kind": "choice", "prompt": "How do you spell the word for a thing you talk into?", "choices": ["phone", "fone", "foan", "phown"], "answer": "phone", "hint": "The 'f' sound is made by 'ph' here.", "explain": "phone uses 'ph' to make the 'f' sound."},
+    {"kind": "choice", "prompt": "Which word has the 'ai' sound?", "choices": ["rain", "run", "ran", "ring"], "answer": "rain", "hint": "Listen for the long 'ay' sound.", "explain": "rain has the 'ai' digraph making an 'ay' sound."},
+    {"kind": "choice", "prompt": "Which word has the 'oo' sound as in 'moon'?", "choices": ["spoon", "spin", "span", "spun"], "answer": "spoon", "hint": "Long 'oo' like a hooting owl.", "explain": "spoon has the 'oo' digraph."},
+    {"kind": "choice", "prompt": "Which word has the 'ee' sound?", "choices": ["tree", "trip", "trap", "true"], "answer": "tree", "hint": "Listen for a long 'eee'.", "explain": "tree has the 'ee' digraph."},
+    {"kind": "choice", "prompt": "Which three letters make the sound in the middle of 'night'?", "choices": ["igh", "ing", "ight", "ihg"], "answer": "igh", "hint": "It is a trigraph — three letters, one sound.", "explain": "'igh' makes the long 'i' sound in night."},
+    {"kind": "choice", "prompt": "Which word starts with a 'wh' sound?", "choices": ["wheel", "well", "will", "wall"], "answer": "wheel", "hint": "Look for the silent h.", "explain": "wheel starts with the 'wh' digraph."}
+  ],
+
+  "e1.punct.capitals-stops": [
+    {"kind": "choice", "prompt": "Which sentence is punctuated correctly?", "choices": ["The cat sat on the mat.", "the cat sat on the mat.", "The cat sat on the mat", "the cat sat on the mat"], "answer": "The cat sat on the mat.", "hint": "Sentences start with a capital and end with a full stop.", "explain": "A sentence needs a capital letter at the start and a full stop at the end."},
+    {"kind": "choice", "prompt": "Which word needs a capital letter?", "choices": ["london", "city", "river", "street"], "answer": "london", "hint": "Names of places always get a capital.", "explain": "London is the name of a place, so it needs a capital L."},
+    {"kind": "choice", "prompt": "Which sentence is punctuated correctly?", "choices": ["My name is Sam.", "my name is sam.", "My name is sam", "my name is Sam"], "answer": "My name is Sam.", "hint": "Names need capital letters too.", "explain": "The sentence starts with a capital M, Sam gets a capital S, and it ends with a full stop."},
+    {"kind": "choice", "prompt": "Which letter should always be a capital when it means 'me'?", "choices": ["I", "i", "a", "e"], "answer": "I", "hint": "It is just one letter long.", "explain": "The word I is always a capital letter."},
+    {"kind": "choice", "prompt": "How many full stops does this need? 'I have a dog I have a cat'", "choices": ["2", "1", "0", "3"], "answer": "2", "hint": "Count how many separate ideas there are.", "explain": "There are two sentences, so two full stops: I have a dog. I have a cat."},
+    {"kind": "choice", "prompt": "Which word needs a capital letter?", "choices": ["monday", "today", "week", "morning"], "answer": "monday", "hint": "Days of the week are names.", "explain": "Monday is the name of a day, so it needs a capital M."},
+    {"kind": "choice", "prompt": "Which sentence is punctuated correctly?", "choices": ["We went to the park.", "we went to the park", "We went to the park", "we Went to the Park."], "answer": "We went to the park.", "hint": "Only the first word and names need capitals.", "explain": "Capital W at the start, full stop at the end, and no other capitals needed."},
+    {"kind": "choice", "prompt": "What goes at the end of a telling sentence?", "choices": ["a full stop", "a question mark", "a comma", "nothing"], "answer": "a full stop", "hint": "It is a small dot.", "explain": "A telling sentence (a statement) ends with a full stop."},
+    {"kind": "choice", "prompt": "Which word needs a capital letter?", "choices": ["england", "country", "map", "flag"], "answer": "england", "hint": "It is the name of a country.", "explain": "England is a name, so it needs a capital E."},
+    {"kind": "choice", "prompt": "Which is correct?", "choices": ["I like apples.", "i like apples.", "I like Apples", "i Like apples."], "answer": "I like apples.", "hint": "The word I is always a capital.", "explain": "I is always a capital, and the sentence ends with a full stop."}
+  ],
+
+  "e1.punct.question-exclaim": [
+    {"kind": "choice", "prompt": "What punctuation ends this sentence? 'What is your name'", "choices": ["?", ".", "!", ","], "answer": "?", "hint": "It is asking something.", "explain": "A sentence that asks something ends with a question mark."},
+    {"kind": "choice", "prompt": "What punctuation ends this sentence? 'Look out'", "choices": ["!", ".", "?", ","], "answer": "!", "hint": "It is a shout or a surprise.", "explain": "An exclamation mark shows strong feeling, like a shout."},
+    {"kind": "choice", "prompt": "Which sentence is a question?", "choices": ["Where is my bag?", "My bag is here.", "I found my bag!", "Here is my bag."], "answer": "Where is my bag?", "hint": "Questions often start with words like where, what or who.", "explain": "Where is my bag? asks something, so it is a question."},
+    {"kind": "choice", "prompt": "What punctuation ends this sentence? 'How old are you'", "choices": ["?", "!", ".", ";"], "answer": "?", "hint": "Somebody wants an answer.", "explain": "It is asking something, so it needs a question mark."},
+    {"kind": "choice", "prompt": "Which sentence needs an exclamation mark?", "choices": ["That is amazing", "The sky is blue", "I have a pen", "It is Tuesday"], "answer": "That is amazing", "hint": "Which one has the most feeling?", "explain": "That is amazing! shows strong feeling."},
+    {"kind": "choice", "prompt": "Which word often starts a question?", "choices": ["Why", "Very", "Slowly", "Because"], "answer": "Why", "hint": "Think of the question words: who, what, where, when, why, how.", "explain": "Why is a question word."},
+    {"kind": "choice", "prompt": "What punctuation ends this sentence? 'I love ice cream'", "choices": ["!", "?", ",", "-"], "answer": "!", "hint": "It shows a big happy feeling.", "explain": "An exclamation mark shows strong feeling: I love ice cream!"},
+    {"kind": "choice", "prompt": "Which is correct?", "choices": ["Can I have a turn?", "Can I have a turn.", "can I have a turn?", "Can I have a turn"], "answer": "Can I have a turn?", "hint": "Check the capital letter and the ending.", "explain": "It starts with a capital C and, because it asks something, ends with a question mark."}
+  ],
+
+  "e1.gram.joining": [
+    {"kind": "choice", "prompt": "Join the sentences: 'I had toast' + 'I had juice'.", "choices": ["I had toast and juice.", "I had toast juice.", "I had toast but juice.", "I had toast. And juice"], "answer": "I had toast and juice.", "hint": "'and' joins two things together.", "explain": "We use 'and' to join two ideas that go together."},
+    {"kind": "choice", "prompt": "Which word joins these? 'I ran fast ___ I still lost.'", "choices": ["but", "and", "so", "or"], "answer": "but", "hint": "The second part is a surprise.", "explain": "'but' joins two ideas that do not quite match."},
+    {"kind": "choice", "prompt": "Which word fits? 'Would you like milk ___ water?'", "choices": ["or", "and", "but", "so"], "answer": "or", "hint": "There is a choice between two things.", "explain": "'or' is used when there is a choice."},
+    {"kind": "choice", "prompt": "Which sentence uses 'and' correctly?", "choices": ["I like cats and dogs.", "And I like cats dogs.", "I like and cats dogs.", "I like cats dogs and."], "answer": "I like cats and dogs.", "hint": "'and' goes between the two things.", "explain": "'and' sits between the two things being joined."},
+    {"kind": "choice", "prompt": "Which word fits? 'It was raining ___ we stayed inside.'", "choices": ["so", "or", "but", "and then or"], "answer": "so", "hint": "One thing caused the other.", "explain": "'so' shows the result of something."},
+    {"kind": "choice", "prompt": "Join these with 'and': 'The dog barked' + 'the cat ran'.", "choices": ["The dog barked and the cat ran.", "The dog and barked the cat ran.", "And the dog barked the cat ran.", "The dog barked the cat and ran."], "answer": "The dog barked and the cat ran.", "hint": "Put 'and' in the middle, between the two parts.", "explain": "'and' joins the two parts of the sentence in the middle."},
+    {"kind": "choice", "prompt": "Which word joins these? 'I wanted to play ___ it was bedtime.'", "choices": ["but", "and", "or", "so and"], "answer": "but", "hint": "The two parts disagree with each other.", "explain": "'but' shows that the second part is unexpected."},
+    {"kind": "choice", "prompt": "Which sentence has TWO ideas joined together?", "choices": ["I ate my lunch and played outside.", "I ate my lunch.", "My lunch was tasty.", "Lunch time."], "answer": "I ate my lunch and played outside.", "hint": "Look for a joining word.", "explain": "This sentence joins 'I ate my lunch' and 'played outside' with 'and'."}
+  ]
+}

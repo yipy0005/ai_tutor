@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% block title %}Welcome{% endblock %}
+{% block chrome %}{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div class="stack-lg" style="max-width:620px;margin:0 auto">
+  <div class="center">
+    <div style="font-size:4rem" aria-hidden="true">🚀</div>
+    <h1>Let's set up your Learning Quest</h1>
+    <p class="muted">Revise Year 1 and 2, and get a head start on Year 3.</p>
+  </div>
+
+  <form method="post" class="card stack">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+
+    <div class="field">
+      <label for="name">What is the learner's name?</label>
+      <input type="text" id="name" name="name" required maxlength="60" autocomplete="off"
+             placeholder="e.g. Amelia">
+    </div>
+
+    <div class="field">
+      <label for="year_group">Which year are they going into?</label>
+      <select id="year_group" name="year_group">
+        <option value="2">Year 2</option>
+        <option value="3" selected>Year 3</option>
+        <option value="4">Year 4</option>
+      </select>
+      <div class="muted tiny" style="margin-top:6px">
+        This just sets the starting balance between revision and new work. You can change it later.
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Pick a character</label>
+      <div class="picker">
+        {% for emoji in emojis %}
+          <input type="radio" id="em-{{ loop.index }}" name="avatar_emoji" value="{{ emoji }}"
+                 {{ 'checked' if loop.first }}>
+          <label for="em-{{ loop.index }}">{{ emoji }}</label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Pick a colour</label>
+      <div class="picker colours">
+        {% for key, label in colours %}
+          <input type="radio" id="col-{{ key }}" name="avatar_colour" value="{{ key }}"
+                 {{ 'checked' if loop.first }}>
+          <label for="col-{{ key }}" class="avatar {{ key }}" style="width:auto;min-width:84px;height:52px">
+            {{ label }}
+          </label>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="pin">Parent PIN (4 to 8 digits)</label>
+      <input type="text" id="pin" name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="8"
+             autocomplete="off" placeholder="1234">
+      <div class="muted tiny" style="margin-top:6px">
+        This keeps the settings and progress pages out of little hands.
+        Leave it blank to use <b>1234</b> and change it later.
+      </div>
+    </div>
+
+    <button class="btn big block leaf" type="submit">Start learning 🚀</button>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,389 @@
+{% extends "parent/_base.html" %}
+{% block title %}{{ view_child.name }}'s progress{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">{{ view_child.name }}'s progress</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      Going into Year {{ view_child.year_group }} ·
+      last active {{ view_child.last_active_on | ago if view_child.last_active_on else 'not yet' }} ·
+      {{ overview.badges }} badge{{ '' if overview.badges == 1 else 's' }}
+    </p>
+  </div>
+
+  <!-- ===================== At a glance ===================== -->
+  <div class="p-grid four">
+    <div class="p-stat accent">
+      <div class="label">Today</div>
+      <div class="value">{{ overview.today_minutes }}<span style="font-size:0.9rem"> min</span></div>
+      <div class="sub">
+        {{ overview.today_questions }} questions
+        {%- if allowance.limit_minutes %} · limit {{ allowance.limit_minutes }} min{% endif %}
+      </div>
+    </div>
+    <div class="p-stat">
+      <div class="label">This week</div>
+      <div class="value">{{ overview.week_minutes }}<span style="font-size:0.9rem"> min</span></div>
+      <div class="sub">{{ overview.week_quests }} quests · {{ overview.week_questions }} questions</div>
+    </div>
+    <div class="p-stat">
+      <div class="label">Accuracy this week</div>
+      <div class="value">{{ overview.week_accuracy }}%</div>
+      <div class="sub">All time {{ overview.lifetime.accuracy }}%</div>
+    </div>
+    <div class="p-stat">
+      <div class="label">Day streak</div>
+      <div class="value">{{ flame }} {{ overview.streak }}</div>
+      <div class="sub">Best {{ overview.best_streak }} days</div>
+    </div>
+  </div>
+
+  <!-- ===================== What this tells you ===================== -->
+  <div class="p-card">
+    <div class="p-card-head"><h2>What this tells you</h2></div>
+    <div class="p-stack">
+      {% if overview.lifetime.quests == 0 %}
+        <div class="p-insight">
+          <span class="em">👋</span>
+          <div>No practice recorded yet. Once {{ view_child.name }} finishes a quest or two,
+            this page fills up with mastery, accuracy and time figures.</div>
+        </div>
+      {% else %}
+        {% if overview.week_quests == 0 %}
+          <div class="p-insight warn">
+            <span class="em">📅</span>
+            <div>Nothing this week. A <b>short daily habit beats a long weekly session</b> —
+              even one 5-minute quest keeps the spaced repetition working.</div>
+          </div>
+        {% elif overview.week_goal and overview.week_quests >= overview.week_goal %}
+          <div class="p-insight good">
+            <span class="em">🎉</span>
+            <div>Weekly goal met: <b>{{ overview.week_quests }} of {{ overview.week_goal }}</b> quests.
+              Worth mentioning out loud — it is the habit you are rewarding, not the score.</div>
+          </div>
+        {% elif overview.week_goal %}
+          <div class="p-insight">
+            <span class="em">🎯</span>
+            <div><b>{{ overview.week_quests }} of {{ overview.week_goal }}</b> quests this week
+              ({{ overview.week_goal_pct }}%).
+              {{ overview.week_goal - overview.week_quests }} more to hit the weekly goal.</div>
+          </div>
+        {% endif %}
+
+        {% if overview.skills_struggling %}
+          <div class="p-insight warn">
+            <span class="em">🔍</span>
+            <div><b>{{ overview.skills_struggling }} skill{{ '' if overview.skills_struggling == 1 else 's' }}</b>
+              need real help — see "Worth a look" below. Tick the star on any skill to make it
+              come up more often.</div>
+          </div>
+        {% endif %}
+
+        {% if overview.due_now %}
+          <div class="p-insight">
+            <span class="em">🔁</span>
+            <div><b>{{ overview.due_now }} skill{{ '' if overview.due_now == 1 else 's' }}</b> are
+              due for revision today. The app schedules these automatically using spaced
+              repetition, so they will appear in the next few quests.</div>
+          </div>
+        {% endif %}
+
+        {% if overview.week_accuracy >= 90 and overview.week_questions > 20 %}
+          <div class="p-insight good">
+            <span class="em">📈</span>
+            <div>{{ overview.week_accuracy }}% correct this week — comfortably on top of the
+              material. Consider switching difficulty to <b>Challenge</b> in Settings, or shifting the
+              year balance further towards Year 3.</div>
+          </div>
+        {% elif overview.week_accuracy and overview.week_accuracy < 55 and overview.week_questions > 15 %}
+          <div class="p-insight warn">
+            <span class="em">💛</span>
+            <div>{{ overview.week_accuracy }}% correct this week. That is low enough to feel
+              discouraging. Try <b>Gentle</b> difficulty and a shorter quest length for a week.</div>
+          </div>
+        {% endif %}
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ===================== Curriculum coverage ===================== -->
+  <div class="p-grid two">
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Curriculum coverage</h2>
+        <span class="p-tag">{{ overview.skills_total }} skills total</span>
+      </div>
+      <div class="p-stack">
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.86rem">
+            <b>Tried at least once</b>
+            <span class="p-mono">{{ overview.skills_touched }} / {{ overview.skills_total }}</span>
+          </div>
+          <div class="p-bar tall"><span style="width: {{ overview.coverage_pct }}%"></span></div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:0.86rem">
+            <b>Mastered</b>
+            <span class="p-mono">{{ overview.skills_mastered }} / {{ overview.skills_total }}</span>
+          </div>
+          <div class="p-bar tall good"><span style="width: {{ overview.mastered_pct }}%"></span></div>
+        </div>
+
+        <table class="p-table" style="margin-top:6px">
+          <thead>
+            <tr><th>Year group</th><th class="num">Tried</th><th class="num">Mastered</th><th class="num">Accuracy</th></tr>
+          </thead>
+          <tbody>
+            {% for row in years %}
+              <tr>
+                <td>
+                  <span class="p-tag y{{ row.year }}">{{ row.label }}</span>
+                  <span class="p-faint p-tiny">
+                    {{ 'revision' if row.year < 3 else 'new work' }}
+                  </span>
+                </td>
+                <td class="num">{{ row.touched }}/{{ row.skills }}</td>
+                <td class="num">{{ row.mastered }}</td>
+                <td class="num">{{ row.accuracy }}%</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="p-card">
+      <div class="p-card-head"><h2>By subject</h2></div>
+      <div class="p-stack">
+        {% for subject in subjects %}
+          <div>
+            <div style="display:flex;align-items:baseline;gap:8px;font-size:0.9rem">
+              <span>{{ subject.emoji }}</span>
+              <b class="p-grow">{{ subject.name }}</b>
+              <a class="p-tiny" href="{{ url_for('parent.progress', subject=subject.id) }}">details →</a>
+            </div>
+            <div class="p-bar" style="margin:5px 0 4px">
+              <span style="width: {{ subject.mastered_pct }}%"></span>
+            </div>
+            <div class="p-faint p-tiny">
+              {{ subject.mastered }} mastered · {{ subject.touched }}/{{ subject.skills }} tried ·
+              {{ subject.accuracy }}% accuracy · {{ subject.minutes }} min
+            </div>
+          </div>
+        {% endfor %}
+
+        {% if time_split %}
+          <div style="border-top:1px solid var(--p-line);padding-top:12px;margin-top:4px">
+            <h3 style="margin-bottom:8px">Where the time goes</h3>
+            <div class="p-legend">
+              {% set colours = {'maths': '#e0447a', 'english': '#2481cc', 'science': '#3d9c48', 'mixed': '#7c4dd8'} %}
+              {% for slice in time_split %}
+                <div>
+                  <i style="background: {{ colours.get(slice.id, '#8b93a5') }}"></i>
+                  <span class="p-grow">{{ slice.emoji }} {{ slice.name }}</span>
+                  <b class="p-mono">{{ slice.pct }}%</b>
+                  <span class="p-faint">({{ slice.minutes }} min)</span>
+                </div>
+              {% endfor %}
+            </div>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Charts ===================== -->
+  <div class="p-grid two">
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Minutes practised</h2>
+        <span class="p-tag">last {{ minutes.days }} days</span>
+      </div>
+      <div class="p-bars">
+        {% for bar in minutes.bars %}
+          <div class="col {{ '' if bar.active else 'idle' }}" title="{{ bar.label }}: {{ bar.value }} min">
+            <span class="val">{{ bar.value if bar.value else '' }}</span>
+            <div class="bar" style="height: {{ [bar.pct, 2] | max }}%"></div>
+            <span class="tick">{{ bar.short }}</span>
+          </div>
+        {% endfor %}
+      </div>
+      <p class="p-faint p-tiny" style="margin:10px 0 0">
+        Peak day {{ minutes.peak }} minutes. Grey bars are days with no practice.
+      </p>
+    </div>
+
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Accuracy trend</h2>
+        <span class="p-tag">last 14 days</span>
+      </div>
+      {% if accuracy.has_data %}
+        <svg class="p-line" viewBox="0 0 {{ accuracy.width }} {{ accuracy.height }}"
+             role="img" aria-label="Daily accuracy over the last two weeks">
+          {% for pct in [0, 25, 50, 75, 100] %}
+            {% set y = accuracy.height - accuracy.pad - (accuracy.height - 2 * accuracy.pad) * (pct / 100) %}
+            <line class="grid" x1="{{ accuracy.pad }}" y1="{{ y }}" x2="{{ accuracy.width - accuracy.pad }}" y2="{{ y }}"/>
+            <text class="axis-label" x="2" y="{{ y + 3 }}">{{ pct }}</text>
+          {% endfor %}
+          <polyline class="path" points="{{ accuracy.points }}"/>
+          {% for dot in accuracy.dots %}
+            <circle class="dot" cx="{{ dot.x }}" cy="{{ dot.y }}" r="4">
+              <title>{{ dot.label }}: {{ dot.value }}%</title>
+            </circle>
+          {% endfor %}
+        </svg>
+      {% else %}
+        <p class="p-muted p-tiny">Two or more days of practice are needed before a trend appears.</p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ===================== Consistency ===================== -->
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">Practice habit</h2>
+      <div class="p-heat-key">
+        less <i style="background:#eaeef5"></i><i style="background:#c7e9d0"></i>
+        <i style="background:#86d29b"></i><i style="background:#41a862"></i>
+        <i style="background:#1d7a3f"></i> more
+      </div>
+    </div>
+    <div style="display:flex;gap:4px">
+      <div class="p-heat-labels" aria-hidden="true">
+        {% for label in heat.weekdays %}<span>{{ label }}</span>{% endfor %}
+      </div>
+      <div class="p-heat">
+        {% for week in heat.columns %}
+          <div class="wk">
+            {% for day in week %}
+              <div class="day l{{ day.level }} {{ 'future' if day.future }}"
+                   title="{{ day.label }}: {{ day.minutes }} min, {{ day.questions }} questions"></div>
+            {% endfor %}
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== Attention & wins ===================== -->
+  <div class="p-grid two">
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Worth a look</h2>
+        <span class="p-tag warn">below 60% mastery</span>
+      </div>
+      {% if attention %}
+        <div class="p-skills">
+          {% for item in attention %}
+            <div class="p-skill">
+              <div>
+                <div class="name">
+                  {{ SUBJECTS[item.skill.subject].emoji }} {{ item.skill.name }}
+                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                </div>
+                <div class="nc">{{ item.nc_ref }}</div>
+              </div>
+              <div class="figures">
+                <span>{{ item.accuracy }}% of {{ item.attempts }}</span>
+                <div class="track">
+                  <div class="p-bar {{ 'bad' if item.mastery < 35 else 'warn' }}">
+                    <span style="width: {{ item.mastery }}%"></span>
+                  </div>
+                </div>
+                <form method="post" action="{{ url_for('parent.toggle_focus') }}">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                  <input type="hidden" name="skill_id" value="{{ item.skill.id }}">
+                  <button class="p-btn ghost small" type="submit" title="Practise this more often">
+                    ⭐ Focus
+                  </button>
+                </form>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="p-muted p-tiny">
+          Nothing is causing trouble at the moment. Skills appear here once they have been
+          attempted a few times and mastery is still under 60%.
+        </p>
+      {% endif %}
+    </div>
+
+    <div class="p-card">
+      <div class="p-card-head">
+        <h2 class="p-grow">Nailed it</h2>
+        <span class="p-tag good">85%+ mastery</span>
+      </div>
+      {% if wins %}
+        <div class="p-skills">
+          {% for item in wins %}
+            <div class="p-skill">
+              <div>
+                <div class="name">
+                  {{ SUBJECTS[item.skill.subject].emoji }} {{ item.skill.name }}
+                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                </div>
+                <div class="nc">{{ item.attempts }} questions · last {{ item.last_seen | ago }}</div>
+              </div>
+              <div class="figures">
+                <span class="p-tag good">{{ item.mastery }}%</span>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="p-muted p-tiny">
+          Mastered skills show up here. A skill counts as mastered after several correct
+          answers spread over more than one session.
+        </p>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- ===================== Recent quests ===================== -->
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">Recent quests</h2>
+      <a class="p-tiny" href="{{ url_for('parent.activity') }}">full history →</a>
+    </div>
+    {% if recent %}
+      <div class="p-scroll">
+        <table class="p-table">
+          <thead>
+            <tr>
+              <th>When</th><th>Quest</th><th>Stars</th>
+              <th class="num">Score</th><th class="num">Time</th><th></th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for quest in recent %}
+              <tr>
+                <td class="p-tiny p-muted">{{ quest.finished_at | ago }}</td>
+                <td>
+                  <b>{{ quest.title }}</b>
+                  <span class="p-tag">{{ quest.mode }}</span>
+                </td>
+                <td>{{ '⭐' * quest.stars }}{{ '☆' * (3 - quest.stars) }}</td>
+                <td class="num">{{ quest.correct_count }}/{{ quest.answered_count }}
+                  <span class="p-faint">({{ quest.accuracy_pct }}%)</span></td>
+                <td class="num">{{ quest.minutes }} min</td>
+                <td class="num">
+                  <a class="p-btn ghost small" href="{{ url_for('parent.quest_detail', quest_id=quest.id) }}">
+                    Review
+                  </a>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="p-muted p-tiny">No completed quests yet.</p>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Page not found{% endblock %}
+{% block content %}
+<div class="center stack" style="max-width:460px;margin:40px auto">
+  <div style="font-size:4rem" aria-hidden="true">🧭</div>
+  <h1>We could not find that page</h1>
+  <p class="muted">It may have moved, or the link might be a bit wonky.</p>
+  <a class="btn block leaf" href="{{ url_for('kid.index') }}">🏠 Take me home</a>
+</div>
+{% endblock %}

@@ -1,0 +1,98 @@
+{% extends "parent/_base.html" %}
+{% block title %}{{ subject.name }} progress{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">{{ subject.emoji }} {{ subject.name }}</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      Skill-by-skill mastery for {{ view_child.name }}, grouped the way the National
+      Curriculum groups it.
+    </p>
+  </div>
+
+  <div class="p-nav" style="background:var(--p-card);padding:6px;border-radius:11px;border:1px solid var(--p-line)">
+    {% for key in SUBJECT_ORDER %}
+      <a href="{{ url_for('parent.progress', subject=key) }}" class="{{ 'on' if key == subject_id }}">
+        {{ SUBJECTS[key].emoji }} {{ SUBJECTS[key].name }}
+      </a>
+    {% endfor %}
+  </div>
+
+  <div class="p-insight">
+    <span class="em">🗺️</span>
+    <div>
+      <b>How to read this.</b> Mastery rises with correct answers and falls when one is missed,
+      weighted towards the most recent attempts. "Due" means spaced repetition has scheduled
+      it to come round again. Press <b>⭐ Focus</b> on anything you want to see more often.
+    </div>
+  </div>
+
+  {% set ns = namespace(year=0) %}
+  {% for group in groups %}
+    {% if group.year != ns.year %}
+      {% set ns.year = group.year %}
+      <h2 style="margin-top:14px">
+        <span class="p-tag y{{ group.year }}">{{ group.year_label }}</span>
+        <span class="p-faint p-tiny" style="font-weight:500">
+          {{ 'revision of earlier work' if group.year < 3 else 'new material for the year ahead' }}
+        </span>
+      </h2>
+    {% endif %}
+
+    <div class="p-card">
+      <div class="p-card-head">
+        <h3 class="p-grow">{{ group.topic }}</h3>
+        <span class="p-tag {{ 'good' if group.mastered == group.count else '' }}">
+          {{ group.mastered }}/{{ group.count }} mastered
+        </span>
+        <span class="p-tag new">{{ group.touched }}/{{ group.count }} tried</span>
+      </div>
+
+      <div class="p-skills">
+        {% for entry in group.entries %}
+          {% set is_focus = entry.skill.id in focus_skills %}
+          <div class="p-skill {{ 'is-focus' if is_focus }}">
+            <div>
+              <div class="name">
+                {{ entry.skill.name }}
+                {% if is_focus %}<span class="p-tag focus">⭐ focus</span>{% endif %}
+                {% if entry.attempts and entry.progress and entry.progress.is_due %}
+                  <span class="p-tag warn">due</span>
+                {% endif %}
+              </div>
+              <div class="nc">{{ entry.skill.nc_ref }}</div>
+            </div>
+            <div class="figures">
+              {% if entry.attempts %}
+                <span class="p-tiny">
+                  {{ entry.accuracy }}% of {{ entry.attempts }}
+                </span>
+                <div class="track">
+                  <div class="p-bar {{ 'good' if entry.mastery >= 85 else ('warn' if entry.mastery >= 40 else 'bad') }}">
+                    <span style="width: {{ entry.mastery }}%"></span>
+                  </div>
+                  <div class="p-faint p-tiny" style="margin-top:2px">{{ entry.stage }}</div>
+                </div>
+                <span class="p-faint p-tiny nowrap">{{ entry.last_seen | ago }}</span>
+              {% else %}
+                <span class="p-tag new">not started</span>
+                <div class="track"><div class="p-bar"><span style="width:0%"></span></div></div>
+              {% endif %}
+              <form method="post" action="{{ url_for('parent.toggle_focus') }}">
+                <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                <input type="hidden" name="skill_id" value="{{ entry.skill.id }}">
+                <button class="p-btn ghost small" type="submit"
+                        title="{{ 'Remove from focus list' if is_focus else 'Practise this more often' }}">
+                  {{ '★' if is_focus else '⭐' }}
+                </button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    </div>
+  {% endfor %}
+</div>
+{% endblock %}

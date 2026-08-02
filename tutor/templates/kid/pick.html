@@ -1,0 +1,28 @@
+{% extends "base.html" %}
+{% block title %}Who is learning?{% endblock %}
+{% block chrome %}{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div class="stack-lg center" style="max-width:560px;margin:0 auto">
+  <h1>Who is learning today?</h1>
+
+  <div class="stack">
+    {% for candidate in children %}
+      <form method="post" action="{{ url_for('kid.choose', child_id=candidate.id) }}">
+        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+        <button type="submit" class="row link" style="width:100%;cursor:pointer;text-align:left;min-height:78px">
+          <span class="avatar {{ candidate.avatar_colour }}">{{ candidate.avatar_emoji }}</span>
+          <span class="grow">
+            <b style="font-size:1.15rem">{{ candidate.name }}</b>
+            <small>Level {{ candidate.level }} · {{ candidate.streak_days }} day streak</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
+      </form>
+    {% endfor %}
+  </div>
+
+  <a class="parent-link" href="{{ url_for('parent.dashboard') }}">👨‍👩‍👧 Parents</a>
+</div>
+{% endblock %}

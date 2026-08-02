@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Coin shop{% endblock %}
+
+{% block content %}
+<div class="stack-lg">
+  <div class="card center">
+    <h1 style="margin:0">🛍️ Coin shop</h1>
+    <p class="muted" style="margin:6px 0 0">
+      You have <b class="price">🪙 {{ child.coins }}</b> coins.
+      Earn more by finishing quests.
+    </p>
+  </div>
+
+  {% set slot_names = {'hat': '🎩 Hats', 'pet': '🐾 Pets', 'scene': '🖼️ Backgrounds'} %}
+  {% for slot, label in slot_names.items() %}
+    {% if slots.get(slot) %}
+      <section aria-labelledby="slot-{{ slot }}">
+        <div class="card-head">
+          <h2 id="slot-{{ slot }}" class="grow" style="font-size:1.15rem">{{ label }}</h2>
+          <form method="post" action="{{ url_for('kid.shop_remove') }}">
+            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+            <input type="hidden" name="slot" value="{{ slot }}">
+            <button class="btn small ghost" type="submit">Take off</button>
+          </form>
+        </div>
+        <div class="shop-grid">
+          {% for entry in slots[slot] %}
+            <div class="shop-tile {{ 'on' if entry.equipped else ('owned' if entry.owned else '') }}">
+              <div class="em" aria-hidden="true">{{ entry.item.emoji }}</div>
+              <b>{{ entry.item.name }}</b>
+              {% if entry.equipped %}
+                <span class="pill ok">wearing</span>
+              {% elif entry.owned %}
+                <form method="post" action="{{ url_for('kid.shop_equip') }}">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                  <input type="hidden" name="item_id" value="{{ entry.item.id }}">
+                  <button class="btn small grape" type="submit">Wear it</button>
+                </form>
+              {% else %}
+                <div class="price">🪙 {{ entry.item.cost }}</div>
+                <form method="post" action="{{ url_for('kid.shop_buy') }}">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                  <input type="hidden" name="item_id" value="{{ entry.item.id }}">
+                  <button class="btn small {{ 'leaf' if entry.affordable else 'ghost' }}" type="submit"
+                          {{ 'disabled' if not entry.affordable }}>
+                    {{ 'Buy' if entry.affordable else 'Not yet' }}
+                  </button>
+                </form>
+              {% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      </section>
+    {% endif %}
+  {% endfor %}
+
+  <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+</div>
+{% endblock %}

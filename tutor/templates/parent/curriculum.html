@@ -1,0 +1,65 @@
+{% extends "parent/_base.html" %}
+{% block title %}Curriculum{% endblock %}
+
+{% block content %}
+<div class="p-stack">
+
+  <div>
+    <h1 style="margin-bottom:2px">What the app covers</h1>
+    <p class="p-muted p-tiny" style="margin:0">
+      {{ total_skills }} skills mapped to the English National Curriculum: Key Stage 1
+      (Years 1–2) and lower Key Stage 2 (Year 3).
+    </p>
+  </div>
+
+  <div class="p-insight">
+    <span class="em">📘</span>
+    <div>
+      Maths skills are marked <b>generated</b>, which means a fresh question is invented every
+      time — practice never repeats and never runs out. English and Science skills draw from a
+      hand-written question bank; the number shown is how many questions exist for that skill.
+    </div>
+  </div>
+
+  {% for section in sections %}
+    <h2 style="margin-top:14px">{{ section.subject.emoji }} {{ section.subject.name }}</h2>
+    {% set ns = namespace(year=0) %}
+    {% for group in section.groups %}
+      {% if group.year != ns.year %}
+        {% set ns.year = group.year %}
+        <h3 style="margin:12px 0 4px">
+          <span class="p-tag y{{ group.year }}">{{ YEAR_LABELS[group.year] }}</span>
+        </h3>
+      {% endif %}
+      <div class="p-card" style="margin-bottom:10px">
+        <div class="p-card-head">
+          <h3 class="p-grow" style="margin:0">{{ group.topic }}</h3>
+          <span class="p-tag new">{{ group.skills | length }} skills</span>
+        </div>
+        <div class="p-scroll">
+          <table class="p-table">
+            <thead>
+              <tr><th>Skill</th><th>National Curriculum objective</th><th class="num">Questions</th></tr>
+            </thead>
+            <tbody>
+              {% for entry in group.skills %}
+                <tr>
+                  <td><b>{{ entry.skill.name }}</b></td>
+                  <td class="p-muted p-tiny">{{ entry.skill.nc_ref }}</td>
+                  <td class="num">
+                    {% if entry.questions == 'generated' %}
+                      <span class="p-tag good">generated</span>
+                    {% else %}
+                      {{ entry.questions }}
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    {% endfor %}
+  {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <meta name="theme-color" content="#fff9f1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>{% block title %}Learning Quest{% endblock %}</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body class="{{ body_classes }}{% block body_class %}{% endblock %}">
+
+{% block chrome %}
+{% if child %}
+<header class="topbar">
+  <div class="topbar-inner">
+    <a href="{{ url_for('kid.me') }}" class="avatar {{ child.avatar_colour }}" aria-label="Your profile">
+      {{ child.avatar_emoji }}
+      {%- set hat_emoji = hat if hat is defined else '' -%}
+      {% if hat_emoji %}<span class="hat">{{ hat_emoji }}</span>{% endif %}
+    </a>
+    <div style="min-width:0">
+      <div class="topbar-name">{{ child.name }}</div>
+      <div class="topbar-meta">
+        <span>Level <b id="hdr-level">{{ child.level }}</b></span>
+        <span><b id="hdr-xp">{{ child.xp }}</b> XP</span>
+      </div>
+      <div class="xp" style="width:132px;margin-top:4px" aria-hidden="true">
+        <span id="hdr-bar" style="width: {{ child.level_progress_pct }}%"></span>
+      </div>
+    </div>
+    <div class="topbar-spacer"></div>
+    <span class="chip coins" title="Coins">🪙 <b id="hdr-coins">{{ child.coins }}</b></span>
+    <span class="chip streak" title="Day streak">{{ flame if flame is defined else '🔥' }} {{ child.streak_days }}</span>
+  </div>
+</header>
+{% endif %}
+{% endblock %}
+
+{% block main %}
+<main class="wrap" style="padding-top:18px">
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+      <ul class="flashes">
+        {% for category, message in messages %}
+          <li class="{{ category }}">{{ message }}</li>
+        {% endfor %}
+      </ul>
+    {% endif %}
+  {% endwith %}
+
+  {% block content %}{% endblock %}
+</main>
+{% endblock %}
+
+{% block nav %}
+{% if child %}
+<nav class="tabbar" aria-label="Main">
+  <a href="{{ url_for('kid.home') }}" class="{{ 'on' if request.endpoint == 'kid.home' }}">
+    <span class="ico" aria-hidden="true">🏠</span> Home
+  </a>
+  <a href="{{ url_for('kid.badges') }}" class="{{ 'on' if request.endpoint == 'kid.badges' }}">
+    <span class="ico" aria-hidden="true">🏅</span> Badges
+  </a>
+  {% if settings and settings.shop_enabled %}
+  <a href="{{ url_for('kid.shop') }}" class="{{ 'on' if request.endpoint == 'kid.shop' }}">
+    <span class="ico" aria-hidden="true">🛍️</span> Shop
+  </a>
+  {% endif %}
+  <a href="{{ url_for('kid.me') }}" class="{{ 'on' if request.endpoint == 'kid.me' }}">
+    <span class="ico" aria-hidden="true">🙂</span> Me
+  </a>
+</nav>
+{% endif %}
+{% endblock %}
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>
