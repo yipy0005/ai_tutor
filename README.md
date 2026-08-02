@@ -302,6 +302,22 @@ celebration overlay, chart rendering and the absence of horizontal overflow.
 
 ---
 
+## If something goes wrong
+
+**Stop the server before rebuilding the database.** If you delete or replace
+`instance/tutor.sqlite3` while `pixi run serve` is running, that process keeps
+writing to the old, now-deleted file and SQLite reports the confusing
+`attempt to write a readonly database`. Press Ctrl+C first, then rebuild, then
+start again. `pixi run serve` now checks the database is present and writable
+before it starts and tells you what to do if it is not.
+
+**Port already in use.** Something else is on 5001. Either stop it or pick
+another port: `PORT=5002 pixi run serve`.
+
+**Starting completely over:** `pixi run reset-db` then `pixi run setup`.
+
+---
+
 ## A note on security
 
 This is built for one family on one home network.

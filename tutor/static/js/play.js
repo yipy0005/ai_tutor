@@ -282,7 +282,8 @@
       .then(function (res) {
         if (res.error) {
           state.locked = false;
-          if (res.reload) global.location.reload();
+          if (res.reload) { global.location.reload(); return; }
+          showTrouble(res.error);
           return;
         }
         if (res.status === "retry") {
@@ -293,8 +294,21 @@
       })
       .catch(function () {
         state.locked = false;
-        alert("Could not send that answer. Please try again.");
+        showTrouble("The app could not be reached just now.");
       });
+  }
+
+  // Something went wrong that is not the child's fault. Say so kindly, and give
+  // them a button rather than leaving a tap that appears to do nothing.
+  function showTrouble(detail) {
+    var slot = document.getElementById("slot");
+    if (!slot) return;
+    slot.innerHTML =
+      '<div class="feedback try"><div class="headline">🔌 Hmm, that did not save</div>' +
+      '<div class="detail">' + esc(detail) + " Your earlier answers are safe. " +
+      "Tap to try again, or ask a grown-up to restart the app.</div></div>" +
+      '<button type="button" class="btn block ghost" style="margin-top:12px" ' +
+      'onclick="window.location.reload()">Try again</button>';
   }
 
   function handleRetry(res, button, value) {
