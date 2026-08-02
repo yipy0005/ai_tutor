@@ -157,9 +157,31 @@
       global.speechSynthesis.onvoiceschanged = function () { picked = false; pick(); };
     }
 
-    function speak(text) {
-      if (!available || !text) return;
+    // A generation counter so a cancelled or superseded utterance can never
+    // fire its "finished" callback. Cancelling fires onend in most browsers,
+    // which would otherwise look identical to speech finishing naturally.
+    var generation = 0;
+
+    /**
+     * Read some text aloud.
+     * @param text  what to say
+     * @param onEnd called once when speech genuinely finishes. Fires straight
+     *              away if speech is unavailable, so callers can rely on it.
+     */
+    function speak(text, onEnd) {
+      generation++;
+      var mine = generation;
+      var finished = false;
+
+      function done() {
+        if (finished || mine !== generation) return;
+        finished = true;
+        if (onEnd) onEnd();
+      }
+
+      if (!available || !text) { done(); return; }
       pick();
+
       try {
         global.speechSynthesis.cancel();
         var utter = new global.SpeechSynthesisUtterance(String(text));
@@ -167,11 +189,28 @@
         utter.lang = (voice && voice.lang) || "en-GB";
         utter.rate = 0.92;
         utter.pitch = 1.05;
+        utter.onend = done;
+        utter.onerror = done;
         global.speechSynthesis.speak(utter);
-      } catch (err) { /* speech is a bonus, never a blocker */ }
+
+        // Some devices have no voices installed at all. Speech then silently
+        // does nothing and onend never fires, so check that it really started
+        // before agreeing to wait for it.
+        setTimeout(function () {
+          var synth = global.speechSynthesis;
+          if (!synth.speaking && !synth.pending) { done(); return; }
+          // It is genuinely talking. Wait for onend, with a generous backstop
+          // in case that event never arrives: roughly 12 characters a second.
+          var estimate = Math.min(30000, 1500 + (String(text).length / 12) * 1000);
+          setTimeout(done, estimate);
+        }, 250);
+      } catch (err) {
+        done(); // speech is a bonus, never a blocker
+      }
     }
 
     function stop() {
+      generation++; // invalidates any pending onEnd callback
       if (available) {
         try { global.speechSynthesis.cancel(); } catch (err) { /* ignore */ }
       }

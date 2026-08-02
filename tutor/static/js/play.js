@@ -213,6 +213,20 @@
       }
       var say = event.target.closest("#say");
       if (say) { if (question) readAloud(question); return; }
+      var replay = event.target.closest("#replay");
+      if (replay) {
+        // Hearing it again should never be interrupted by the quest moving on.
+        if (state.autoAdvance) { clearTimeout(state.autoAdvance); state.autoAdvance = null; }
+        App.Speech.speak(state.lastSpoken, function () {
+          if (state.lastCorrect && !state.finished) {
+            state.autoAdvance = setTimeout(function () {
+              var button = document.getElementById("next");
+              if (button && !button.disabled) advance();
+            }, 900);
+          }
+        });
+        return;
+      }
       var hint = event.target.closest("#hint");
       if (hint) { if (question) showHint(question, hint); return; }
       var next = event.target.closest("#next");
@@ -332,7 +346,10 @@
       '<div class="feedback try"><div class="headline">🤔 ' + esc(res.message) + "</div>" +
       (res.hint ? '<div class="detail">💡 ' + esc(res.hint) + "</div>" : "") +
       "</div>";
-    if (opts.read_aloud) App.Speech.speak(res.message);
+    // Nothing auto-advances on a retry, so the clue can be read in full.
+    if (opts.read_aloud) {
+      App.Speech.speak(res.message + (res.hint ? ". " + res.hint : ""));
+    }
     state.locked = false;
     state.questionStartedAt = Date.now();
   }
@@ -384,6 +401,12 @@
       lines.push('<div class="detail">+' + res.xp + " XP" + (res.coins ? " · +" + res.coins + " 🪙" : "") + "</div>");
     }
     lines.push("</div>");
+    if (opts.read_aloud) {
+      lines.push(
+        '<button type="button" class="tool" id="replay" style="margin-top:12px">' +
+        "🔊 Say that again</button>"
+      );
+    }
     lines.push(
       '<button type="button" class="btn block ' + (res.correct ? "leaf" : "grape") +
       '" id="next" style="margin-top:14px">' +
@@ -392,21 +415,28 @@
 
     var slot = document.getElementById("slot");
     slot.innerHTML = lines.join("");
-
-    if (opts.read_aloud) {
-      var speech = res.message + (res.correct ? "" : ". The answer is " + res.answer) +
-        (res.explain ? ". " + res.explain : "");
-      App.Speech.speak(speech);
-    }
-
     updateHeader(res.child);
 
-    // Correct answers keep the pace up. Wrong answers wait to be read.
-    if (res.correct) {
-      state.autoAdvance = setTimeout(function () {
-        var button = document.getElementById("next");
-        if (button && !button.disabled) advance();
-      }, 1500);
+    var spoken = res.message + (res.correct ? "" : ". The answer is " + res.answer) +
+      (res.explain ? ". " + res.explain : "");
+    state.lastSpoken = spoken;
+    state.lastCorrect = !!res.correct;
+
+    function autoAdvanceNow() {
+      var button = document.getElementById("next");
+      if (button && !button.disabled) advance();
+    }
+
+    if (opts.read_aloud) {
+      // Correct answers move on by themselves — but only once the explanation
+      // has actually been read out. Cutting the reason for the answer off
+      // mid-sentence is worse than a slightly slower quest.
+      App.Speech.speak(spoken, function () {
+        if (!res.correct || state.finished) return;
+        state.autoAdvance = setTimeout(autoAdvanceNow, 900);
+      });
+    } else if (res.correct) {
+      state.autoAdvance = setTimeout(autoAdvanceNow, 1500);
     }
   }
 
