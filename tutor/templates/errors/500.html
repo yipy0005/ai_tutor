@@ -2,12 +2,12 @@
 {% block title %}Something went wrong{% endblock %}
 {% block content %}
 <div class="center stack" style="max-width:460px;margin:40px auto">
-  <div style="font-size:4rem" aria-hidden="true">🔧</div>
+  <div class="pip-big art-holder bob" style="margin:0 auto">{{ icon('pip-oops') }}</div>
   <h1>Something went wrong</h1>
   <p class="muted">
     Nothing you have done is lost. Try again, and if it keeps happening a grown-up
     can restart the app.
   </p>
-  <a class="btn block leaf" href="{{ url_for('kid.index') }}">🏠 Take me home</a>
+  <a class="btn block leaf" href="{{ url_for('kid.index') }}">Take me home</a>
 </div>
 {% endblock %}

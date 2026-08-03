@@ -12,6 +12,9 @@
 </head>
 <body class="parent">
 
+{# The artwork sprite, so the learners' characters can be drawn here too. #}
+{{ art_sprite }}
+
 {% if parent_unlocked %}
 <header class="p-top">
   <div class="p-top-inner">
@@ -35,12 +38,14 @@
           <form method="post" action="{{ url_for('parent.view_child', child_id=candidate.id) }}">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
             <button class="p-btn {{ '' if view_child and candidate.id == view_child.id else 'ghost' }} small" type="submit">
-              {{ candidate.avatar_emoji }} {{ candidate.name }}
+              {{ candidate.name }}
             </button>
           </form>
         {% endfor %}
       {% elif view_child %}
-        <span class="p-avatar {{ view_child.avatar_colour }}">{{ view_child.avatar_emoji }}</span>
+        <span class="p-avatar theme-{{ view_child.avatar_colour }}">
+          {{ icon('char-' ~ character_id(view_child.avatar_emoji)) }}
+        </span>
         <b>{{ view_child.name }}</b>
       {% endif %}
       <a class="p-btn ghost small" href="{{ url_for('kid.index') }}">← Learner app</a>

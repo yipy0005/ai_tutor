@@ -4,9 +4,16 @@
 {% block content %}
 <div class="stack-lg">
 
-  <div class="card {{ subject.colour }}" style="border-color:var(--line)">
+  <div class="hero subject-{{ subject.id }}"
+       style="background: var(--subject-wash)">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <svg class="cloud a" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
     <div class="card-head">
-      <span aria-hidden="true" style="font-size:2.6rem">{{ subject.emoji }}</span>
+      <div class="art-holder bob" style="width:84px;height:84px">
+        {{ icon('icon-' ~ subject.id) }}
+      </div>
       <div class="grow">
         <h1 style="margin:0">{{ subject.name }}</h1>
         <div class="muted tiny">{{ subject.blurb }}</div>
@@ -14,18 +21,18 @@
     </div>
 
     {% if blocked %}
-      <div class="note warm">⏰ {{ blocked }}</div>
+      <div class="note warm">{{ icon('scene-lock') }}<div>{{ blocked }}</div></div>
     {% else %}
       <div class="stack">
         <button type="button" class="btn big block leaf" data-start-quest
                 data-subject="{{ subject.id }}" data-mode="mixed">
-          🚀 {{ subject.name }} quest
+          {{ subject.name }} quest
         </button>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <button type="button" class="btn ghost" data-start-quest
-                  data-subject="{{ subject.id }}" data-mode="revision">🔁 Revision</button>
+                  data-subject="{{ subject.id }}" data-mode="revision">Revision</button>
           <button type="button" class="btn ghost" data-start-quest
-                  data-subject="{{ subject.id }}" data-mode="ahead">🎓 Year 3</button>
+                  data-subject="{{ subject.id }}" data-mode="ahead">Year 3</button>
         </div>
       </div>
     {% endif %}
@@ -58,7 +65,7 @@
                   not tried yet
                 {% endif %}
               </small>
-              <div class="meter {{ subject.colour }}" style="height:8px;margin-top:5px" aria-hidden="true">
+              <div class="meter {{ subject.id }}" style="height:8px;margin-top:5px" aria-hidden="true">
                 <span style="width: {{ entry.mastery }}%"></span>
               </div>
             </div>
@@ -66,7 +73,7 @@
               <button type="button" class="btn small ghost" data-start-quest
                       data-mode="skill" data-skill="{{ entry.skill.id }}" data-count="6"
                       aria-label="Practise {{ entry.skill.name }}">
-                ▶ Practise
+                Practise
               </button>
             {% endif %}
           </div>
@@ -75,6 +82,6 @@
     </section>
   {% endfor %}
 
-  <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+  <a class="btn block ghost" href="{{ url_for('kid.home') }}">Back home</a>
 </div>
 {% endblock %}

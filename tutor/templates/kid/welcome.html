@@ -4,11 +4,20 @@
 {% block nav %}{% endblock %}
 
 {% block content %}
-<div class="stack-lg" style="max-width:620px;margin:0 auto">
-  <div class="center">
-    <div style="font-size:4rem" aria-hidden="true">🚀</div>
-    <h1>Let's set up your Learning Quest</h1>
-    <p class="muted">Revise Year 1 and 2, and get a head start on Year 3.</p>
+<div class="stack-lg" style="max-width:640px;margin:0 auto">
+  <div class="hero center">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <svg class="cloud a" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+    <svg class="cloud c" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+    <div class="art-holder bob" style="width:118px;height:118px;margin:0 auto">
+      {{ icon('pip-cheer') }}
+    </div>
+    <h1 style="margin:8px 0 4px">Let's set up your Learning Quest</h1>
+    <p class="muted" style="margin:0;font-weight:700">
+      Revise Year 1 and 2, and get a head start on Year 3.
+    </p>
   </div>
 
   <form method="post" class="card stack">
@@ -28,17 +37,20 @@
         <option value="4">Year 4</option>
       </select>
       <div class="muted tiny" style="margin-top:6px">
-        This just sets the starting balance between revision and new work. You can change it later.
+        This sets the starting balance between revision and new work. You can change it later.
       </div>
     </div>
 
     <div class="field">
       <label>Pick a character</label>
       <div class="picker">
-        {% for emoji in emojis %}
-          <input type="radio" id="em-{{ loop.index }}" name="avatar_emoji" value="{{ emoji }}"
+        {% for c in characters %}
+          <input type="radio" id="ch-{{ c.id }}" name="avatar_character" value="{{ c.id }}"
                  {{ 'checked' if loop.first }}>
-          <label for="em-{{ loop.index }}">{{ emoji }}</label>
+          <label for="ch-{{ c.id }}">
+            {{ icon('char-' ~ c.id) }}
+            <span>{{ c.name.split(' ')[0] }}</span>
+          </label>
         {% endfor %}
       </div>
     </div>
@@ -49,8 +61,9 @@
         {% for key, label in colours %}
           <input type="radio" id="col-{{ key }}" name="avatar_colour" value="{{ key }}"
                  {{ 'checked' if loop.first }}>
-          <label for="col-{{ key }}" class="avatar {{ key }}" style="width:auto;min-width:84px;height:52px">
-            {{ label }}
+          <label for="col-{{ key }}">
+            <span class="swatch theme-{{ key }}"></span>
+            <span class="name">{{ label }}</span>
           </label>
         {% endfor %}
       </div>
@@ -66,7 +79,7 @@
       </div>
     </div>
 
-    <button class="btn big block leaf" type="submit">Start learning 🚀</button>
+    <button class="btn big block leaf" type="submit">Start learning</button>
   </form>
 </div>
 {% endblock %}

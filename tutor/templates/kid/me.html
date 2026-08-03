@@ -2,55 +2,73 @@
 {% block title %}My profile{% endblock %}
 
 {% block content %}
+{% set my_char = character_id(child.avatar_emoji) %}
 <div class="stack-lg">
-  <section class="card center">
-    <div class="avatar xl {{ child.avatar_colour }}" style="margin:0 auto" aria-hidden="true">
-      {{ child.avatar_emoji }}
-      {% if hat %}<span class="hat">{{ hat }}</span>{% endif %}
+
+  <section class="hero center">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <svg class="cloud a" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+    <svg class="cloud c" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+
+    <div class="avatar xl theme-{{ child.avatar_colour }} bob" style="margin:0 auto"
+         aria-label="{{ child.name }}">
+      {{ icon('char-' ~ my_char) }}
+      {% if hat %}<span class="hat">{{ icon(hat) }}</span>{% endif %}
+      {% if pet %}<span class="pet">{{ icon(pet) }}</span>{% endif %}
     </div>
     <h1 style="margin-top:12px">{{ child.name }}</h1>
-    <p class="muted" style="margin:0">
-      Level {{ child.level }} · {{ child.xp }} XP
-      {% if pet %} · {{ pet }}{% endif %}
-      {% if scene %} · {{ scene }}{% endif %}
+    <p class="muted" style="margin:0;font-weight:700">
+      {{ character_of(child.avatar_emoji).name }}
     </p>
-    <div class="xp" style="max-width:280px;margin:12px auto 6px" aria-hidden="true">
+
+    <div class="xp" style="max-width:300px;margin:14px auto 6px" aria-hidden="true">
       <span style="width: {{ child.level_progress_pct }}%"></span>
     </div>
-    <p class="muted tiny">{{ child.xp_to_next_level }} XP to level {{ child.level + 1 }}</p>
+    <p class="muted tiny nums">
+      Level {{ child.level }} · {{ child.xp_to_next_level }} XP to level {{ child.level + 1 }}
+    </p>
 
     <div class="score-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div><b>{{ flame }} {{ child.streak_days }}</b><span>day streak</span></div>
-      <div><b>{{ totals.quests }}</b><span>quests</span></div>
-      <div><b>{{ totals.accuracy }}%</b><span>right</span></div>
-      <div><b>{{ totals.stars }}</b><span>stars</span></div>
+      <div><b class="nums">{{ child.streak_days }}</b><span>day streak</span></div>
+      <div><b class="nums">{{ totals.quests }}</b><span>quests</span></div>
+      <div><b class="nums">{{ totals.accuracy }}%</b><span>right</span></div>
+      <div><b class="nums">{{ totals.stars }}</b><span>stars</span></div>
     </div>
-    <p class="muted tiny">Best streak: {{ child.best_streak }} days</p>
+    <p class="muted tiny nums" style="margin:0">Best streak: {{ child.best_streak }} days</p>
   </section>
 
   <form method="post" class="card stack">
     <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-    <h2 style="margin:0">Change my look</h2>
+    <div class="card-head">
+      <div class="art-holder" style="width:42px;height:42px">{{ icon('pip-happy') }}</div>
+      <h2 class="grow" style="margin:0">Change my look</h2>
+    </div>
 
     <div class="field">
-      <label>Character</label>
+      <label>Pick a character</label>
       <div class="picker">
-        {% for emoji in emojis %}
-          <input type="radio" id="em-{{ loop.index }}" name="avatar_emoji" value="{{ emoji }}"
-                 {{ 'checked' if emoji == child.avatar_emoji }}>
-          <label for="em-{{ loop.index }}">{{ emoji }}</label>
+        {% for c in characters %}
+          <input type="radio" id="ch-{{ c.id }}" name="avatar_character" value="{{ c.id }}"
+                 {{ 'checked' if c.id == my_char }}>
+          <label for="ch-{{ c.id }}">
+            {{ icon('char-' ~ c.id) }}
+            <span>{{ c.name.split(' ')[0] }}</span>
+          </label>
         {% endfor %}
       </div>
     </div>
 
     <div class="field">
-      <label>Colour</label>
+      <label>Pick a colour</label>
       <div class="picker colours">
         {% for key, label in colours %}
           <input type="radio" id="col-{{ key }}" name="avatar_colour" value="{{ key }}"
                  {{ 'checked' if key == child.avatar_colour }}>
-          <label for="col-{{ key }}" class="avatar {{ key }}" style="width:auto;min-width:84px;height:52px">
-            {{ label }}
+          <label for="col-{{ key }}">
+            <span class="swatch theme-{{ key }}"></span>
+            <span class="name">{{ label }}</span>
           </label>
         {% endfor %}
       </div>
@@ -59,12 +77,12 @@
     <button class="btn block leaf" type="submit">Save</button>
   </form>
 
-  <div class="center">
-    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">👨‍👩‍👧 Parents</a>
+  <div class="center" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">Parents</a>
     {% if child_count > 1 %}
       <form method="post" action="{{ url_for('kid.switch') }}" style="display:inline">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <button class="parent-link" type="submit" style="border:none;cursor:pointer">🔄 Switch learner</button>
+        <button class="parent-link" type="submit" style="cursor:pointer">Switch learner</button>
       </form>
     {% endif %}
   </div>

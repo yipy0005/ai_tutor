@@ -4,37 +4,51 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="csrf-token" content="{{ csrf_token() }}">
-  <meta name="theme-color" content="#fff9f1">
+  <meta name="theme-color" content="#fff8ee">
   <meta name="robots" content="noindex, nofollow">
   <title>{% block title %}Learning Quest{% endblock %}</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/baloo2-latin.woff2') }}"
+        as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{{ url_for('static', filename='fonts/nunito-latin.woff2') }}"
+        as="font" type="font/woff2" crossorigin>
+  <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}">
+  <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
   <link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">
   {% block head %}{% endblock %}
 </head>
 <body class="{{ body_classes }}{% block body_class %}{% endblock %}">
 
+{# Every piece of artwork, defined once and referenced by <use> anywhere. #}
+{{ art_sprite }}
+
+{% set my_char = character_id(child.avatar_emoji) if child else 'fox' %}
+
 {% block chrome %}
 {% if child %}
 <header class="topbar">
   <div class="topbar-inner">
-    <a href="{{ url_for('kid.me') }}" class="avatar {{ child.avatar_colour }}" aria-label="Your profile">
-      {{ child.avatar_emoji }}
-      {%- set hat_emoji = hat if hat is defined else '' -%}
-      {% if hat_emoji %}<span class="hat">{{ hat_emoji }}</span>{% endif %}
+    <a href="{{ url_for('kid.me') }}" class="avatar theme-{{ child.avatar_colour }}"
+       aria-label="{{ child.name }}'s profile">
+      {{ icon('char-' ~ my_char) }}
+      {% if hat is defined and hat %}<span class="hat">{{ icon(hat) }}</span>{% endif %}
     </a>
     <div style="min-width:0">
       <div class="topbar-name">{{ child.name }}</div>
       <div class="topbar-meta">
         <span>Level <b id="hdr-level">{{ child.level }}</b></span>
-        <span><b id="hdr-xp">{{ child.xp }}</b> XP</span>
+        <span class="nums"><b id="hdr-xp">{{ child.xp }}</b> XP</span>
       </div>
-      <div class="xp" style="width:132px;margin-top:4px" aria-hidden="true">
+      <div class="xp" style="width:136px;margin-top:4px" aria-hidden="true">
         <span id="hdr-bar" style="width: {{ child.level_progress_pct }}%"></span>
       </div>
     </div>
     <div class="topbar-spacer"></div>
-    <span class="chip coins" title="Coins">🪙 <b id="hdr-coins">{{ child.coins }}</b></span>
-    <span class="chip streak" title="Day streak">{{ flame if flame is defined else '🔥' }} {{ child.streak_days }}</span>
+    <span class="chip coins" title="Coins">
+      {{ icon('scene-coin') }}<b id="hdr-coins" class="nums">{{ child.coins }}</b>
+    </span>
+    <span class="chip streak" title="Day streak">
+      {{ icon('scene-flame') }}<b class="nums">{{ child.streak_days }}</b>
+    </span>
   </div>
 </header>
 {% endif %}
@@ -46,7 +60,10 @@
     {% if messages %}
       <ul class="flashes">
         {% for category, message in messages %}
-          <li class="{{ category }}">{{ message }}</li>
+          <li class="{{ category }}">
+            {{ icon('scene-tick' if category == 'success' else 'scene-bulb') }}
+            <span>{{ message }}</span>
+          </li>
         {% endfor %}
       </ul>
     {% endif %}
@@ -60,18 +77,18 @@
 {% if child %}
 <nav class="tabbar" aria-label="Main">
   <a href="{{ url_for('kid.home') }}" class="{{ 'on' if request.endpoint == 'kid.home' }}">
-    <span class="ico" aria-hidden="true">🏠</span> Home
+    {{ icon('scene-tree') }} Home
   </a>
   <a href="{{ url_for('kid.badges') }}" class="{{ 'on' if request.endpoint == 'kid.badges' }}">
-    <span class="ico" aria-hidden="true">🏅</span> Badges
+    {{ icon('rosette-mastery') }} Badges
   </a>
   {% if settings and settings.shop_enabled %}
   <a href="{{ url_for('kid.shop') }}" class="{{ 'on' if request.endpoint == 'kid.shop' }}">
-    <span class="ico" aria-hidden="true">🛍️</span> Shop
+    {{ icon('scene-coin') }} Shop
   </a>
   {% endif %}
   <a href="{{ url_for('kid.me') }}" class="{{ 'on' if request.endpoint == 'kid.me' }}">
-    <span class="ico" aria-hidden="true">🙂</span> Me
+    {{ icon('char-' ~ my_char) }} Me
   </a>
 </nav>
 {% endif %}

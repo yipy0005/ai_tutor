@@ -21,6 +21,7 @@ from flask import (
     url_for,
 )
 
+from .. import art
 from ..config import Config
 from ..content import ALL_SKILLS, SUBJECT_ORDER, SUBJECTS, subject_counts
 from ..extensions import db
@@ -305,7 +306,7 @@ def children_page():
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         year = request.form.get("year_group") or "3"
-        emoji = request.form.get("avatar_emoji") or "🦊"
+        emoji = request.form.get("avatar_character") or "fox"
         colour = request.form.get("avatar_colour") or "sunshine"
         if not name:
             flash("Please enter a name.", "error")
@@ -330,7 +331,7 @@ def children_page():
         view_child=child,
         children=children,
         rows=rows,
-        emojis=rewards.AVATAR_EMOJIS,
+        characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
     )
 

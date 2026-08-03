@@ -94,20 +94,22 @@ body.parent a { color: var(--p-brand-dark); }
 .p-who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .p-who form { display: inline; }
 .p-avatar {
-  width: 34px;
-  height: 34px;
+  width: 36px;
+  height: 36px;
+  flex: 0 0 auto;
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-size: 1.1rem;
+  overflow: hidden;
   background: #eef1f7;
 }
-.p-avatar.sunshine { background: #ffe6b8; }
-.p-avatar.berry { background: #ffd4e3; }
-.p-avatar.ocean { background: #cfe7fb; }
-.p-avatar.leaf { background: #d3f0d6; }
-.p-avatar.grape { background: #e2d7fb; }
-.p-avatar.peach { background: #ffd9de; }
+.p-avatar svg { width: 88%; height: 88%; }
+.p-avatar.theme-sunshine { background: linear-gradient(160deg, #fff0c9, #ffd77a); }
+.p-avatar.theme-berry { background: linear-gradient(160deg, #ffdcea, #ffa8c8); }
+.p-avatar.theme-ocean { background: linear-gradient(160deg, #d5ecff, #8ecdf7); }
+.p-avatar.theme-leaf { background: linear-gradient(160deg, #dcf7dc, #96e39a); }
+.p-avatar.theme-grape { background: linear-gradient(160deg, #e8ddff, #bda6f7); }
+.p-avatar.theme-peach { background: linear-gradient(160deg, #ffe2dc, #ffb3a3); }
 
 /* Cards ------------------------------------------------------------------- */
 .p-card {

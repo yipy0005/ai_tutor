@@ -6,39 +6,69 @@
 
   {% if blocked %}
     <div class="note warm">
-      <b>⏰ {{ blocked }}</b>
-      <div class="tiny" style="margin-top:6px;font-weight:600">
-        Everything you have done is saved.
+      {{ icon('scene-lock') }}
+      <div>
+        <b>{{ blocked }}</b>
+        <div class="tiny" style="margin-top:4px;font-weight:600">
+          Everything you have done is saved.
+        </div>
       </div>
     </div>
   {% endif %}
 
   {% if settings.cheer_note %}
-    <div class="note">💛 {{ settings.cheer_note }}</div>
+    <div class="note">
+      {{ icon('scene-star') }}
+      <div>{{ settings.cheer_note }}</div>
+    </div>
   {% endif %}
 
-  <!-- ============ Today ============ -->
-  <section class="card" aria-labelledby="today-heading">
-    <div class="card-head">
-      <h2 id="today-heading" class="grow" style="font-size:1.35rem">
-        {% if state.quests_today %}Nice work today!{% else %}Ready for a quest?{% endif %}
-      </h2>
-      {% if due %}<span class="chip due">🔁 {{ due }} to revise</span>{% endif %}
+  <!-- ============ Hero: Pip greets her and starts a quest ============ -->
+  <section class="hero" aria-labelledby="hero-heading">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <svg class="cloud a" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+    <svg class="cloud b" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+    <svg class="cloud c" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+
+    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
+      <div class="art-holder bob" style="width:104px;height:104px">
+        {{ icon('pip-' ~ ('sleep' if blocked else ('cheer' if state.quests_today else 'happy'))) }}
+      </div>
+      <div style="flex:1 1 220px;min-width:0">
+        <h1 id="hero-heading" style="margin-bottom:4px">
+          {% if blocked %}See you soon, {{ child.name }}!
+          {% elif state.quests_today %}Great going, {{ child.name }}!
+          {% else %}Hello, {{ child.name }}!{% endif %}
+        </h1>
+        <p class="muted" style="margin:0;font-weight:700">
+          {% if blocked %}Come back tomorrow for more.
+          {% elif state.quests_today %}You have done {{ state.quests_today }} quest{{ '' if state.quests_today == 1 else 's' }} today.
+          {% else %}Ready for today's quest?{% endif %}
+        </p>
+
+        {% if due %}
+          <span class="chip due" style="margin-top:10px">
+            {{ icon('scene-bulb') }} {{ due }} to revise
+          </span>
+        {% endif %}
+      </div>
     </div>
 
     {% set goal = state.daily_quest_goal %}
     {% if goal %}
-      {% set pct = (state.quests_today / goal * 100) | round(0, 'floor') | int %}
-      <div class="goal-ring">
-        {% set r = 30 %}
-        {% set circ = 2 * 3.14159 * r %}
-        <svg width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
-          <circle cx="38" cy="38" r="{{ r }}" fill="none" stroke="#ebe3f2" stroke-width="9"/>
-          <circle cx="38" cy="38" r="{{ r }}" fill="none" stroke="#3d9c48" stroke-width="9"
+      {% set pct = [(state.quests_today / goal * 100) | round(0, 'floor') | int, 100] | min %}
+      <div class="goal-ring" style="margin-top:16px">
+        {% set r = 30 %}{% set circ = 2 * 3.14159 * r %}
+        <svg class="ring" width="76" height="76" viewBox="0 0 76 76" aria-hidden="true">
+          <circle cx="38" cy="38" r="{{ r }}" fill="#fff" stroke="#e2d8ec" stroke-width="10"/>
+          <circle cx="38" cy="38" r="{{ r }}" fill="none" stroke="#45b35a" stroke-width="10"
                   stroke-linecap="round" transform="rotate(-90 38 38)"
                   stroke-dasharray="{{ circ | round(1) }}"
-                  stroke-dashoffset="{{ (circ * (1 - [pct, 100] | min / 100)) | round(1) }}"/>
-          <text x="38" y="44" text-anchor="middle" font-size="18" font-weight="800" fill="#2b2340">
+                  stroke-dashoffset="{{ (circ * (1 - pct / 100)) | round(1) }}"/>
+          <text x="38" y="44" text-anchor="middle" font-size="17" font-weight="800"
+                fill="#3b2c4f" font-family="Baloo 2, sans-serif">
             {{ state.quests_today }}/{{ goal }}
           </text>
         </svg>
@@ -46,13 +76,13 @@
           <b>Today's goal</b>
           <div class="muted tiny">
             {% if state.quests_today >= goal %}
-              Goal smashed! 🎉 Anything more is a bonus.
+              Goal smashed! Anything more is a bonus.
             {% else %}
               {{ goal - state.quests_today }} more quest{{ '' if goal - state.quests_today == 1 else 's' }} to go.
             {% endif %}
           </div>
           {% if state.limit_minutes %}
-            <div class="muted tiny">
+            <div class="muted tiny nums">
               {{ state.used_minutes }} of {{ state.limit_minutes }} minutes used
             </div>
           {% endif %}
@@ -61,27 +91,27 @@
     {% endif %}
 
     {% if open_quest %}
-      <div class="stack" style="margin-top:16px">
-        <a class="btn big block sunshine" href="{{ url_for('kid.play', quest_id=open_quest.id) }}">
-          ▶️ Carry on: {{ open_quest.title }}
-        </a>
-      </div>
+      <a class="btn big block sun" style="margin-top:16px"
+         href="{{ url_for('kid.play', quest_id=open_quest.id) }}">
+        Carry on: {{ open_quest.title }}
+      </a>
     {% elif not blocked %}
       <div class="stack" style="margin-top:16px">
         <button type="button" class="btn big block leaf" data-start-quest data-mode="mixed">
-          🚀 Start a quest
+          {{ icon('scene-star') }} Start a quest
         </button>
-        <div class="subject-grid" style="grid-template-columns:1fr 1fr;gap:10px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
           <button type="button" class="btn ghost" data-start-quest data-mode="revision">
-            🔁 Revise Y1 &amp; Y2
+            Revise Y1 &amp; Y2
           </button>
           <button type="button" class="btn ghost" data-start-quest data-mode="ahead">
-            🎓 New Year 3 work
+            New Year 3 work
           </button>
         </div>
       </div>
     {% else %}
-      <a class="btn big block ghost" href="{{ url_for('kid.badges') }}">🏅 Look at my badges</a>
+      <a class="btn big block ghost" style="margin-top:16px"
+         href="{{ url_for('kid.badges') }}">Look at my badges</a>
     {% endif %}
   </section>
 
@@ -90,15 +120,18 @@
     <h2 id="subjects-heading">Choose a subject</h2>
     <div class="subject-grid">
       {% for card in subject_cards %}
-        <a class="subject-card {{ card.subject.colour }}" href="{{ url_for('kid.learn', subject=card.subject.id) }}">
-          <div class="emoji" aria-hidden="true">{{ card.subject.emoji }}</div>
-          <h2>{{ card.subject.name }}</h2>
-          <div class="muted tiny">{{ card.subject.blurb }}</div>
-          <div class="meter {{ card.subject.colour }}" aria-hidden="true">
-            <span style="width: {{ card.pct }}%"></span>
-          </div>
-          <div class="muted tiny" style="margin-top:6px">
-            {{ card.mastered }} of {{ card.skills }} skills mastered
+        <a class="subject-card subject-{{ card.subject.id }}"
+           href="{{ url_for('kid.learn', subject=card.subject.id) }}">
+          <div class="art-holder badge-art">{{ icon('icon-' ~ card.subject.id) }}</div>
+          <div class="info">
+            <h2>{{ card.subject.name }}</h2>
+            <div class="muted tiny">{{ card.subject.blurb }}</div>
+            <div class="meter {{ card.subject.id }}" aria-hidden="true">
+              <span style="width: {{ card.pct }}%"></span>
+            </div>
+            <div class="muted tiny nums" style="margin-top:5px">
+              {{ card.mastered }} of {{ card.skills }} mastered
+            </div>
           </div>
         </a>
       {% endfor %}
@@ -109,12 +142,13 @@
   {% if weak and not blocked %}
   <section class="card" aria-labelledby="weak-heading">
     <div class="card-head">
-      <h3 id="weak-heading" class="grow">💪 Worth another go</h3>
+      <div class="art-holder" style="width:42px;height:42px">{{ icon('pip-think') }}</div>
+      <h3 id="weak-heading" class="grow">Worth another go</h3>
     </div>
     <div class="rows">
       {% for skill, progress in weak %}
         <div class="row">
-          <span aria-hidden="true" style="font-size:1.5rem">{{ SUBJECTS[skill.subject].emoji }}</span>
+          <div class="art-holder">{{ icon('icon-' ~ skill.subject) }}</div>
           <div class="grow">
             <b>{{ skill.name }}</b>
             <small><span class="pill y{{ skill.year }}">Year {{ skill.year }}</span></small>
@@ -129,25 +163,32 @@
   </section>
   {% endif %}
 
-  <!-- ============ Stats & recent ============ -->
+  <!-- ============ Totals & recent ============ -->
   <section class="card">
-    <div class="card-head"><h3 class="grow">📊 My totals</h3></div>
-    <div class="score-grid" style="grid-template-columns:repeat(4,1fr)">
-      <div><b>{{ totals.quests }}</b><span>quests</span></div>
-      <div><b>{{ totals.questions }}</b><span>questions</span></div>
-      <div><b>{{ totals.accuracy }}%</b><span>right</span></div>
-      <div><b>{{ badge_count }}</b><span>badges</span></div>
+    <div class="card-head">
+      <div class="art-holder" style="width:40px;height:40px">{{ icon('rosette-mastery') }}</div>
+      <h3 class="grow">My totals</h3>
+    </div>
+    <div class="score-grid" style="grid-template-columns:repeat(4,1fr);margin:0">
+      <div><b class="nums">{{ totals.quests }}</b><span>quests</span></div>
+      <div><b class="nums">{{ totals.questions }}</b><span>questions</span></div>
+      <div><b class="nums">{{ totals.accuracy }}%</b><span>right</span></div>
+      <div><b class="nums">{{ badge_count }}</b><span>badges</span></div>
     </div>
     {% if recent %}
       <div class="rows" style="margin-top:14px">
         {% for quest in recent %}
           <a class="row link" href="{{ url_for('kid.done', quest_id=quest.id) }}">
-            <span aria-hidden="true">{{ '⭐' * quest.stars }}{{ '☆' * (3 - quest.stars) }}</span>
+            <span class="stars small" aria-label="{{ quest.stars }} of 3 stars">
+              {%- for i in range(3) -%}
+                <span class="slot">{{ icon('scene-star' if i < quest.stars else 'scene-star-empty') }}</span>
+              {%- endfor -%}
+            </span>
             <div class="grow">
               <b>{{ quest.title }}</b>
-              <small>{{ quest.correct_count }}/{{ quest.answered_count }} right · {{ quest.finished_at | ago }}</small>
+              <small class="nums">{{ quest.correct_count }}/{{ quest.answered_count }} right ·
+                {{ quest.finished_at | ago }}</small>
             </div>
-            <span aria-hidden="true" class="muted">›</span>
           </a>
         {% endfor %}
       </div>
@@ -155,15 +196,18 @@
   </section>
 
   {% if settings.reward_note %}
-    <div class="note cool">🎁 <b>Your reward:</b> {{ settings.reward_note }}</div>
+    <div class="note cool">
+      {{ icon('rosette-fun') }}
+      <div><b>Your reward:</b> {{ settings.reward_note }}</div>
+    </div>
   {% endif %}
 
-  <div class="center" style="padding:10px 0 6px">
-    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">👨‍👩‍👧 Parents</a>
+  <div class="center" style="padding:8px 0 6px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
+    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">Parents</a>
     {% if child_count > 1 %}
       <form method="post" action="{{ url_for('kid.switch') }}" style="display:inline">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <button class="parent-link" type="submit" style="border:none;cursor:pointer">🔄 Switch learner</button>
+        <button class="parent-link" type="submit" style="cursor:pointer">Switch learner</button>
       </form>
     {% endif %}
   </div>

@@ -224,16 +224,18 @@
   // -----------------------------------------------------------------------
   function confetti(count) {
     if (document.body.classList.contains("motion-off")) return;
-    var colours = ["#e0447a", "#2481cc", "#3d9c48", "#ef9a1e", "#7c4dd8", "#f2647a"];
+    var colours = ["#e8467c", "#2b8ad6", "#45b35a", "#f5a524", "#8b5cf6", "#ff9ec7"];
+    var shapes = ["", "round", "strip"];
     var layer = document.createElement("div");
     layer.className = "confetti";
     var total = count || 44;
     for (var i = 0; i < total; i++) {
       var piece = document.createElement("i");
+      piece.className = shapes[i % shapes.length];
       piece.style.left = Math.random() * 100 + "vw";
       piece.style.background = colours[i % colours.length];
-      piece.style.animationDuration = 1.7 + Math.random() * 1.5 + "s";
-      piece.style.animationDelay = Math.random() * 0.5 + "s";
+      piece.style.animationDuration = 1.7 + Math.random() * 1.6 + "s";
+      piece.style.animationDelay = Math.random() * 0.55 + "s";
       piece.style.transform = "rotate(" + Math.random() * 360 + "deg)";
       layer.appendChild(piece);
     }

@@ -3,10 +3,18 @@
 
 {% block content %}
 <div class="stack-lg">
-  <div class="card center">
-    <h1 style="margin:0">🏅 My badges</h1>
-    <p class="muted" style="margin:6px 0 10px">{{ earned }} of {{ total }} collected</p>
-    <div class="meter sunshine" aria-hidden="true">
+  <div class="hero center">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <div class="art-holder bob" style="width:92px;height:92px;margin:0 auto">
+      {{ icon('rosette-mastery') }}
+    </div>
+    <h1 style="margin:8px 0 2px">My badges</h1>
+    <p class="muted" style="margin:0 0 12px;font-weight:700" class="nums">
+      {{ earned }} of {{ total }} collected
+    </p>
+    <div class="meter sun" style="max-width:320px;margin:0 auto" aria-hidden="true">
       <span style="width: {{ (earned / total * 100) | round(0, 'floor') | int }}%"></span>
     </div>
   </div>
@@ -14,16 +22,18 @@
   {% for group_key, label in group_names.items() %}
     {% if groups.get(group_key) %}
       <section aria-labelledby="bg-{{ group_key }}">
-        <h2 id="bg-{{ group_key }}" style="font-size:1.1rem">{{ label }}</h2>
+        <h2 id="bg-{{ group_key }}" style="font-size:1.2rem">{{ label }}</h2>
         <div class="badge-grid">
           {% for entry in groups[group_key] %}
             <div class="badge-tile {{ 'got' if entry.award else 'locked' }}">
-              <div class="em" aria-hidden="true">{{ entry.badge.emoji if entry.award else '🔒' }}</div>
+              <div class="art-holder rosette">
+                {{ icon(entry.badge.rosette if entry.award else 'scene-lock') }}
+              </div>
               <b>{{ entry.badge.name }}</b>
               <small>{{ entry.badge.description }}</small>
               {% if entry.award %}
-                <small style="display:block;margin-top:4px;color:var(--leaf-dark)">
-                  ✔ {{ entry.award.earned_at | shortdate }}
+                <small style="display:block;margin-top:4px;color:var(--leaf-deep);font-weight:800">
+                  Earned {{ entry.award.earned_at | shortdate }}
                 </small>
               {% endif %}
             </div>
@@ -33,6 +43,6 @@
     {% endif %}
   {% endfor %}
 
-  <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+  <a class="btn block ghost" href="{{ url_for('kid.home') }}">Back home</a>
 </div>
 {% endblock %}

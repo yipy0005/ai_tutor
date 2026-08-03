@@ -185,7 +185,7 @@ def main() -> int:
         if args.demo:
             demo = next((c for c in profiles.all_children() if c.name == "Demo"), None)
             if demo is None:
-                demo = profiles.create_child("Demo", 3, "🐼", "grape")
+                demo = profiles.create_child("Demo", 3, "panda", "grape")
                 db.session.commit()
                 print("Building six weeks of demo history (this takes a moment)…")
                 build_demo_history(demo)

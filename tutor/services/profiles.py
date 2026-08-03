@@ -34,7 +34,7 @@ def get_child(child_id: int) -> Child | None:
 def create_child(
     name: str,
     year_group: int = 3,
-    avatar_emoji: str = "🦊",
+    avatar_emoji: str = "fox",
     avatar_colour: str = "sunshine",
 ) -> Child:
     child = Child(

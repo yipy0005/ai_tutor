@@ -2,21 +2,29 @@
 {% block title %}Coin shop{% endblock %}
 
 {% block content %}
+{% set my_char = character_id(child.avatar_emoji) %}
 <div class="stack-lg">
-  <div class="card center">
-    <h1 style="margin:0">🛍️ Coin shop</h1>
-    <p class="muted" style="margin:6px 0 0">
-      You have <b class="price">🪙 {{ child.coins }}</b> coins.
-      Earn more by finishing quests.
+
+  <div class="hero center">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <div class="art-holder bob" style="width:88px;height:88px;margin:0 auto">
+      {{ icon('scene-coin') }}
+    </div>
+    <h1 style="margin:8px 0 2px">Coin shop</h1>
+    <p class="muted" style="margin:0;font-weight:700">
+      You have <span class="price">{{ icon('scene-coin') }}<span class="nums">{{ child.coins }}</span></span>
+      coins. Finish quests to earn more.
     </p>
   </div>
 
-  {% set slot_names = {'hat': '🎩 Hats', 'pet': '🐾 Pets', 'scene': '🖼️ Backgrounds'} %}
+  {% set slot_names = {'hat': 'Hats', 'pet': 'Pets', 'scene': 'Backgrounds'} %}
   {% for slot, label in slot_names.items() %}
     {% if slots.get(slot) %}
       <section aria-labelledby="slot-{{ slot }}">
         <div class="card-head">
-          <h2 id="slot-{{ slot }}" class="grow" style="font-size:1.15rem">{{ label }}</h2>
+          <h2 id="slot-{{ slot }}" class="grow" style="font-size:1.2rem">{{ label }}</h2>
           <form method="post" action="{{ url_for('kid.shop_remove') }}">
             <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
             <input type="hidden" name="slot" value="{{ slot }}">
@@ -26,7 +34,23 @@
         <div class="shop-grid">
           {% for entry in slots[slot] %}
             <div class="shop-tile {{ 'on' if entry.equipped else ('owned' if entry.owned else '') }}">
-              <div class="em" aria-hidden="true">{{ entry.item.emoji }}</div>
+              {% if slot == 'scene' %}
+                {% set sky = scene_gradient(entry.item.id) %}
+                <div class="thumb scene" aria-hidden="true"
+                     style="background:linear-gradient(170deg, {{ sky[0] }}, {{ sky[1] }});
+                            display:grid;place-items:end center;overflow:hidden">
+                  <svg viewBox="0 0 400 120" preserveAspectRatio="none"
+                       style="width:100%;height:46%"><use href="#scene-hills"/></svg>
+                </div>
+              {% elif slot == 'hat' %}
+                <div class="avatar lg theme-{{ child.avatar_colour }} thumb" style="margin:0 auto">
+                  {{ icon('char-' ~ my_char) }}
+                  <span class="hat">{{ icon(entry.item.art) }}</span>
+                </div>
+              {% else %}
+                <div class="art-holder thumb">{{ icon(entry.item.art) }}</div>
+              {% endif %}
+
               <b>{{ entry.item.name }}</b>
               {% if entry.equipped %}
                 <span class="pill ok">wearing</span>
@@ -37,7 +61,7 @@
                   <button class="btn small grape" type="submit">Wear it</button>
                 </form>
               {% else %}
-                <div class="price">🪙 {{ entry.item.cost }}</div>
+                <div class="price">{{ icon('scene-coin') }}<span class="nums">{{ entry.item.cost }}</span></div>
                 <form method="post" action="{{ url_for('kid.shop_buy') }}">
                   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                   <input type="hidden" name="item_id" value="{{ entry.item.id }}">
@@ -54,6 +78,6 @@
     {% endif %}
   {% endfor %}
 
-  <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+  <a class="btn block ghost" href="{{ url_for('kid.home') }}">Back home</a>
 </div>
 {% endblock %}

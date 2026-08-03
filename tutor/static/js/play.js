@@ -76,6 +76,20 @@
     }
   }
 
+  /** Draw a piece of artwork from the sprite already on the page.
+   *
+   * The wrapper needs the same viewBox as the symbol, which is read straight
+   * off the sprite rather than hard-coded, so JS and templates cannot drift.
+   */
+  function art(name, classes) {
+    var symbol = document.getElementById(name);
+    var box = (symbol && symbol.getAttribute("viewBox")) || "0 0 120 120";
+    return (
+      '<svg class="art ' + (classes || "") + '" viewBox="' + box + '"' +
+      ' aria-hidden="true" focusable="false"><use href="#' + name + '"/></svg>'
+    );
+  }
+
   function keypadFor(kind) {
     var extras = { money: [".", "£"], fraction: ["/"], time: [":"], number: [] };
     var rows = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"];
@@ -105,7 +119,12 @@
     var parts = [];
 
     parts.push('<div class="qcard enter">');
-    parts.push('<div class="qtag">' + yearPill + " <span>" + esc(question.skill_name || "") + "</span></div>");
+    parts.push(
+      '<div class="qtag">' +
+      (question.subject ? art("icon-" + question.subject) : "") +
+      yearPill +
+      "<span>" + esc(question.skill_name || "") + "</span></div>"
+    );
 
     if (question.passage_text) {
       var paragraphs = String(question.passage_text)
@@ -113,8 +132,9 @@
         .map(function (block) { return "<p>" + esc(block).replace(/\n/g, "<br>") + "</p>"; })
         .join("");
       parts.push(
-        '<div class="passage" id="passage"><h4>📖 ' + esc(question.passage_title || "Read this") +
-        "</h4>" + paragraphs + "</div>"
+        '<div class="passage" id="passage"><h4>' + art("icon-english") +
+        "<span>" + esc(question.passage_title || "Read this") + "</span></h4>" +
+        paragraphs + "</div>"
       );
     }
 
@@ -135,7 +155,9 @@
       (question.choices || []).forEach(function (choice, i) {
         parts.push(
           '<button type="button" class="choice" data-value="' + esc(choice) + '">' +
-          '<span class="key">' + letters[i] + "</span><span>" + esc(choice) + "</span></button>"
+          '<span class="key">' + letters[i] + "</span>" +
+          "<span>" + esc(choice) + "</span>" +
+          '<span class="mark">' + art("scene-tick") + "</span></button>"
         );
       });
       parts.push("</div>");
@@ -155,10 +177,16 @@
 
     parts.push('<div class="tools">');
     if (opts.read_aloud) {
-      parts.push('<button type="button" class="tool" id="say">🔊 Read it to me</button>');
+      parts.push(
+        '<button type="button" class="tool" id="say">' + art("scene-speaker") +
+        "Read it to me</button>"
+      );
     }
     if (opts.allow_hints && question.hint) {
-      parts.push('<button type="button" class="tool" id="hint">💡 Give me a clue</button>');
+      parts.push(
+        '<button type="button" class="tool" id="hint">' + art("scene-bulb") +
+        "Give me a clue</button>"
+      );
     }
     parts.push("</div>");
     parts.push('<div id="slot"></div>');
@@ -272,7 +300,7 @@
       var slot = document.getElementById("slot");
       slot.insertAdjacentHTML(
         "afterbegin",
-        '<div class="hintbox">💡 ' + esc(text) + "</div>"
+        '<div class="hintbox">' + art("scene-bulb") + "<div>" + esc(text) + "</div></div>"
       );
       if (opts.read_aloud) App.Speech.speak(text);
     });
@@ -318,9 +346,11 @@
     var slot = document.getElementById("slot");
     if (!slot) return;
     slot.innerHTML =
-      '<div class="feedback try"><div class="headline">🔌 Hmm, that did not save</div>' +
+      '<div class="feedback try">' + art("pip-oops", "pip") +
+      '<div class="say"><div class="headline">Hmm, that did not save</div>' +
       '<div class="detail">' + esc(detail) + " Your earlier answers are safe. " +
-      "Tap to try again, or ask a grown-up to restart the app.</div></div>" +
+      "Tap to try again, or ask a grown-up to restart the app.</div>" +
+      "</div></div>" +
       '<button type="button" class="btn block ghost" style="margin-top:12px" ' +
       'onclick="window.location.reload()">Try again</button>';
   }
@@ -343,9 +373,10 @@
     }
     var slot = document.getElementById("slot");
     slot.innerHTML =
-      '<div class="feedback try"><div class="headline">🤔 ' + esc(res.message) + "</div>" +
-      (res.hint ? '<div class="detail">💡 ' + esc(res.hint) + "</div>" : "") +
-      "</div>";
+      '<div class="feedback try">' + art("pip-think", "pip") +
+      '<div class="say"><div class="headline">' + esc(res.message) + "</div>" +
+      (res.hint ? '<div class="detail">' + esc(res.hint) + "</div>" : "") +
+      "</div></div>";
     // Nothing auto-advances on a retry, so the clue can be read in full.
     if (opts.read_aloud) {
       App.Speech.speak(res.message + (res.hint ? ". " + res.hint : ""));
@@ -387,10 +418,11 @@
 
     var isLast = state.index >= data.questions.length - 1;
     var lines = [];
+    // Pip reacts, which turns a verdict into a reaction from a friend.
     lines.push('<div class="feedback ' + (res.correct ? "good" : "bad") + '">');
-    lines.push(
-      '<div class="headline">' + (res.correct ? "✅" : "💡") + " " + esc(res.message) + "</div>"
-    );
+    lines.push(art(res.correct ? "pip-happy" : "pip-oops", "pip"));
+    lines.push('<div class="say">');
+    lines.push('<div class="headline">' + esc(res.message) + "</div>");
     if (!res.correct) {
       lines.push('<div class="detail">The answer is <b>' + esc(res.answer) + "</b>.</div>");
     }
@@ -398,13 +430,17 @@
       lines.push('<div class="detail">' + esc(res.explain) + "</div>");
     }
     if (res.correct && res.xp) {
-      lines.push('<div class="detail">+' + res.xp + " XP" + (res.coins ? " · +" + res.coins + " 🪙" : "") + "</div>");
+      lines.push(
+        '<div class="reward"><b>+' + res.xp + " XP</b>" +
+        (res.coins ? art("scene-coin") + "<b>+" + res.coins + "</b>" : "") +
+        "</div>"
+      );
     }
-    lines.push("</div>");
+    lines.push("</div></div>");
     if (opts.read_aloud) {
       lines.push(
         '<button type="button" class="tool" id="replay" style="margin-top:12px">' +
-        "🔊 Say that again</button>"
+        art("scene-speaker") + "Say that again</button>"
       );
     }
     lines.push(
@@ -489,35 +525,42 @@
 
     var stars = "";
     for (var i = 0; i < 3; i++) {
-      stars += '<i class="' + (i < summary.stars ? "lit" : "") + '">' + (i < summary.stars ? "⭐" : "☆") + "</i>";
+      stars +=
+        '<span class="slot ' + (i < summary.stars ? "lit" : "") + '">' +
+        art(i < summary.stars ? "scene-star" : "scene-star-empty") +
+        "</span>";
     }
 
     var badges = (summary.badges || [])
       .map(function (badge) {
         return (
-          '<div class="badge-pop"><span class="em">' + esc(badge.emoji) + "</span><div><b>New badge: " +
-          esc(badge.name) + "</b><br><small>" + esc(badge.description) + "</small></div></div>"
+          '<div class="badge-pop">' + art(badge.rosette || "rosette-fun", "rosette") +
+          "<div><b>New badge: " + esc(badge.name) + "</b><br><small>" +
+          esc(badge.description) + "</small></div></div>"
         );
       })
       .join("");
 
+    var pose = summary.stars >= 3 ? "cheer" : summary.stars >= 2 ? "happy" : "idle";
+
     var html =
       '<div class="overlay" id="summary"><div class="sheet">' +
+      '<div class="pip-big art-holder pop">' + art("pip-" + pose) + "</div>" +
       '<div class="stars">' + stars + "</div>" +
       "<h1>" + esc(summary.message) + "</h1>" +
       '<p class="muted">' + esc(summary.title) + "</p>" +
       '<div class="score-grid">' +
-      "<div><b>" + summary.correct + "/" + summary.answered + "</b><span>right</span></div>" +
-      "<div><b>+" + summary.xp + "</b><span>bonus XP</span></div>" +
-      "<div><b>+" + summary.coins + "</b><span>coins</span></div>" +
+      '<div><b class="nums">' + summary.correct + "/" + summary.answered + "</b><span>right</span></div>" +
+      '<div><b class="nums">+' + summary.xp + "</b><span>bonus XP</span></div>" +
+      '<div><b class="nums">+' + summary.coins + "</b><span>coins</span></div>" +
       "</div>" +
       badges +
       '<div class="stack" style="margin-top:18px">' +
       '<button type="button" class="btn big block leaf" data-start-quest data-subject="' +
       esc(data.subject === "mixed" ? "" : data.subject) + '" data-mode="' + esc(data.mode) +
-      '">Another quest 🚀</button>' +
+      '">Another quest</button>' +
       '<a class="btn block ghost" href="/done/' + data.id + '">See my answers</a>' +
-      '<a class="btn block ghost" href="/home">Back home 🏠</a>' +
+      '<a class="btn block ghost" href="/home">Back home</a>' +
       "</div></div></div>";
 
     document.body.insertAdjacentHTML("beforeend", html);
@@ -541,7 +584,7 @@
 
     var html =
       '<div class="overlay" id="breaker"><div class="sheet">' +
-      '<div style="font-size:3.4rem">🤸</div>' +
+      '<div class="pip-big art-holder bob">' + art("pip-idle") + "</div>" +
       "<h1>Wiggle break!</h1>" +
       "<p>You have been working hard for " + Math.round(minutes) + " minutes. " +
       "Stand up, stretch tall, and have a drink of water.</p>" +
@@ -563,10 +606,10 @@
     if (document.getElementById("timeup")) return;
     var html =
       '<div class="overlay" id="timeup"><div class="sheet">' +
-      '<div style="font-size:3.4rem">⏰</div>' +
+      '<div class="pip-big art-holder bob-slow">' + art("pip-sleep") + "</div>" +
       "<h1>That is your time for today</h1>" +
       "<p>Brilliant effort. Your practice is all saved — come back tomorrow!</p>" +
-      '<a class="btn big block leaf" href="/home" style="margin-top:16px">Back home 🏠</a>' +
+      '<a class="btn big block leaf" href="/home" style="margin-top:16px">Back home</a>' +
       "</div></div>";
     document.body.insertAdjacentHTML("beforeend", html);
   }

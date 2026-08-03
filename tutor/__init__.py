@@ -10,6 +10,7 @@ import secrets
 from datetime import date, datetime
 
 from flask import Flask, g, jsonify, render_template, request, session
+from markupsafe import escape
 
 from .config import Config
 from .extensions import db
@@ -91,6 +92,9 @@ def _register_csrf(app: Flask) -> None:
 
 
 def _register_context(app: Flask) -> None:
+    from markupsafe import Markup
+
+    from . import art
     from .content import SUBJECT_ORDER, SUBJECTS, YEAR_BLURBS, YEAR_LABELS
     from .services import profiles
 
@@ -111,7 +115,32 @@ def _register_context(app: Flask) -> None:
             "now": datetime.now(),
             "parent_unlocked": bool(session.get("parent_ok")),
             "child_count": len(profiles.all_children()),
+            # Artwork
+            "art_sprite": Markup(art.sprite()),
+            "art_characters": art.CHARACTERS,
+            "character_of": art.character,
+            "character_id": art.character_id,
+            "colour_themes": art.COLOUR_THEMES,
+            "scene_gradient": art.scene_gradient,
         }
+
+    @app.template_global()
+    def icon(name: str, classes: str = "", label: str = "") -> Markup:
+        """Draw a piece of artwork from the sprite.
+
+        The viewBox has to be repeated on the wrapper, or the symbol renders at
+        its intrinsic size and overflows its container.
+
+        Decorative by default: aria-hidden unless a label is supplied, so a
+        screen reader is not read a list of pictures.
+        """
+        accessibility = (
+            f'role="img" aria-label="{escape(label)}"' if label else 'aria-hidden="true"'
+        )
+        return Markup(
+            f'<svg class="art {escape(classes)}" viewBox="{art.viewbox(name)}"'
+            f' {accessibility} focusable="false"><use href="#{escape(name)}"/></svg>'
+        )
 
 
 def _body_classes(settings) -> str:

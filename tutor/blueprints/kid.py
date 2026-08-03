@@ -13,6 +13,7 @@ from flask import (
     url_for,
 )
 
+from .. import art
 from ..content import SUBJECT_ORDER, SUBJECTS, skills_for, topic_tree
 from ..extensions import db
 from ..services import profiles, quests, rewards, scheduler
@@ -76,7 +77,7 @@ def welcome():
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         year = request.form.get("year_group") or "3"
-        emoji = request.form.get("avatar_emoji") or "🦊"
+        emoji = request.form.get("avatar_character") or art.CHARACTERS[0].id
         colour = request.form.get("avatar_colour") or "sunshine"
         pin = (request.form.get("pin") or "").strip()
 
@@ -105,7 +106,7 @@ def welcome():
 
     return render_template(
         "kid/welcome.html",
-        emojis=rewards.AVATAR_EMOJIS,
+        characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
         default_pin_hint=True,
     )
@@ -184,9 +185,9 @@ def home():
         due=scheduler.due_count(child.id),
         weak=scheduler.weak_skills(child.id, 3),
         flame=rewards.streak_flame(child.streak_days),
-        hat=rewards.equipped_emoji(child, "hat"),
-        pet=rewards.equipped_emoji(child, "pet"),
-        scene=rewards.equipped_emoji(child, "scene"),
+        hat=rewards.equipped_art(child, "hat"),
+        pet=rewards.equipped_art(child, "pet"),
+        scene=rewards.equipped_art(child, "scene"),
         badge_count=len(child.badges),
     )
 
@@ -262,7 +263,7 @@ def play(quest_id: int):
         "kid/play.html",
         quest=quest,
         payload=quests.quest_payload(quest, g.child),
-        hat=rewards.equipped_emoji(g.child, "hat"),
+        hat=rewards.equipped_art(g.child, "hat"),
     )
 
 
@@ -378,10 +379,10 @@ def me():
         return response
     child = g.child
     if request.method == "POST":
-        emoji = request.form.get("avatar_emoji")
+        chosen = request.form.get("avatar_character")
         colour = request.form.get("avatar_colour")
-        if emoji in rewards.AVATAR_EMOJIS:
-            child.avatar_emoji = emoji
+        if chosen in art.CHARACTERS_BY_ID:
+            child.avatar_emoji = chosen
         if colour in {key for key, _ in rewards.AVATAR_COLOURS}:
             child.avatar_colour = colour
         db.session.commit()
@@ -390,11 +391,11 @@ def me():
 
     return render_template(
         "kid/me.html",
-        emojis=rewards.AVATAR_EMOJIS,
+        characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
         totals=quests.lifetime_totals(child.id),
-        hat=rewards.equipped_emoji(child, "hat"),
-        pet=rewards.equipped_emoji(child, "pet"),
-        scene=rewards.equipped_emoji(child, "scene"),
+        hat=rewards.equipped_art(child, "hat"),
+        pet=rewards.equipped_art(child, "pet"),
+        scene=rewards.equipped_art(child, "scene"),
         flame=rewards.streak_flame(child.streak_days),
     )

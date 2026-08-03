@@ -14,7 +14,9 @@
   {% for row in rows %}
     <div class="p-card">
       <div class="p-card-head">
-        <span class="p-avatar {{ row.child.avatar_colour }}">{{ row.child.avatar_emoji }}</span>
+        <span class="p-avatar theme-{{ row.child.avatar_colour }}">
+          {{ icon('char-' ~ character_id(row.child.avatar_emoji)) }}
+        </span>
         <h2 class="p-grow" style="margin:0">{{ row.child.name }}</h2>
         <span class="p-tag">Year {{ row.child.year_group }}</span>
         <span class="p-tag">Level {{ row.child.level }}</span>
@@ -112,8 +114,10 @@
         </div>
         <div class="p-field">
           <label for="new-emoji">Character</label>
-          <select id="new-emoji" name="avatar_emoji">
-            {% for emoji in emojis %}<option value="{{ emoji }}">{{ emoji }}</option>{% endfor %}
+          <select id="new-emoji" name="avatar_character">
+            {% for c in characters %}
+              <option value="{{ c.id }}">{{ c.name }}</option>
+            {% endfor %}
           </select>
         </div>
         <div class="p-field">

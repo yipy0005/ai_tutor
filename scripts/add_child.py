@@ -15,7 +15,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Add a learner profile.")
     parser.add_argument("--name", required=True)
     parser.add_argument("--year", type=int, default=3)
-    parser.add_argument("--emoji", default="🐨")
+    parser.add_argument("--emoji", default="bear")
     parser.add_argument("--colour", default="ocean")
     args = parser.parse_args()
 

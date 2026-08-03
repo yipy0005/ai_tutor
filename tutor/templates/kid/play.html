@@ -2,7 +2,7 @@
 {% block title %}{{ quest.title }}{% endblock %}
 {% block body_class %} playing{% endblock %}
 
-{# The player runs in focus mode: no top bar, no bottom nav, one job on screen. #}
+{# Focus mode: no top bar, no bottom nav, one job on screen. #}
 {% block chrome %}{% endblock %}
 {% block nav %}{% endblock %}
 
@@ -11,28 +11,29 @@
 
   <div class="play-head">
     <div class="play-head-inner">
-      <button type="button" class="quit" id="quit" aria-label="Stop this quest">✕</button>
+      <button type="button" class="quit" id="quit" aria-label="Stop this quest">&times;</button>
       <div style="min-width:0;flex:1 1 auto">
         <div style="display:flex;align-items:baseline;gap:8px">
-          <b style="font-size:0.95rem">{{ quest.title }}</b>
-          <span class="muted tiny" id="counter"></span>
+          <b style="font-family:var(--display);font-size:1rem">{{ quest.title }}</b>
+          <span class="muted tiny nums" id="counter"></span>
         </div>
         <div class="dots" id="dots" role="progressbar"
              aria-label="Quest progress" aria-valuemin="0"
              aria-valuemax="{{ payload.total }}" aria-valuenow="{{ payload.answered }}"></div>
       </div>
-      {% if settings.show_timer %}
-        <span class="play-timer" id="timer"></span>
-      {% else %}
-        <span class="play-timer hidden" id="timer"></span>
-      {% endif %}
-      <span class="chip coins" title="Coins">🪙 <b id="hdr-coins">{{ child.coins }}</b></span>
+      <span class="play-timer {{ '' if settings.show_timer else 'hidden' }}" id="timer"></span>
+      <span class="chip coins" title="Coins">
+        {{ icon('scene-coin') }}<b id="hdr-coins" class="nums">{{ child.coins }}</b>
+      </span>
     </div>
   </div>
 
   <div class="play-body">
     <div id="stage" aria-live="polite">
       <div class="qcard center">
+        <div class="art-holder bob" style="width:96px;height:96px;margin:0 auto 8px">
+          {{ icon('pip-idle') }}
+        </div>
         <p class="muted">Getting your questions ready…</p>
       </div>
     </div>

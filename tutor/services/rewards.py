@@ -97,6 +97,11 @@ class Badge:
     description: str
     group: str = "general"
 
+    @property
+    def rosette(self) -> str:
+        """The rosette artwork to draw behind this badge's emblem."""
+        return f"rosette-{self.group}"
+
 
 BADGES: list[Badge] = [
     Badge("first-quest", "First Steps", "👣", "Finish your very first quest", "start"),
@@ -271,40 +276,39 @@ def evaluate_badges(child: Child) -> list[Badge]:
 class ShopItem:
     id: str
     name: str
-    emoji: str
+    art: str          # symbol id in the artwork sprite
     cost: int
-    slot: str  # "hat" | "pet" | "scene"
+    slot: str         # "hat" | "pet" | "scene"
 
 
 SHOP_ITEMS: list[ShopItem] = [
-    ShopItem("hat-party", "Party Hat", "🎉", 20, "hat"),
-    ShopItem("hat-crown", "Golden Crown", "👑", 60, "hat"),
-    ShopItem("hat-wizard", "Wizard Hat", "🧙", 45, "hat"),
-    ShopItem("hat-cap", "Baseball Cap", "🧢", 15, "hat"),
-    ShopItem("hat-graduate", "Graduation Cap", "🎓", 80, "hat"),
-    ShopItem("hat-flower", "Flower Crown", "🌸", 30, "hat"),
+    ShopItem("hat-cap", "Baseball Cap", "hat-cap", 15, "hat"),
+    ShopItem("hat-party", "Party Hat", "hat-party", 20, "hat"),
+    ShopItem("hat-flower", "Flower Crown", "hat-flower", 30, "hat"),
+    ShopItem("hat-wizard", "Wizard Hat", "hat-wizard", 45, "hat"),
+    ShopItem("hat-crown", "Golden Crown", "hat-crown", 60, "hat"),
+    ShopItem("hat-graduate", "Graduation Cap", "hat-graduate", 80, "hat"),
 
-    ShopItem("pet-cat", "Kitten", "🐱", 25, "pet"),
-    ShopItem("pet-dog", "Puppy", "🐶", 25, "pet"),
-    ShopItem("pet-dragon", "Baby Dragon", "🐲", 90, "pet"),
-    ShopItem("pet-unicorn", "Unicorn", "🦄", 100, "pet"),
-    ShopItem("pet-penguin", "Penguin", "🐧", 40, "pet"),
-    ShopItem("pet-owl", "Wise Owl", "🦉", 55, "pet"),
-    ShopItem("pet-turtle", "Turtle", "🐢", 35, "pet"),
+    # Pets are drawn from the same character family as the avatars, so a pet
+    # looks like a smaller friend rather than a different art style.
+    ShopItem("pet-cat", "Mitts the Kitten", "char-cat", 25, "pet"),
+    ShopItem("pet-dog", "Bramble the Cub", "char-bear", 25, "pet"),
+    ShopItem("pet-frog", "Hop the Frog", "char-frog", 35, "pet"),
+    ShopItem("pet-penguin", "Puff the Penguin", "char-penguin", 40, "pet"),
+    ShopItem("pet-owl", "Hoot the Owl", "char-owl", 55, "pet"),
+    ShopItem("pet-hedgehog", "Prickle the Hedgehog", "char-hedgehog", 65, "pet"),
+    ShopItem("pet-dragon", "Ember the Dragon", "char-dragon", 90, "pet"),
+    ShopItem("pet-unicorn", "Twinkle the Unicorn", "char-unicorn", 100, "pet"),
 
-    ShopItem("scene-space", "Outer Space", "🌌", 70, "scene"),
-    ShopItem("scene-beach", "Sunny Beach", "🏖️", 50, "scene"),
-    ShopItem("scene-forest", "Magic Forest", "🌳", 50, "scene"),
-    ShopItem("scene-castle", "Castle", "🏰", 75, "scene"),
-    ShopItem("scene-rainbow", "Rainbow", "🌈", 40, "scene"),
+    ShopItem("scene-rainbow", "Rainbow Meadow", "scene-rainbow", 40, "scene"),
+    ShopItem("scene-beach", "Sunny Beach", "scene-beach", 50, "scene"),
+    ShopItem("scene-forest", "Magic Forest", "scene-forest", 50, "scene"),
+    ShopItem("scene-space", "Outer Space", "scene-space", 70, "scene"),
+    ShopItem("scene-castle", "Castle", "scene-castle", 75, "scene"),
 ]
 
 SHOP_BY_ID = {i.id: i for i in SHOP_ITEMS}
 
-AVATAR_EMOJIS = [
-    "🦊", "🐼", "🐨", "🦁", "🐯", "🐸", "🐙", "🦄",
-    "🐧", "🦉", "🐝", "🦋", "🐳", "🦕", "🐰", "🐷",
-]
 AVATAR_COLOURS = [
     ("sunshine", "Sunshine"),
     ("berry", "Berry"),
@@ -340,14 +344,15 @@ def equip_item(child: Child, item: ShopItem) -> None:
         child.equipped_scene = item.id
 
 
-def equipped_emoji(child: Child, slot: str) -> str:
+def equipped_art(child: Child, slot: str) -> str:
+    """The sprite symbol id for whatever is equipped in a slot, or ""."""
     item_id = {
         "hat": child.equipped_hat,
         "pet": child.equipped_pet,
         "scene": child.equipped_scene,
     }.get(slot)
     item = SHOP_BY_ID.get(item_id or "")
-    return item.emoji if item else ""
+    return item.art if item else ""
 
 
 # ---------------------------------------------------------------------------

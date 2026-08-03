@@ -3,23 +3,33 @@
 
 {% block content %}
 <div class="stack-lg">
-  <section class="card center">
+  <section class="hero center">
+    <svg class="hills" aria-hidden="true" viewBox="0 0 400 120" preserveAspectRatio="none">
+      <use href="#scene-hills"/>
+    </svg>
+    <svg class="cloud a" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
+
+    <div class="pip-big art-holder pop" style="margin:0 auto">
+      {{ icon('pip-' ~ ('cheer' if summary.stars >= 3 else ('happy' if summary.stars >= 2 else 'idle'))) }}
+    </div>
     <div class="stars" aria-label="{{ summary.stars }} out of 3 stars">
       {%- for i in range(3) -%}
-        <i class="{{ 'lit' if i < summary.stars }}">{{ '⭐' if i < summary.stars else '☆' }}</i>
+        <span class="slot {{ 'lit' if i < summary.stars }}">
+          {{ icon('scene-star' if i < summary.stars else 'scene-star-empty') }}
+        </span>
       {%- endfor -%}
     </div>
-    <h1 style="margin-top:8px">{{ quest.title }}</h1>
+    <h1 style="margin-top:10px">{{ quest.title }}</h1>
     <div class="score-grid">
-      <div><b>{{ summary.correct }}/{{ summary.answered }}</b><span>right</span></div>
-      <div><b>{{ summary.accuracy }}%</b><span>score</span></div>
-      <div><b>{{ summary.minutes }}</b><span>minutes</span></div>
+      <div><b class="nums">{{ summary.correct }}/{{ summary.answered }}</b><span>right</span></div>
+      <div><b class="nums">{{ summary.accuracy }}%</b><span>score</span></div>
+      <div><b class="nums">{{ summary.minutes }}</b><span>minutes</span></div>
     </div>
     <div class="stack">
       <button type="button" class="btn big block leaf" data-start-quest
               data-subject="{{ '' if quest.subject == 'mixed' else quest.subject }}"
-              data-mode="{{ quest.mode }}">🚀 Another quest</button>
-      <a class="btn block ghost" href="{{ url_for('kid.home') }}">🏠 Back home</a>
+              data-mode="{{ quest.mode }}">Another quest</button>
+      <a class="btn block ghost" href="{{ url_for('kid.home') }}">Back home</a>
     </div>
   </section>
 
@@ -28,8 +38,11 @@
     <h2 id="review-heading">Your answers</h2>
     <div class="rows">
       {% for item in summary.review %}
-        <div class="row" style="align-items:flex-start;{{ 'border-color:#b5e3c1' if item.correct else 'border-color:#f5c2be' }}">
-          <span aria-hidden="true" style="font-size:1.4rem">{{ '✅' if item.correct else '💡' }}</span>
+        <div class="row" style="align-items:flex-start;
+             border-color: {{ 'var(--ok-line)' if item.correct else 'var(--no-line)' }}">
+          <div class="art-holder" style="width:36px;height:36px">
+            {{ icon('scene-tick' if item.correct else 'scene-bulb') }}
+          </div>
           <div class="grow">
             <b>{{ item.prompt }}</b>
             <small>
