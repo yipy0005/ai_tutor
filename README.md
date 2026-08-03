@@ -371,6 +371,19 @@ before it starts and tells you what to do if it is not.
 **Port already in use.** Something else is on 5001. Either stop it or pick
 another port: `PORT=5002 pixi run serve`.
 
+**A tablet connects but gets a blank page or "empty reply".** The macOS firewall
+is blocking it. pixi's Python is only ad-hoc signed, so macOS does not
+auto-allow it, and until it is approved an incoming connection completes and is
+then killed. `pixi run serve` detects this and prints the two commands to fix
+it. On the server side the same thing shows up as repeated
+`OSError: [Errno 57] Socket is not connected`, which is now suppressed as noise.
+
+**The address shown is not reachable from the tablet.** If a VPN is running, the
+machine's default route points down the tunnel. `pixi run serve` deliberately
+skips tunnel interfaces (`utun`, `wg`, `ppp` and friends) and lists the real
+wi-fi and ethernet addresses instead, wi-fi first. If more than one is shown,
+try them in order.
+
 **Starting completely over:** `pixi run reset-db` then `pixi run setup`.
 
 ---
