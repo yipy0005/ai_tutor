@@ -485,10 +485,31 @@ HAT_SHAPES: dict[str, str] = {
 }
 
 
+# Each hat is drawn where it was convenient to draw it, so each one's brim — the
+# line that should rest on a head — sits at a different height. These nudges move
+# every brim onto y=68 of a shared, tightened viewBox, so one CSS rule can place
+# any hat on any character. Without this a hat either floats above the head or
+# sinks into it, depending which hat it is.
+HAT_BRIM_NUDGE: dict[str, float] = {
+    "hat-party": 4.25,     # cone base
+    "hat-crown": -1.75,    # band underside
+    "hat-wizard": -5.75,   # brim underside
+    "hat-cap": -1.75,      # crown underside, ignoring the peak
+    "hat-graduate": -1.0,  # board underside; the tassel is meant to hang below
+    "hat-flower": 4.5,     # stem
+}
+HAT_VIEWBOX = "0 0 120 72"
+
+
 def hat_symbols() -> str:
     out = []
     for hat_id, body in HAT_SHAPES.items():
-        out.append(f'<symbol id="{hat_id}" viewBox="0 0 120 120">{body}</symbol>')
+        nudge = HAT_BRIM_NUDGE[hat_id]
+        out.append(
+            f'<symbol id="{hat_id}" viewBox="{HAT_VIEWBOX}">'
+            f'<g transform="translate(0 {nudge})">{body}</g>'
+            f"</symbol>"
+        )
     return "".join(out)
 
 
@@ -580,9 +601,13 @@ def scenery_symbols() -> str:
         stroke-linecap="round"/>
 </symbol>
 <symbol id="scene-flame" viewBox="0 0 40 44">
-  <path d="M20 3 C28 14 34 18 34 27 a14 14 0 0 1 -28 0 C6 19 12 15 20 3 Z"
+  <!-- A single smooth teardrop reads as a water droplet. The second tongue on
+       the left and the notch between them are what make this read as fire. -->
+  <path d="M21 3 C26 13 33 17 33 27 a13 13 0 0 1 -26 0 C7 20 11 17 13 11
+           c1 4 3 5 4 7 C19 14 20 9 21 3 Z"
         fill="#ff8a4c" stroke="{INK}" stroke-width="3" stroke-linejoin="round"/>
-  <path d="M20 17 C24 23 26 25 26 29 a6 6 0 0 1 -12 0 c0 -4 2 -6 6 -12z" fill="#ffd166"/>
+  <path d="M20 18 C23 23 26 25 26 30 a6.5 6.5 0 0 1 -13 0 c0 -5 4 -7 7 -12z"
+        fill="#ffd166"/>
 </symbol>
 <symbol id="scene-lock" viewBox="0 0 40 44">
   <rect x="8" y="19" width="24" height="20" rx="5" fill="#c3bcd0" stroke="{INK}"

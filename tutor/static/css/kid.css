@@ -223,12 +223,15 @@ b, strong { font-weight: 800; }
   overflow: visible;
 }
 .avatar .art { width: 84%; height: 84%; }
+/* Hat symbols use a 120x72 viewBox with the brim normalised onto y=68 (see
+   HAT_BRIM_NUDGE in art.py), so 90% x 54% keeps the drawing's own aspect ratio
+   and `bottom` lands the brim just onto the crown of the head. */
 .avatar .hat {
   position: absolute;
-  top: -30%;
+  bottom: 68%;
   left: 50%;
-  width: 78%;
-  height: 78%;
+  width: 90%;
+  height: 54%;
   transform: translateX(-50%);
   pointer-events: none;
 }
