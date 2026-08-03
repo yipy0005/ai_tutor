@@ -470,6 +470,23 @@ details.p-details summary:hover { color: var(--p-brand-dark); }
 .p-legend div { display: flex; align-items: center; gap: 7px; }
 .p-legend i { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
 
+/* Long file paths must wrap rather than widen the page on a phone. */
+body.parent code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.86em;
+  background: var(--p-bg);
+  border: 1px solid var(--p-line);
+  padding: 1px 5px;
+  border-radius: 5px;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+/* Grid and flex children default to min-width:auto, which lets wide content
+   such as a data table push the whole page sideways. */
+.p-grid > *, .p-inline > * { min-width: 0; }
+.p-card, .p-stat { overflow-wrap: break-word; }
+
 @media (max-width: 600px) {
   .p-card { padding: 14px; }
   .p-skill { grid-template-columns: 1fr; }

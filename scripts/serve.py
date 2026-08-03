@@ -16,14 +16,14 @@ from tutor import create_app
 from tutor.config import Config
 
 
-def check_database() -> str | None:
+def check_database(path=None) -> str | None:
     """Confirm the database is present and writable. Returns a problem, or None.
 
     Worth checking up front because SQLite reports several quite different
     situations as the same unhelpful "attempt to write a readonly database" at
     the moment a child taps Start.
     """
-    path = Config.DB_PATH
+    path = path or Config.DB_PATH
     if not path.exists():
         return (
             f"No database found at {path}.\n"

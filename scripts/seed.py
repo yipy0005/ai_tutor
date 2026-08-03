@@ -19,7 +19,7 @@ from tutor import create_app, db
 from tutor.config import Config
 from tutor.content import ALL_SKILLS, content_summary, draw_question, split_question
 from tutor.models import DailyActivity, Quest, QuestQuestion, SkillProgress
-from tutor.services import profiles, rewards, scheduler
+from tutor.services import maintenance, profiles, rewards, scheduler
 
 
 def parse_args() -> argparse.Namespace:
@@ -195,7 +195,7 @@ def main() -> int:
 
         summary = content_summary()
         print()
-        print(f"Database:        {Config.DB_PATH}")
+        print(f"Database:        {maintenance.live_db_path()}")
         print(f"Skills:          {summary['skills']}")
         print(f"Bank questions:  {summary['bank_questions']}")
         print(f"Maths generators:{summary['generators']}")

@@ -21,10 +21,11 @@ from flask import (
     url_for,
 )
 
+from ..config import Config
 from ..content import ALL_SKILLS, SUBJECT_ORDER, SUBJECTS, subject_counts
 from ..extensions import db
 from ..models import ParentAccount
-from ..services import profiles, quests, rewards, scheduler, stats
+from ..services import maintenance, profiles, quests, rewards, scheduler, stats
 
 bp = Blueprint("parent", __name__, url_prefix="/parent")
 
@@ -358,7 +359,7 @@ def delete_child(child_id: int):
     child = profiles.get_child(child_id)
     if child is None:
         return redirect(url_for("parent.children_page"))
-    if (request.form.get("confirm") or "").strip().lower() != child.name.strip().lower():
+    if not _confirmed(child):
         flash("Type the learner's name exactly to confirm deletion.", "error")
         return redirect(url_for("parent.children_page"))
 
@@ -372,30 +373,156 @@ def delete_child(child_id: int):
     return redirect(url_for("parent.children_page"))
 
 
+# ---------------------------------------------------------------------------
+# Clearing and resetting data
+# ---------------------------------------------------------------------------
+
+
+def _confirmed(child) -> bool:
+    """True when the parent typed the learner's name exactly.
+
+    The field is deliberately not called "confirm": an input of that name inside
+    a form shadows ``window.confirm`` in inline event handlers, which silently
+    breaks the "are you sure?" prompt on exactly the forms that need it most.
+    """
+    typed = (request.form.get("confirm_name") or "").strip().lower()
+    return typed == child.name.strip().lower()
+
+
+@bp.route("/data")
+@parent_required
+def data_page():
+    child, children = _viewed_child()
+    if child is None:
+        return redirect(url_for("kid.welcome"))
+    return render_template(
+        "parent/data.html",
+        view_child=child,
+        children=children,
+        stored=maintenance.stored_summary(child),
+        subjects=maintenance.subject_summary(child),
+        quests=quests.recent_quests(child.id, 40),
+        backups=maintenance.list_backups(),
+        db_path=str(Config.DB_PATH),
+    )
+
+
+@bp.post("/data/quests/delete")
+@parent_required
+def delete_quests():
+    child, _ = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.dashboard"))
+
+    ids = []
+    for raw in request.form.getlist("quest_ids"):
+        if str(raw).isdigit():
+            ids.append(int(raw))
+    if not ids:
+        flash("Tick at least one quest to remove.", "error")
+        return redirect(url_for("parent.data_page"))
+
+    result = maintenance.delete_quests(child, ids)
+    if not result.get("removed"):
+        flash("Those quests could not be found.", "error")
+    else:
+        flash(
+            f"Removed {result['removed']} quest"
+            f"{'' if result['removed'] == 1 else 's'} and recalculated "
+            f"{child.name}'s progress from the {result['answers']} answers that remain.",
+            "success",
+        )
+    return redirect(url_for("parent.data_page"))
+
+
+@bp.post("/data/subject/<subject>/reset")
+@parent_required
+def reset_subject(subject: str):
+    child, _ = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.dashboard"))
+    if subject not in SUBJECTS:
+        flash("Unknown subject.", "error")
+        return redirect(url_for("parent.data_page"))
+    if not _confirmed(child):
+        flash(f"Type “{child.name}” exactly to confirm the reset.", "error")
+        return redirect(url_for("parent.data_page"))
+
+    result = maintenance.reset_subject(child, subject)
+    name = SUBJECTS[subject].name
+    if result.get("removed"):
+        flash(
+            f"{name} has been reset for {child.name}: {result['removed']} answers cleared. "
+            "Other subjects were left untouched.",
+            "success",
+        )
+    elif result.get("skills_cleared"):
+        flash(f"Cleared {result['skills_cleared']} unused {name} skill records.", "info")
+    else:
+        flash(f"There was no {name} progress to clear.", "info")
+    return redirect(url_for("parent.data_page"))
+
+
+@bp.post("/data/reset-all")
+@parent_required
+def reset_all():
+    child, _ = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.dashboard"))
+    if not _confirmed(child):
+        flash(f"Type “{child.name}” exactly to confirm the reset.", "error")
+        return redirect(url_for("parent.data_page"))
+
+    keep = request.form.get("keep_purchases") in {"on", "1", "true"}
+    result = maintenance.reset_all_progress(child, keep_purchases=keep)
+    cleared = result["cleared"]
+    flash(
+        f"{child.name} is back to a clean slate: {cleared['quests']} quests and "
+        f"{cleared['questions']} answers cleared. "
+        + ("Shop items were kept. " if keep else "Shop items were also removed. ")
+        + "Settings and the profile are unchanged.",
+        "success",
+    )
+    return redirect(url_for("parent.data_page"))
+
+
+@bp.post("/data/backup")
+@parent_required
+def make_backup():
+    child, _ = _viewed_child()
+    path = maintenance.backup_database("manual backup")
+    if path is None:
+        flash("There was no database to back up.", "error")
+    else:
+        flash(f"Backup saved as {path.name}.", "success")
+    _ = child
+    return redirect(url_for("parent.data_page"))
+
+
+@bp.post("/data/backups/delete")
+@parent_required
+def remove_backup():
+    name = request.form.get("name") or ""
+    if maintenance.delete_backup(name):
+        flash(f"Deleted backup {name}.", "info")
+    else:
+        flash("That backup could not be found.", "error")
+    return redirect(url_for("parent.data_page"))
+
+
 @bp.post("/children/<int:child_id>/reset-progress")
 @parent_required
 def reset_progress(child_id: int):
+    """Kept for the link on the Learners page; the real tools live on /parent/data."""
     child = profiles.get_child(child_id)
     if child is None:
         return redirect(url_for("parent.children_page"))
-    if (request.form.get("confirm") or "").strip().lower() != child.name.strip().lower():
+    if not _confirmed(child):
         flash("Type the learner's name exactly to confirm the reset.", "error")
         return redirect(url_for("parent.children_page"))
 
-    from ..models import BadgeAward, DailyActivity, Quest, SkillProgress
-
-    for model in (SkillProgress, DailyActivity, Quest, BadgeAward):
-        for row in db.session.execute(
-            db.select(model).where(model.child_id == child.id)
-        ).scalars().all():
-            db.session.delete(row)
-    child.xp = 0
-    child.coins = 0
-    child.streak_days = 0
-    child.best_streak = 0
-    child.last_active_on = None
-    db.session.commit()
-    flash(f"{child.name}'s progress was reset. Cosmetic items were kept.", "info")
+    maintenance.reset_all_progress(child, keep_purchases=True)
+    flash(f"{child.name}'s progress was reset. Shop items were kept.", "info")
     return redirect(url_for("parent.children_page"))
 
 

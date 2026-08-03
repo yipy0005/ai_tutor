@@ -61,37 +61,34 @@
         </div>
       </form>
 
-      <details class="p-details">
-        <summary style="color:var(--p-bad)">Reset progress or delete this learner</summary>
-        <div class="p-grid two" style="margin-top:12px">
-          <form method="post" action="{{ url_for('parent.reset_progress', child_id=row.child.id) }}">
-            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-            <div class="p-field">
-              <label>Reset all progress</label>
-              <p class="help" style="margin:0 0 8px">
-                Deletes every quest, skill record, badge, XP and coin for
-                {{ row.child.name }}, keeping the profile and settings. This cannot be undone.
-              </p>
-              <input type="text" name="confirm" placeholder="Type “{{ row.child.name }}” to confirm"
-                     autocomplete="off" required>
-            </div>
-            <button class="p-btn ghost" type="submit">Reset progress</button>
-          </form>
-
-          <form method="post" action="{{ url_for('parent.delete_child', child_id=row.child.id) }}">
-            <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-            <div class="p-field">
-              <label>Delete the learner</label>
-              <p class="help" style="margin:0 0 8px">
-                Removes {{ row.child.name }} and everything associated with them. This cannot
-                be undone.
-              </p>
-              <input type="text" name="confirm" placeholder="Type “{{ row.child.name }}” to confirm"
-                     autocomplete="off" required>
-            </div>
-            <button class="p-btn danger" type="submit">Delete learner</button>
-          </form>
+      <div class="p-insight" style="margin-bottom:12px">
+        <span class="em">🧹</span>
+        <div>
+          To undo a single session, start one subject again, or clear
+          {{ row.child.name }}'s progress while keeping the profile, use
+          <a href="{{ url_for('parent.data_page') }}">Clear data</a>. Those tools take a
+          backup first.
         </div>
+      </div>
+
+      <details class="p-details">
+        <summary style="color:var(--p-bad)">Delete this learner completely</summary>
+        <form method="post" action="{{ url_for('parent.delete_child', child_id=row.child.id) }}"
+              style="margin-top:12px;max-width:520px"
+              onsubmit="return window.confirm('Delete {{ row.child.name }} and everything associated with them? This cannot be undone from the app.');">
+          <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+          <div class="p-field">
+            <p class="help" style="margin:0 0 8px">
+              Removes {{ row.child.name }} and everything associated with them: the profile,
+              all settings, every quest and all progress. Take a backup from
+              <a href="{{ url_for('parent.data_page') }}">Clear data</a> first if you may
+              want it back.
+            </p>
+            <input type="text" name="confirm_name" placeholder="Type “{{ row.child.name }}” to confirm"
+                   autocomplete="off" required>
+          </div>
+          <button class="p-btn danger" type="submit">Delete learner</button>
+        </form>
       </details>
     </div>
   {% endfor %}

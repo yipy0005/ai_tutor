@@ -39,6 +39,8 @@ def main() -> int:
     os.environ["DATABASE_URL"] = f"sqlite:///{tmp / 'smoke.sqlite3'}"
     os.environ["SECRET_KEY"] = "smoke-test-secret-key"
 
+    from sqlalchemy import func
+
     from tutor import create_app, db
     from tutor.content import SKILLS_BY_ID
     from tutor.models import Child, Quest, QuestQuestion, SkillProgress
@@ -465,16 +467,254 @@ def main() -> int:
         second_id = second.id
     response = client.post(
         f"/parent/children/{second_id}/delete",
-        data={"_csrf": csrf, "confirm": "wrong name"},
+        data={"_csrf": csrf, "confirm_name": "wrong name"},
         follow_redirects=True,
     )
     check("delete needs the exact name", b"exactly" in response.data)
     response = client.post(
         f"/parent/children/{second_id}/delete",
-        data={"_csrf": csrf, "confirm": "Second"},
+        data={"_csrf": csrf, "confirm_name": "Second"},
         follow_redirects=True,
     )
     check("learner can be deleted", b"deleted" in response.data)
+
+    # ------------------------------------------------------------------
+    print("\nClearing and resetting data")
+    # ------------------------------------------------------------------
+    from tutor.services import maintenance
+
+    response = client.get("/parent/data")
+    check("GET /parent/data renders", response.status_code == 200, response.status_code)
+
+    # Build a known history: three finished quests, one per subject.
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        child_row.settings.subjects_enabled = ["maths", "english", "science"]
+        child_row.settings.years_enabled = [1, 2, 3]
+        child_row.settings.second_chance = False
+        db.session.commit()
+
+    made = {}
+    for subject in ("maths", "english", "science"):
+        started = client.post(
+            "/api/quest/start",
+            json={"subject": subject, "count": 4},
+            headers={"X-CSRF-Token": get_csrf(client)},
+        ).get_json()
+        quest_id = started["quest_id"]
+        detail = client.get(f"/api/quest/{quest_id}").get_json()
+        with app.app_context():
+            answers = {
+                row.id: (row.solution or {}).get("answer", "")
+                for row in db.session.execute(
+                    db.select(QuestQuestion).where(QuestQuestion.quest_id == quest_id)
+                ).scalars().all()
+            }
+        for question in detail["questions"]:
+            client.post(
+                f"/api/quest/{quest_id}/answer",
+                json={"question_id": question["id"], "answer": answers[question["id"]], "seconds": 5},
+                headers={"X-CSRF-Token": get_csrf(client)},
+            )
+        client.post(f"/api/quest/{quest_id}/finish", json={}, headers={"X-CSRF-Token": get_csrf(client)})
+        made[subject] = quest_id
+
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        before = maintenance.stored_summary(child_row)
+        check("summary counts the quests", before["quests"] >= 3, before["quests"])
+        check("summary counts the answers", before["questions"] >= 12, before["questions"])
+        check("summary counts tracked skills", before["skills"] >= 3, before["skills"])
+
+        per_subject = {row["id"]: row for row in maintenance.subject_summary(child_row)}
+        check(
+            "per-subject counts are populated",
+            all(per_subject[s]["questions"] >= 4 for s in ("maths", "english", "science")),
+            {s: per_subject[s]["questions"] for s in per_subject},
+        )
+
+        # Rebuilding is idempotent: running it twice must give the same answer
+        # as running it once. (The first run also normalises the coin balance,
+        # which this test inflated by hand earlier when checking the shop.)
+        maintenance.rebuild_derived(child_row)
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        once = maintenance.stored_summary(child_row)
+        first = (child_row.xp, child_row.coins, once["skills"], once["questions"], once["badges"])
+
+        maintenance.rebuild_derived(child_row)
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        twice = maintenance.stored_summary(child_row)
+        second = (child_row.xp, child_row.coins, twice["skills"], twice["questions"], twice["badges"])
+        check("rebuilding twice gives the same result", first == second, f"{first} -> {second}")
+        check("a rebuild keeps every answer", twice["questions"] == before["questions"],
+              f"{before['questions']} -> {twice['questions']}")
+        check("a rebuild keeps every skill record", twice["skills"] == before["skills"],
+              f"{before['skills']} -> {twice['skills']}")
+        check("coins never go negative", child_row.coins >= 0, child_row.coins)
+        before = twice
+
+    # -- Deleting one quest recalculates everything ---------------------
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        xp_before = child_row.xp
+        science_answers = db.session.execute(
+            db.select(func.count(QuestQuestion.id)).where(
+                QuestQuestion.quest_id == made["science"]
+            )
+        ).scalar_one()
+        science_before = {
+            row["id"]: row for row in maintenance.subject_summary(child_row)
+        }["science"]["questions"]
+
+    response = client.post(
+        "/data/quests/delete",
+        data={"_csrf": get_csrf(client), "quest_ids": [made["science"]]},
+        follow_redirects=True,
+    )
+    check("deleting a quest needs the parent route", response.status_code in (200, 404, 405))
+
+    response = client.post(
+        "/parent/data/quests/delete",
+        data={"_csrf": get_csrf(client), "quest_ids": [str(made["science"])]},
+        follow_redirects=True,
+    )
+    check("a single quest can be removed", b"Removed 1 quest" in response.data, response.status_code)
+
+    with app.app_context():
+        check("the quest is gone", db.session.get(Quest, made["science"]) is None)
+        check(
+            "its answers went with it",
+            db.session.execute(
+                db.select(func.count(QuestQuestion.id)).where(
+                    QuestQuestion.quest_id == made["science"]
+                )
+            ).scalar_one() == 0,
+        )
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        check("XP was recalculated downwards", child_row.xp < xp_before, f"{xp_before} -> {child_row.xp}")
+        counts = maintenance.stored_summary(child_row)
+        check(
+            "the answer count dropped by exactly that quest",
+            counts["questions"] == before["questions"] - science_answers,
+            f"{before['questions']} - {science_answers} vs {counts['questions']}",
+        )
+        per_subject = {row["id"]: row for row in maintenance.subject_summary(child_row)}
+        check(
+            "exactly that quest's science answers went",
+            per_subject["science"]["questions"] == science_before - science_answers,
+            f"{science_before} - {science_answers} vs {per_subject['science']['questions']}",
+        )
+        check("maths progress survived", per_subject["maths"]["skills"] > 0, per_subject["maths"])
+
+    response = client.post(
+        "/parent/data/quests/delete", data={"_csrf": get_csrf(client)}, follow_redirects=True
+    )
+    check("removing nothing is rejected", b"Tick at least one" in response.data)
+
+    # -- Subject reset --------------------------------------------------
+    response = client.post(
+        "/parent/data/subject/english/reset",
+        data={"_csrf": get_csrf(client), "confirm_name": "not the name"},
+        follow_redirects=True,
+    )
+    check("a subject reset needs the exact name", b"to confirm" in response.data)
+
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        name = child_row.name
+
+    response = client.post(
+        "/parent/data/subject/english/reset",
+        data={"_csrf": get_csrf(client), "confirm_name": name},
+        follow_redirects=True,
+    )
+    check("a subject can be reset", b"has been reset" in response.data, response.status_code)
+
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        per_subject = {row["id"]: row for row in maintenance.subject_summary(child_row)}
+        check("english progress is cleared", per_subject["english"]["skills"] == 0, per_subject["english"])
+        check("maths still untouched", per_subject["maths"]["skills"] > 0, per_subject["maths"])
+        check(
+            "no maths answers were lost",
+            per_subject["maths"]["questions"] >= 4,
+            per_subject["maths"]["questions"],
+        )
+
+    # -- Coins already spent stay spent ---------------------------------
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        owned_before = len(child_row.owned_item_ids())
+        maintenance.rebuild_derived(child_row)
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        check(
+            "shop purchases are not refunded by a rebuild",
+            len(child_row.owned_item_ids()) == owned_before,
+            f"{owned_before} -> {len(child_row.owned_item_ids())}",
+        )
+
+    # -- Full reset -----------------------------------------------------
+    response = client.post(
+        "/parent/data/reset-all",
+        data={"_csrf": get_csrf(client), "confirm_name": "wrong"},
+        follow_redirects=True,
+    )
+    check("a full reset needs the exact name", b"to confirm" in response.data)
+
+    response = client.post(
+        "/parent/data/reset-all",
+        data={"_csrf": get_csrf(client), "confirm_name": name, "keep_purchases": "on"},
+        follow_redirects=True,
+    )
+    check("a full reset runs", b"clean slate" in response.data, response.status_code)
+
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        counts = maintenance.stored_summary(child_row)
+        check("all quests cleared", counts["quests"] == 0, counts["quests"])
+        check("all answers cleared", counts["questions"] == 0, counts["questions"])
+        check("all skill records cleared", counts["skills"] == 0, counts["skills"])
+        check("badges cleared", counts["badges"] == 0, counts["badges"])
+        check("XP and coins zeroed", (child_row.xp, child_row.coins) == (0, 0),
+              (child_row.xp, child_row.coins))
+        check("streak cleared", child_row.streak_days == 0, child_row.streak_days)
+        check("shop items kept as asked", counts["items"] == owned_before, counts["items"])
+        check("the profile itself survives", child_row.name == name)
+        check("settings survive a reset", child_row.settings is not None
+              and child_row.settings.quest_length == 6, child_row.settings.quest_length)
+
+    # She can still start a fresh quest afterwards.
+    response = client.post(
+        "/api/quest/start", json={"mode": "mixed"}, headers={"X-CSRF-Token": get_csrf(client)}
+    )
+    check("a new quest works after a reset", response.status_code == 200, response.get_json())
+
+    # -- Backups --------------------------------------------------------
+    with app.app_context():
+        backups = maintenance.list_backups()
+        check("backups were taken automatically", len(backups) >= 3, len(backups))
+        check(
+            "backups sit beside the database in use",
+            all("smoke" in str(b.path.parent.parent) or str(tmp) in str(b.path) for b in backups),
+            [str(b.path) for b in backups[:2]],
+        )
+        check("backup reasons are recorded", any("reset" in b.reason for b in backups),
+              [b.reason for b in backups])
+        check("path traversal is refused", maintenance.delete_backup("../../tutor.sqlite3") is False)
+        check("odd names are refused", maintenance.delete_backup("evil.txt") is False)
+        first_name = backups[0].name
+
+    response = client.post(
+        "/parent/data/backup", data={"_csrf": get_csrf(client)}, follow_redirects=True
+    )
+    check("a backup can be taken on demand", b"Backup saved" in response.data)
+
+    response = client.post(
+        "/parent/data/backups/delete",
+        data={"_csrf": get_csrf(client), "name": first_name},
+        follow_redirects=True,
+    )
+    check("a backup can be deleted", b"Deleted backup" in response.data)
 
     # ------------------------------------------------------------------
     print("\nQuiet hours")

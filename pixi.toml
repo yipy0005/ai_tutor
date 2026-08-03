@@ -53,6 +53,14 @@ cmd = "python -m scripts.serve"
 description = "Delete the database and rebuild it from scratch. Destroys all progress."
 cmd = "python -m scripts.reset_db"
 
+[tasks.restore-backup]
+description = "Put a database backup back in place. Stop the app first."
+cmd = "python -m scripts.restore_backup"
+
+[tasks.backups]
+description = "List the database backups."
+cmd = "python -m scripts.restore_backup --list"
+
 [tasks.add-child]
 description = "Add a learner profile: pixi run add-child --name Emma --year 3"
 cmd = "python -m scripts.add_child"

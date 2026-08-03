@@ -23,6 +23,7 @@
       <a href="{{ url_for('parent.activity') }}" class="{{ 'on' if request.endpoint in ('parent.activity', 'parent.quest_detail') }}">Activity</a>
       <a href="{{ url_for('parent.settings_page') }}" class="{{ 'on' if request.endpoint == 'parent.settings_page' }}">Settings</a>
       <a href="{{ url_for('parent.children_page') }}" class="{{ 'on' if request.endpoint == 'parent.children_page' }}">Learners</a>
+      <a href="{{ url_for('parent.data_page') }}" class="{{ 'on' if request.endpoint == 'parent.data_page' }}">Clear data</a>
       <a href="{{ url_for('parent.curriculum') }}" class="{{ 'on' if request.endpoint == 'parent.curriculum' }}">Curriculum</a>
     </nav>
 

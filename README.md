@@ -94,7 +94,9 @@ three of these together.
 **Quest review** — every question exactly as it was asked, what your child
 answered, whether a clue was used, how long each one took.
 
-**Learners** — add siblings, rename, reset progress, delete a profile.
+**Learners** — add siblings, rename, change year group, delete a profile.
+
+**Clear data** — see below.
 
 **Curriculum** — the full map of all 145 skills and where the questions come
 from.
@@ -139,6 +141,56 @@ Two worth explaining:
 * **Focus skills** are reserved a place in every quest for that subject, up to a
   quarter of the questions. Tick one when school flags something. Weak skills
   are suggested for you.
+
+---
+
+## Clearing and resetting data
+
+Under **Parent → Clear data**, from the most surgical option to the bluntest.
+
+**Undo particular sessions.** The one you will reach for most. For when a session
+does not reflect what your child can really do: she rushed and guessed her way
+through, a younger sibling had a go on her account, or she was interrupted
+halfway. Tick those sessions, and her progress is recalculated as though they
+never happened.
+
+**Start a subject again.** Clears every answer and all mastery for one subject so
+the app teaches it from scratch, leaving the other two untouched.
+
+**Clean slate.** Clears every quest, answer, mastery record, badge, streak, XP
+and coin. Her profile, name, avatar and all your settings stay exactly as they
+are. You can choose whether to keep the hats and pets she has bought.
+
+**Delete a learner** removes the profile itself, and lives on the Learners page.
+
+The destructive options need you to type the learner's name to confirm.
+
+### Why the numbers stay right
+
+Only answers are recorded. Mastery, accuracy, streaks, XP, coins and badges are
+all *derived* from them. So removing a session does not leave the rest of the
+figures stale: everything is rebuilt by replaying the answers that remain
+through the same scoring code the live app uses. There is no second copy of the
+rules to drift out of step, and the rebuild is idempotent — running it twice
+gives the same answer as running it once. Coins already spent in the shop stay
+spent, so the balance never inflates.
+
+### Backups
+
+A timestamped backup of the database is taken automatically before every change
+on that page, and you can take one whenever you like. The 20 most recent are
+kept in `instance/backups/`, and you can delete individual ones from the page.
+
+To go back to one, stop the app and run:
+
+```bash
+pixi run backups          # list them
+pixi run restore-backup   # choose one and put it back
+```
+
+Restoring has to happen with the app stopped, which is why it is a command
+rather than a button — a running server would otherwise stay attached to the
+file it had already opened.
 
 ---
 
@@ -232,7 +284,9 @@ and each question's own answer passing the marker.
 | `pixi run add-child --name Emma --year 2` | Add a learner from the terminal. |
 | `pixi run content-check` | Validate every question. |
 | `pixi run smoke` | End-to-end check of every page and the quest flow. |
-| `pixi run reset-db` | Delete everything and start again (asks first). |
+| `pixi run backups` | List the database backups. |
+| `pixi run restore-backup` | Put a backup back in place. Stop the app first. |
+| `pixi run reset-db` | Delete everything and start again (asks first, offers a backup). |
 | `pixi run -e dev lint` | Lint. |
 | `pixi run -e dev fmt` | Format. |
 
@@ -253,6 +307,7 @@ tutor/
     rewards.py        XP, coins, streaks, badges, shop
     stats.py          everything the parent dashboard shows
     profiles.py       learners and the settings form
+    maintenance.py    clearing and resetting data, backups, recalculation
   blueprints/       routes: kid.py, api.py, parent.py
   static/
     js/visuals.js     19 SVG renderers (clocks, blocks, charts, fractions…)
@@ -284,7 +339,7 @@ are hand-drawn SVG. It works with the wi-fi off.
 
 ```bash
 pixi run content-check   # 145 skills, 679 written questions, 69 generators
-pixi run smoke           # 96 checks: pages, quest flow, settings, limits, PIN
+pixi run smoke           # 140 checks: pages, quest flow, settings, resets, limits, PIN
 pixi run -e dev lint
 ```
 
@@ -292,8 +347,10 @@ pixi run -e dev lint
 progress. It covers first-run setup, every page, CSRF rejection, the full quest
 flow including the second chance and clues, every quest mode, subject and year
 filtering, the shop, settings persistence, focus-skill selection, the PIN gate
-and its lockout, adding and deleting learners, quiet hours and the daily time
-limit.
+and its lockout, adding and deleting learners, quiet hours, the daily time
+limit, and every reset path — including that a rebuild is idempotent, that
+removing one session leaves the other subjects intact, that shop purchases are
+not refunded, and that backup file names cannot escape the backups folder.
 
 The child-facing player and the parent dashboard were additionally driven
 through a real browser at phone and laptop widths to confirm tap-target sizes,
