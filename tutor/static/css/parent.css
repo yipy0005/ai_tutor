@@ -460,6 +460,11 @@ fieldset.p-set legend {
 .p-review .a { font-size: 0.86rem; color: var(--p-soft); margin-top: 4px; }
 .p-review .why { font-size: 0.86rem; color: var(--p-soft); margin-top: 4px; font-style: italic; }
 
+.great-pending-links { display: grid; gap: 8px; margin-top: 12px; }
+.great-pending-link { justify-content: space-between; min-height: 44px; text-align: left; }
+.great-pending-next { display: grid; gap: 2px; }
+.great-pending-next small { color: var(--p-soft); font-size: 0.76rem; font-weight: 500; }
+
 details.p-details summary {
   cursor: pointer;
   font-weight: 650;
@@ -488,6 +493,9 @@ body.parent code {
    such as a data table push the whole page sideways. */
 .p-grid > *, .p-inline > * { min-width: 0; }
 .p-card, .p-stat { overflow-wrap: break-word; }
+
+.p-login-links a { display: block; white-space: nowrap; }
+.p-login-links-separator { display: none; }
 
 @media (max-width: 600px) {
   .p-card { padding: 14px; }

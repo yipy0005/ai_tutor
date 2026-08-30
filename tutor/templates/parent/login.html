@@ -32,7 +32,9 @@
       </form>
     {% endif %}
 
-    <p class="p-center p-tiny" style="margin:16px 0 0">
+    <p class="p-center p-tiny p-login-links" style="margin:16px 0 0">
+      <a href="{{ url_for('parent.register') }}">Create another parent account</a>
+      <span class="p-login-links-separator" aria-hidden="true"> · </span>
       <a href="{{ url_for('kid.index') }}">← Back to the learner app</a>
     </p>
   </div>

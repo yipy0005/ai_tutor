@@ -241,6 +241,37 @@ def quest_detail(quest_id: int):
     )
 
 
+@bp.post("/quest/<int:quest_id>/great-review")
+@parent_required
+def great_review(quest_id: int):
+    """Save the parent's 0/1/2 judgement for submitted child evidence."""
+    child, _ = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.dashboard"))
+
+    question_id = request.form.get("question_id", type=int)
+    scores = {
+        stage: request.form.get(f"score_{stage}", type=int)
+        for stage in "GREAT"
+    }
+    result = quests.record_great_review(child, quest_id, question_id, scores)
+    if result.get("error"):
+        flash(result["error"], "error")
+        target = url_for("parent.quest_detail", quest_id=quest_id)
+        return redirect(target + (f"#question-{question_id}" if question_id else ""))
+
+    flash("GREAT evidence review saved.", "success")
+    next_interview = next(iter(stats.pending_great_interviews(child)), None)
+    if next_interview is not None:
+        target = url_for(
+            "parent.quest_detail",
+            quest_id=next_interview["quest_id"],
+            _anchor=f"question-{next_interview['question_id']}",
+        )
+        return redirect(target)
+    return redirect(url_for("parent.dashboard"))
+
+
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------

@@ -108,6 +108,22 @@
     </div>
   </div>
 
+    {% if overview.great_diagnostic.pending_interviews %}
+      {% set next_interview = overview.great_diagnostic.pending_interviews | first %}
+      <div class="great-pending-links" aria-label="GREAT evidence review queue">
+        <a class="p-btn ghost great-pending-link"
+           href="{{ url_for('parent.quest_detail', quest_id=next_interview.quest_id, _anchor='question-' ~ next_interview.question_id) }}"
+           aria-label="Review next GREAT evidence interview: {{ next_interview.quest_title }}, question {{ next_interview.position }}. {{ overview.great_diagnostic.needs_review }} waiting.">
+          <span class="great-pending-next">
+            <b>Review next evidence interview</b>
+            <small>{{ next_interview.quest_title }} · Question {{ next_interview.position }}</small>
+          </span>
+          <span class="p-tag">{{ overview.great_diagnostic.needs_review }} waiting</span>
+        </a>
+      </div>
+    {% endif %}
+
+
   <!-- ===================== Curriculum coverage ===================== -->
   <div class="p-grid two">
     <div class="p-card">

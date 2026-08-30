@@ -76,6 +76,7 @@
                 <a href="{{ url_for('parent.progress', subject=row.skill.subject) }}">{{ row.skill.name }}</a>
                 · {{ row.skill.nc_ref }} ·
               {% endif %}
+              <span class="p-tag">Difficulty: {{ row.difficulty_label }}</span>
               {{ row.seconds }}s
               {% if row.used_hint %} · used a clue{% endif %}
             </div>

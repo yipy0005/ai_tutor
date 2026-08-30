@@ -16,6 +16,7 @@ from sqlalchemy import func, select
 from ..content import ALL_SKILLS, SUBJECT_ORDER, SUBJECTS, YEAR_LABELS, get_skill, topic_tree
 from ..extensions import db
 from ..models import Child, DailyActivity, Quest, QuestQuestion, SkillProgress
+from . import great
 from . import quests as quest_service
 from . import scheduler
 
@@ -35,6 +36,29 @@ def _activity_rows(child_id: int, since: date) -> list[DailyActivity]:
             .order_by(DailyActivity.on_date)
         ).scalars().all()
     )
+
+
+def pending_great_interviews(child: Child) -> list[dict]:
+    """Return submitted GREAT interviews still waiting for parent scores."""
+    path_quests = db.session.execute(
+        select(Quest).where(Quest.child_id == child.id)
+    ).scalars().all()
+    pending = []
+    for quest in path_quests:
+        if not quest_service.quest_matches_path(child, quest):
+            continue
+        for question in quest.questions:
+            diagnostic = great.diagnostic_from_solution(question.solution)
+            if diagnostic is not None and diagnostic.get("scores") is None:
+                pending.append(
+                    {
+                        "quest_id": quest.id,
+                        "question_id": question.id,
+                        "position": question.position + 1,
+                        "quest_title": quest.title,
+                    }
+                )
+    return pending
 
 
 def overview(child: Child) -> dict:
@@ -365,6 +389,8 @@ def quest_detail(child_id: int, quest_id: int) -> dict | None:
                 "position": question.position + 1,
                 "skill": skill,
                 "kind": question.kind,
+                "difficulty_level": question.difficulty_level if question.difficulty_level in (0, 1, 2) else 1,
+                "difficulty_label": {0: "Gentle", 1: "Normal", 2: "Challenge"}.get(question.difficulty_level, "Normal"),
                 "prompt": (question.payload or {}).get("prompt", ""),
                 "prompt_sub": (question.payload or {}).get("prompt_sub", ""),
                 "choices": (question.payload or {}).get("choices", []),

@@ -174,6 +174,7 @@ def start_quest(
                 position=position,
                 skill_id=skill.id,
                 kind=question.get("kind", "choice"),
+                difficulty_level=level,
                 payload=payload,
                 solution=solution,
             )

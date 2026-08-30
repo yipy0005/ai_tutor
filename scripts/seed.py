@@ -96,6 +96,7 @@ def build_demo_history(child, weeks: int = 6) -> None:
                         position=position,
                         skill_id=skill.id,
                         kind=question.get("kind", "choice"),
+                        difficulty_level=1,
                         payload=payload,
                         solution=solution,
                         given_answer=solution["answer"] if is_right else "(a wrong answer)",

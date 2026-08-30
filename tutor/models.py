@@ -439,6 +439,7 @@ class QuestQuestion(db.Model):
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     skill_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
     kind: Mapped[str] = mapped_column(String(20), default="choice")
+    difficulty_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
     # Everything shown to the child (prompt, choices, hint, visual...).
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
