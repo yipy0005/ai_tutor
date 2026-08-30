@@ -7,7 +7,11 @@
   <div>
     <h1 style="margin-bottom:2px">{{ view_child.name }}'s progress</h1>
     <p class="p-muted p-tiny" style="margin:0">
-      Going into Year {{ view_child.year_group }} ·
+      {% if view_child.settings.gcse_tier in ['foundation', 'higher'] %}
+        GCSE Maths · {{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier ·
+      {% else %}
+        Going into Year {{ view_child.year_group }} ·
+      {% endif %}
       last active {{ view_child.last_active_on | ago if view_child.last_active_on else 'not yet' }} ·
       {{ overview.badges }} badge{{ '' if overview.badges == 1 else 's' }}
     </p>
@@ -94,8 +98,8 @@
           <div class="p-insight good">
             <span class="em">📈</span>
             <div>{{ overview.week_accuracy }}% correct this week — comfortably on top of the
-              material. Consider switching difficulty to <b>Challenge</b> in Settings, or shifting the
-              year balance further towards Year 3.</div>
+              material. Consider switching difficulty to <b>Challenge</b> in Settings{% if overview.pathway == 'primary' %}, or shifting the
+              year balance further towards the current Primary year{% else %}. Keep practising the active GCSE tier{% endif %}.</div>
           </div>
         {% elif overview.week_accuracy and overview.week_accuracy < 55 and overview.week_questions > 15 %}
           <div class="p-insight warn">
@@ -107,6 +111,86 @@
       {% endif %}
     </div>
   </div>
+
+  <!-- ===================== GREAT profiles ===================== -->
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">GREAT thinking profiles</h2>
+      {% if overview.great_diagnostic.reviewed %}
+        <span class="p-tag good">{{ overview.great_diagnostic.reviewed }} observed review{{ '' if overview.great_diagnostic.reviewed == 1 else 's' }}</span>
+      {% elif overview.great_diagnostic.needs_review %}
+        <span class="p-tag warn">{{ overview.great_diagnostic.needs_review }} awaiting review</span>
+      {% elif overview.great.assessed %}
+        <span class="p-tag">{{ overview.great.assessed }} self-reflection{{ '' if overview.great.assessed == 1 else 's' }}</span>
+      {% else %}
+        <span class="p-tag new">No profile yet</span>
+      {% endif %}
+    </div>
+
+    {% if overview.great_diagnostic.reviewed %}
+      <div class="great-section-head">
+        <h3>Observed diagnostic profile</h3>
+        <span class="p-tag good">parent-reviewed evidence</span>
+      </div>
+      <div class="great-summary">
+        <div>
+          <div class="great-total">
+            {{ overview.great_diagnostic.average_total }}/10
+            <small>average across reviewed evidence interviews</small>
+          </div>
+          {% if overview.great_diagnostic.bottleneck %}
+            <div class="p-insight warn" style="margin-top:14px">
+              <span class="em">🔍</span>
+              <div>
+                The first stage needing help most often is
+                <b>{{ overview.great_diagnostic.bottleneck.key }} — {{ overview.great_diagnostic.bottleneck.label }}</b>
+                ({{ overview.great_diagnostic.bottleneck.count }} of {{ overview.great_diagnostic.reviewed }} reviewed interviews).
+              </div>
+            </div>
+          {% else %}
+            <div class="p-insight good" style="margin-top:14px">
+              <span class="em">🌟</span>
+              <div>Every reviewed interview showed independent evidence at every GREAT stage.</div>
+            </div>
+          {% endif %}
+        </div>
+        <div class="great-stage-list">
+          {% for stage in overview.great_diagnostic.stages %}
+            <div class="great-stage-line">
+              <span class="label"><b>{{ stage.key }}</b> {{ stage.label }}</span>
+              <div class="p-bar {{ 'good' if stage.pct >= 75 else ('warn' if stage.pct >= 50 else 'bad') }}">
+                <span style="width: {{ stage.pct or 0 }}%"></span>
+              </div>
+              <span class="score">{{ stage.average if stage.average is not none else '—' }}/2</span>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+      <p class="great-note">
+        {{ overview.great_diagnostic.reviewed }} of {{ overview.great_diagnostic.submitted }} submitted evidence interview{{ '' if overview.great_diagnostic.submitted == 1 else 's' }} reviewed.
+        {% if overview.great_diagnostic.needs_review %}{{ overview.great_diagnostic.needs_review }} still await review.{% endif %}
+        {% if overview.great_diagnostic.not_submitted %} {{ overview.great_diagnostic.not_submitted }} answered question{{ '' if overview.great_diagnostic.not_submitted == 1 else 's' }} have no evidence yet.{% endif %}
+      </p>
+    {% elif overview.great_diagnostic.needs_review %}
+      <div class="p-insight warn">
+        <span class="em">📝</span>
+        <div>
+          <b>{{ overview.great_diagnostic.needs_review }} evidence interview{{ '' if overview.great_diagnostic.needs_review == 1 else 's' }}</b>
+          are waiting for your review. Use the review queue below to judge each Given, Required,
+          Equation/Explanation/Link, Act and Test response with 0, 1 or 2. After each saved
+          review, the next interview opens automatically.
+        </div>
+      </div>
+    {% elif overview.great_diagnostic.enabled %}
+      <div class="p-insight">
+        <span class="em">🧭</span>
+        <div>
+          Evidence-based GREAT interviews are on. After each answer, {{ view_child.name }}
+          can explain the five thinking stages for a parent to review.
+          {% if overview.great_diagnostic.not_submitted %}{{ overview.great_diagnostic.not_submitted }} answered question{{ '' if overview.great_diagnostic.not_submitted == 1 else 's' }} have no evidence yet.{% endif %}
+        </div>
+      </div>
+    {% endif %}
 
     {% if overview.great_diagnostic.pending_interviews %}
       {% set next_interview = overview.great_diagnostic.pending_interviews | first %}
@@ -123,13 +207,67 @@
       </div>
     {% endif %}
 
+    {% if overview.great.assessed %}
+      <div class="great-self-reflection">
+        <div class="great-section-head">
+          <h3>Child self-reflection</h3>
+          <span class="p-tag">separate, self-reported signal</span>
+        </div>
+        <p class="p-muted p-tiny">These button choices show how {{ view_child.name }} felt about the process; they are not treated as observed ability.</p>
+        <div class="great-summary">
+          <div>
+            <div class="great-total">
+              {{ overview.great.average_total }}/10
+              <small>average across answered questions with a self-reflection</small>
+            </div>
+            {% if overview.great.bottleneck %}
+              <div class="p-insight warn" style="margin-top:14px">
+                <span class="em">💭</span>
+                <div>
+                  The first stage {{ view_child.name }} most often marked as needing help was
+                  <b>{{ overview.great.bottleneck.key }} — {{ overview.great.bottleneck.label }}</b>
+                  ({{ overview.great.bottleneck.count }} of {{ overview.great.assessed }} reflections).
+                </div>
+              </div>
+            {% else %}
+              <div class="p-insight good" style="margin-top:14px">
+                <span class="em">🌟</span>
+                <div>Every recorded self-reflection was marked independent at every stage.</div>
+              </div>
+            {% endif %}
+          </div>
+          <div class="great-stage-list">
+            {% for stage in overview.great.stages %}
+              <div class="great-stage-line">
+                <span class="label"><b>{{ stage.key }}</b> {{ stage.label }}</span>
+                <div class="p-bar {{ 'good' if stage.pct >= 75 else ('warn' if stage.pct >= 50 else 'bad') }}">
+                  <span style="width: {{ stage.pct or 0 }}%"></span>
+                </div>
+                <span class="score">{{ stage.average if stage.average is not none else '—' }}/2</span>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+        <p class="great-note">{{ overview.great.assessed }} of {{ overview.great.answered }} answered question{{ '' if overview.great.answered == 1 else 's' }} have a self-reflection. Unanswered check-ins are not treated as zero.</p>
+      </div>
+    {% elif not overview.great_diagnostic.reviewed and not overview.great_diagnostic.needs_review and not overview.great_diagnostic.enabled %}
+      <div class="p-insight">
+        <span class="em">💭</span>
+        <div>
+          After an answer, {{ view_child.name }} can make a self-reflection about
+          <b>Given, Required, Equation/Explanation/Link, Act and Test</b>.
+          Turn on the evidence interview in Settings when you want parent-reviewed evidence instead.
+        </div>
+      </div>
+    {% endif %}
+  </div>
 
   <!-- ===================== Curriculum coverage ===================== -->
   <div class="p-grid two">
     <div class="p-card">
       <div class="p-card-head">
         <h2 class="p-grow">Curriculum coverage</h2>
-        <span class="p-tag">{{ overview.skills_total }} skills total</span>
+        <span class="p-tag">{{ overview.pathway_label }}</span>
       </div>
       <div class="p-stack">
         <div>
@@ -147,6 +285,7 @@
           <div class="p-bar tall good"><span style="width: {{ overview.mastered_pct }}%"></span></div>
         </div>
 
+        {% if years %}
         <table class="p-table" style="margin-top:6px">
           <thead>
             <tr><th>Year group</th><th class="num">Tried</th><th class="num">Mastered</th><th class="num">Accuracy</th></tr>
@@ -167,6 +306,12 @@
             {% endfor %}
           </tbody>
         </table>
+        {% else %}
+        <div class="p-insight" style="margin:0">
+          <span class="em">📐</span>
+          <div>Coverage is measured across the active GCSE Maths tier. Primary Year 1–6 curriculum controls are not used for this learner.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
 
@@ -178,6 +323,7 @@
             <div style="display:flex;align-items:baseline;gap:8px;font-size:0.9rem">
               <span>{{ subject.emoji }}</span>
               <b class="p-grow">{{ subject.name }}</b>
+              {% if subject.tier %}<span class="p-tag gcse">{{ subject.tier }}</span>{% endif %}
               <a class="p-tiny" href="{{ url_for('parent.progress', subject=subject.id) }}">details →</a>
             </div>
             <div class="p-bar" style="margin:5px 0 4px">
@@ -194,7 +340,7 @@
           <div style="border-top:1px solid var(--p-line);padding-top:12px;margin-top:4px">
             <h3 style="margin-bottom:8px">Where the time goes</h3>
             <div class="p-legend">
-              {% set colours = {'maths': '#e0447a', 'english': '#2481cc', 'science': '#3d9c48', 'mixed': '#7c4dd8'} %}
+              {% set colours = {'maths': '#e0447a', 'english': '#2481cc', 'science': '#3d9c48', 'gcse_maths': '#7c4dd8', 'mixed': '#7c4dd8'} %}
               {% for slice in time_split %}
                 <div>
                   <i style="background: {{ colours.get(slice.id, '#8b93a5') }}"></i>
@@ -298,7 +444,7 @@
               <div>
                 <div class="name">
                   {{ SUBJECTS[item.skill.subject].emoji }} {{ item.skill.name }}
-                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                  <span class="p-tag {{ 'gcse' if item.skill.is_gcse else 'y' ~ item.skill.year }}">{{ item.skill.year_label }}</span>
                 </div>
                 <div class="nc">{{ item.nc_ref }}</div>
               </div>
@@ -340,7 +486,7 @@
               <div>
                 <div class="name">
                   {{ SUBJECTS[item.skill.subject].emoji }} {{ item.skill.name }}
-                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                  <span class="p-tag {{ 'gcse' if item.skill.is_gcse else 'y' ~ item.skill.year }}">{{ item.skill.year_label }}</span>
                 </div>
                 <div class="nc">{{ item.attempts }} questions · last {{ item.last_seen | ago }}</div>
               </div>

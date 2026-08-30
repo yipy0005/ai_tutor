@@ -23,10 +23,22 @@ from flask import (
 
 from .. import art
 from ..config import Config
-from ..content import ALL_SKILLS, SUBJECT_ORDER, SUBJECTS, subject_counts
+from ..content import (
+    SUBJECT_ORDER,
+    SUBJECTS,
+    subject_counts,
+)
 from ..extensions import db
-from ..models import ParentAccount
-from ..services import maintenance, profiles, quests, rewards, scheduler, stats
+from ..services import (
+    auth,
+    maintenance,
+    pathways,
+    profiles,
+    quests,
+    rewards,
+    scheduler,
+    stats,
+)
 
 bp = Blueprint("parent", __name__, url_prefix="/parent")
 
@@ -40,12 +52,33 @@ LOCKOUT_SECONDS = 300
 # ---------------------------------------------------------------------------
 
 
+@bp.before_app_request
+def load_parent() -> None:
+    """Resolve the parent account bound to this browser session."""
+    g.parent_account = None
+    account = profiles.get_parent_account(session.get(auth.PARENT_ACCOUNT_KEY))
+    if account is None or (
+        session.get("parent_ok")
+        and session.get(auth.PARENT_AUTH_VERSION_KEY) != account.auth_version
+    ):
+        if account is not None or session.get("parent_ok"):
+            auth.parent_logout()
+        return
+    g.parent_account = account
+
+
 def parent_required(view):
     @wraps(view)
     def wrapper(*args, **kwargs):
         stamp = session.get("parent_ok_at", 0)
-        if not session.get("parent_ok") or time.time() - stamp > SESSION_MAX_IDLE:
-            session.pop("parent_ok", None)
+        if (
+            not session.get("parent_ok")
+            or g.parent_account is None
+            or not g.parent_account.setup_complete
+            or session.get(auth.PARENT_AUTH_VERSION_KEY) != g.parent_account.auth_version
+            or time.time() - stamp > SESSION_MAX_IDLE
+        ):
+            auth.parent_logout()
             session["parent_next"] = request.full_path
             return redirect(url_for("parent.login"))
         session["parent_ok_at"] = time.time()
@@ -55,19 +88,65 @@ def parent_required(view):
 
 
 def _viewed_child():
-    """Which child's data the parent is looking at."""
-    children = profiles.all_children()
+    """Which child this authenticated parent is looking at."""
+    parent_id = g.parent_account.id if g.parent_account else None
+    children = profiles.children_for_parent(parent_id)
     if not children:
+        session.pop("parent_child_id", None)
         return None, []
+
     chosen_id = session.get("parent_child_id") or (g.child.id if g.child else None)
-    chosen = next((c for c in children if c.id == chosen_id), None) or children[0]
+    chosen = profiles.get_child_for_parent(parent_id, chosen_id)
+    if chosen is None:
+        chosen = children[0]
     session["parent_child_id"] = chosen.id
     return chosen, children
+
+
+def _owned_child(child_id: int):
+    parent_id = g.parent_account.id if g.parent_account else None
+    return profiles.get_child_for_parent(parent_id, child_id)
 
 
 def _lockout_left() -> int:
     until = session.get("pin_lock_until", 0)
     return max(0, int(until - time.time()))
+
+
+# ---------------------------------------------------------------------------
+# Initial adult setup
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/setup", methods=["GET", "POST"])
+def setup():
+    """Configure the canonical parent account before the first learner."""
+    if profiles.all_children():
+        return redirect(url_for("parent.login"))
+
+    account = profiles.ensure_parent_account()
+    if account.setup_complete:
+        return redirect(url_for("kid.welcome"))
+
+    if request.method == "POST":
+        token = (request.form.get("bootstrap_token") or "").strip()
+        pin = (request.form.get("pin") or "").strip()
+        confirm = (request.form.get("confirm_pin") or "").strip()
+        if pin != confirm:
+            flash("The two parent PINs did not match.", "error")
+        else:
+            try:
+                profiles.complete_parent_setup(token, pin)
+                db.session.commit()
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "error")
+            else:
+                profiles.remove_bootstrap_token_file()
+                flash("Parent access is ready. Now create the first learner.", "success")
+                return redirect(url_for("kid.welcome"))
+
+    return render_template("parent/setup.html")
 
 
 # ---------------------------------------------------------------------------
@@ -77,17 +156,19 @@ def _lockout_left() -> int:
 
 @bp.route("/login", methods=["GET", "POST"])
 def login():
-    account = profiles.ensure_parent_account()
+    default_account = profiles.ensure_parent_account()
     db.session.commit()
 
+    if profiles.parent_setup_required():
+        return redirect(url_for("parent.setup"))
+
+    login_name = request.form.get("login_name") or default_account.login_name
     locked = _lockout_left()
     if request.method == "POST" and not locked:
         pin = (request.form.get("pin") or "").strip()
-        if account.check_pin(pin):
-            session["parent_ok"] = True
-            session["parent_ok_at"] = time.time()
-            session.pop("pin_fails", None)
-            session.pop("pin_lock_until", None)
+        account = profiles.find_parent_account(login_name)
+        if account is not None and account.setup_complete and account.check_pin(pin):
+            auth.parent_login(account)
             target = session.pop("parent_next", None)
             return redirect(target or url_for("parent.dashboard"))
 
@@ -99,18 +180,44 @@ def login():
             flash("Too many tries. Please wait 5 minutes.", "error")
         else:
             flash(
-                f"That PIN is not right. {MAX_PIN_ATTEMPTS - fails} tries left.",
+                f"That parent name or PIN is not right. {MAX_PIN_ATTEMPTS - fails} tries left.",
                 "error",
             )
         locked = _lockout_left()
 
-    return render_template("parent/login.html", locked=locked)
+    return render_template(
+        "parent/login.html", locked=locked, login_name=login_name
+    )
+
+
+@bp.route("/register", methods=["GET", "POST"])
+def register():
+    if profiles.parent_setup_required():
+        return redirect(url_for("parent.setup"))
+
+    if request.method == "POST":
+        login_name = request.form.get("login_name") or ""
+        pin = (request.form.get("pin") or "").strip()
+        confirm = (request.form.get("confirm_pin") or "").strip()
+        if pin != confirm:
+            flash("The two parent PINs did not match.", "error")
+        else:
+            try:
+                account = profiles.create_parent_account(login_name, pin)
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "error")
+            else:
+                db.session.commit()
+                auth.parent_login(account)
+                flash("Parent account created.", "success")
+                return redirect(url_for("parent.children_page"))
+    return render_template("parent/register.html")
 
 
 @bp.post("/logout")
 def logout():
-    session.pop("parent_ok", None)
-    session.pop("parent_ok_at", None)
+    auth.parent_logout()
     flash("Parent area locked.", "info")
     return redirect(url_for("kid.index"))
 
@@ -125,7 +232,7 @@ def logout():
 def dashboard():
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
 
     return render_template(
         "parent/dashboard.html",
@@ -149,7 +256,7 @@ def dashboard():
 @bp.post("/view/<int:child_id>")
 @parent_required
 def view_child(child_id: int):
-    child = profiles.get_child(child_id)
+    child = _owned_child(child_id)
     if child is not None:
         session["parent_child_id"] = child.id
     return redirect(request.referrer or url_for("parent.dashboard"))
@@ -166,8 +273,13 @@ def view_child(child_id: int):
 def progress(subject: str | None = None):
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
     subject = subject if subject in SUBJECTS else SUBJECT_ORDER[0]
+    if pathways.is_gcse(child.settings):
+        if subject != "gcse_maths":
+            return redirect(url_for("parent.progress", subject="gcse_maths"))
+    elif subject == "gcse_maths":
+        subject = SUBJECT_ORDER[0]
 
     return render_template(
         "parent/progress.html",
@@ -175,8 +287,10 @@ def progress(subject: str | None = None):
         children=children,
         subject=SUBJECTS[subject],
         subject_id=subject,
-        groups=stats.skill_matrix(child.id, subject),
-        counts=subject_counts()[subject],
+        groups=stats.skill_matrix(
+            child.id, subject, tier=child.settings.gcse_tier
+        ),
+        counts=subject_counts().get(subject, {}),
         focus_skills=set(child.settings.focus_skills or []),
     )
 
@@ -190,7 +304,8 @@ def toggle_focus():
     skill_id = request.form.get("skill_id") or ""
     from ..content import SKILLS_BY_ID
 
-    if skill_id in SKILLS_BY_ID:
+    skill = SKILLS_BY_ID.get(skill_id)
+    if skill and skill.id in pathways.active_skill_ids(child.settings):
         current = list(child.settings.focus_skills or [])
         if skill_id in current:
             current.remove(skill_id)
@@ -214,7 +329,7 @@ def toggle_focus():
 def activity():
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
     return render_template(
         "parent/activity.html",
         view_child=child,
@@ -231,7 +346,7 @@ def activity():
 def quest_detail(quest_id: int):
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
     detail = stats.quest_detail(child.id, quest_id)
     if detail is None:
         flash("That quest could not be found for this learner.", "error")
@@ -272,6 +387,31 @@ def great_review(quest_id: int):
     return redirect(url_for("parent.dashboard"))
 
 
+@bp.post("/quest/<int:quest_id>/assessment-review")
+@parent_required
+def assessment_review(quest_id: int):
+    """Save a rubric review for a submitted open-ended response."""
+    child, _ = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.dashboard"))
+    question_id = request.form.get("question_id", type=int)
+    scores = {
+        key[6:]: request.form.get(key, type=int)
+        for key in request.form
+        if key.startswith("score_")
+    }
+    feedback = request.form.get("feedback", "")
+    result = quests.record_assessment_review(
+        child, quest_id, question_id, scores, feedback
+    )
+    if result.get("error"):
+        flash(result["error"], "error")
+    else:
+        flash("Open-ended response review saved.", "success")
+    target = url_for("parent.quest_detail", quest_id=quest_id)
+    return redirect(target + (f"#question-{question_id}" if question_id else ""))
+
+
 # ---------------------------------------------------------------------------
 # Settings
 # ---------------------------------------------------------------------------
@@ -282,7 +422,7 @@ def great_review(quest_id: int):
 def settings_page():
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
 
     if request.method == "POST":
         warnings = profiles.apply_settings(child.settings, request.form)
@@ -293,22 +433,27 @@ def settings_page():
         return redirect(url_for("parent.settings_page"))
 
     weak = scheduler.weak_skills(child.id, 20)
+    active = pathways.active_skills(child.settings)
     return render_template(
         "parent/settings.html",
         view_child=child,
         children=children,
         modes=profiles.DIFFICULTY_MODES,
+        gcse_tier_options=profiles.GCSE_TIER_OPTIONS,
+        gcse_board_options=profiles.GCSE_BOARD_OPTIONS,
         summary=profiles.settings_summary(child.settings),
         suggested_focus=weak,
-        all_skills=ALL_SKILLS,
+        all_skills=active,
         focus_skills=set(child.settings.focus_skills or []),
+        pathway_is_gcse=pathways.is_gcse(child.settings),
+        primary_years=tuple(range(1, 7)),
     )
 
 
 @bp.post("/pin")
 @parent_required
 def change_pin():
-    account = ParentAccount.get()
+    account = g.parent_account
     current = (request.form.get("current_pin") or "").strip()
     new = (request.form.get("new_pin") or "").strip()
     confirm = (request.form.get("confirm_pin") or "").strip()
@@ -339,12 +484,41 @@ def children_page():
         year = request.form.get("year_group") or "3"
         emoji = request.form.get("avatar_character") or "fox"
         colour = request.form.get("avatar_colour") or "sunshine"
+        gcse_tier = (request.form.get("gcse_tier") or "off").strip().lower()
+        login_name = request.form.get("login_name")
+        learner_pin = (request.form.get("learner_pin") or "").strip()
+        if gcse_tier not in profiles.GCSE_TIER_OPTIONS:
+            gcse_tier = "off"
+        try:
+            year_number = int(year)
+        except (TypeError, ValueError):
+            year_number = 3
+        if gcse_tier != "off":
+            # Child.year_group remains a required legacy numeric field; GCSE
+            # display and scheduling use Settings.gcse_tier instead.
+            year_number = 6
         if not name:
             flash("Please enter a name.", "error")
         else:
-            child = profiles.create_child(name, int(year), emoji, colour)
-            db.session.commit()
-            flash(f"{child.name} added.", "success")
+            try:
+                child = profiles.create_child(
+                    name,
+                    year_number,
+                    emoji,
+                    colour,
+                    gcse_tier=gcse_tier,
+                    learner_login=login_name,
+                    learner_pin=profiles.validate_pin(
+                        learner_pin, required=True, label="learner"
+                    ),
+                )
+                profiles.link_parent_child(g.parent_account.id, child.id)
+                db.session.commit()
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "error")
+            else:
+                flash(f"{child.name} added.", "success")
         return redirect(url_for("parent.children_page"))
 
     child, children = _viewed_child()
@@ -370,34 +544,59 @@ def children_page():
 @bp.post("/children/<int:child_id>/update")
 @parent_required
 def update_child(child_id: int):
-    child = profiles.get_child(child_id)
+    child = _owned_child(child_id)
     if child is None:
-        flash("That profile no longer exists.", "error")
+        flash("That profile is not managed by this parent.", "error")
         return redirect(url_for("parent.children_page"))
     name = (request.form.get("name") or "").strip()
+    login_name = request.form.get("login_name")
+    learner_pin = (request.form.get("learner_pin") or "").strip()
+    try:
+        if login_name is not None:
+            profiles.update_learner_credentials(
+                child, login_name, learner_pin or None
+            )
+        elif learner_pin:
+            account = child.learner_account
+            if account is None:
+                account = profiles.provision_learner_account(child)
+            profiles.update_learner_credentials(child, account.login_name, learner_pin)
+    except ValueError as exc:
+        db.session.rollback()
+        flash(str(exc), "error")
+        return redirect(url_for("parent.children_page"))
+
     if name:
         child.name = name[:60]
+    tier = request.form.get("gcse_tier")
+    if tier is not None:
+        tier = tier.strip().lower()
+        if tier in profiles.GCSE_TIER_OPTIONS:
+            child.settings.gcse_tier = tier
     year = request.form.get("year_group")
-    if year and year.isdigit():
+    if child.settings.gcse_tier in profiles.GCSE_TIER_OPTIONS and child.settings.gcse_tier != "off":
+        child.year_group = 6
+    elif year and year.isdigit():
         child.year_group = max(1, min(6, int(year)))
     db.session.commit()
-    flash("Profile updated.", "success")
+    flash("Profile and learner access updated.", "success")
     return redirect(url_for("parent.children_page"))
 
 
 @bp.post("/children/<int:child_id>/delete")
 @parent_required
 def delete_child(child_id: int):
-    child = profiles.get_child(child_id)
+    child = _owned_child(child_id)
     if child is None:
+        flash("That profile is not managed by this parent.", "error")
         return redirect(url_for("parent.children_page"))
     if not _confirmed(child):
         flash("Type the learner's name exactly to confirm deletion.", "error")
         return redirect(url_for("parent.children_page"))
 
     name = child.name
-    if session.get("child_id") == child.id:
-        session.pop("child_id", None)
+    if g.learner_account is not None and g.learner_account.child_id == child.id:
+        auth.learner_logout()
     if session.get("parent_child_id") == child.id:
         session.pop("parent_child_id", None)
     profiles.delete_child(child)
@@ -426,7 +625,7 @@ def _confirmed(child) -> bool:
 def data_page():
     child, children = _viewed_child()
     if child is None:
-        return redirect(url_for("kid.welcome"))
+        return redirect(url_for("parent.children_page"))
     return render_template(
         "parent/data.html",
         view_child=child,
@@ -473,8 +672,8 @@ def reset_subject(subject: str):
     child, _ = _viewed_child()
     if child is None:
         return redirect(url_for("parent.dashboard"))
-    if subject not in SUBJECTS:
-        flash("Unknown subject.", "error")
+    if subject not in pathways.subject_ids(child.settings):
+        flash("That subject is not available on this learner's pathway.", "error")
         return redirect(url_for("parent.data_page"))
     if not _confirmed(child):
         flash(f"Type “{child.name}” exactly to confirm the reset.", "error")
@@ -546,7 +745,7 @@ def remove_backup():
 @parent_required
 def reset_progress(child_id: int):
     """Kept for the link on the Learners page; the real tools live on /parent/data."""
-    child = profiles.get_child(child_id)
+    child = _owned_child(child_id)
     if child is None:
         return redirect(url_for("parent.children_page"))
     if not _confirmed(child):
@@ -567,12 +766,19 @@ def reset_progress(child_id: int):
 @parent_required
 def curriculum():
     child, children = _viewed_child()
+    if child is None:
+        return redirect(url_for("parent.children_page"))
     from ..content import bank_size, topic_tree
 
+    active_subjects = pathways.subject_ids(child.settings)
+    active_years = set(pathways.year_ids(child.settings))
     sections = []
-    for subject_id in SUBJECT_ORDER:
+    for subject_id in active_subjects:
         groups = []
-        for year, topic, skills in topic_tree(subject_id):
+        tier = child.settings.gcse_tier if subject_id == "gcse_maths" else None
+        for year, topic, skills in topic_tree(subject_id, tier):
+            if subject_id != "gcse_maths" and year not in active_years:
+                continue
             groups.append(
                 {
                     "year": year,
@@ -591,10 +797,15 @@ def curriculum():
                 }
             )
         sections.append({"subject": SUBJECTS[subject_id], "groups": groups})
+    total_skills = sum(
+        len(pathways.active_skills(child.settings, subject_id))
+        for subject_id in active_subjects
+    )
     return render_template(
         "parent/curriculum.html",
         view_child=child,
         children=children,
         sections=sections,
-        total_skills=len(ALL_SKILLS),
+        total_skills=total_skills,
+        pathway_is_gcse=pathways.is_gcse(child.settings),
     )

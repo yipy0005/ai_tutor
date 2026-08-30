@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block title %}Learner sign in{% endblock %}
+{% block chrome %}{% endblock %}
+{% block nav %}{% endblock %}
+
+{% block content %}
+<div class="stack-lg" style="max-width:460px;margin:0 auto">
+  <section class="hero center">
+    <div class="art-holder bob" style="width:110px;height:110px;margin:0 auto">
+      {{ icon('pip-happy') }}
+    </div>
+    <h1 style="margin:8px 0 4px">Ready to learn?</h1>
+    <p class="muted" style="margin:0;font-weight:700">
+      Sign in with your own learner name and PIN.
+    </p>
+  </section>
+
+  <form method="post" class="card stack">
+    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+    <input type="hidden" name="next" value="{{ next_url }}">
+    <div class="field">
+      <label for="login_name">Learner sign-in name</label>
+      <input type="text" id="login_name" name="login_name" maxlength="60"
+             autocomplete="username" autocapitalize="none" required autofocus
+             placeholder="e.g. amelia">
+    </div>
+    <div class="field">
+      <label for="pin">Learner PIN</label>
+      <input type="password" id="pin" name="pin" inputmode="numeric"
+             pattern="[0-9]*" maxlength="8" autocomplete="current-password"
+             required>
+    </div>
+    <button class="btn big block leaf" type="submit">Sign in</button>
+  </form>
+
+  <div class="center">
+    <span class="muted tiny">Ask an adult if you need your sign-in details.</span>
+  </div>
+</div>
+{% endblock %}

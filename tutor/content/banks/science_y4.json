@@ -1,0 +1,20 @@
+{
+  "s4.electricity.circuits": [
+    {"kind":"choice","prompt":"What is needed to make a simple circuit work?","choices":["a complete loop with a cell and wires","one wire with a gap","only a bulb","a plastic ruler"],"answer":"a complete loop with a cell and wires","hint":"Electricity needs an unbroken path.","explain":"A circuit must be a complete loop containing a source such as a cell."},
+    {"kind":"choice","prompt":"What happens when a switch is open?","choices":["the circuit is broken and the component is off","the bulb gets brighter","the cell disappears","the wires become magnetic"],"answer":"the circuit is broken and the component is off","hint":"An open switch leaves a gap.","explain":"An open switch breaks the circuit so current cannot flow."},
+    {"kind":"choice","prompt":"Which material is usually a good electrical conductor?","choices":["copper","rubber","plastic","dry wood"],"answer":"copper","hint":"Look at the metal inside many wires.","explain":"Copper is a metal and conducts electricity well."},
+    {"kind":"choice","prompt":"What is the job of a cell in a circuit?","choices":["to provide electrical energy","to stop all current","to hold the bulb in place","to insulate the wires"],"answer":"to provide electrical energy","hint":"It is the source of the push for the current.","explain":"A cell provides the electrical energy that makes a circuit work."}
+  ],
+  "s4.states.water": [
+    {"kind":"choice","prompt":"Which state of matter keeps its own shape?","choices":["solid","liquid","gas","vapour only"],"answer":"solid","hint":"Think about an ice cube.","explain":"A solid keeps its own shape, unlike a liquid or gas."},
+    {"kind":"choice","prompt":"What is the change from liquid water to water vapour called?","choices":["evaporation","freezing","melting","condensation"],"answer":"evaporation","hint":"It happens when liquid gains heat.","explain":"Evaporation changes a liquid into a gas."},
+    {"kind":"choice","prompt":"What happens during freezing?","choices":["a liquid changes into a solid","a solid changes into a liquid","a gas changes into a liquid","a solid changes into a gas"],"answer":"a liquid changes into a solid","hint":"Water becomes ice.","explain":"Freezing changes a liquid into a solid when it cools."},
+    {"kind":"choice","prompt":"Which state spreads to fill its container?","choices":["gas","solid","ice only","rock"],"answer":"gas","hint":"Gas particles can move throughout the container.","explain":"A gas spreads out and fills the space available."}
+  ],
+  "s4.digestive.system": [
+    {"kind":"choice","prompt":"Where does digestion begin?","choices":["the mouth","the large intestine","the lungs","the heart"],"answer":"the mouth","hint":"Food is chewed and mixed with saliva there.","explain":"Digestion begins in the mouth when teeth break food up and saliva starts to act on it."},
+    {"kind":"choice","prompt":"What does the stomach do?","choices":["churns food and mixes it with digestive juices","pumps blood around the body","takes oxygen from air","stores bones"],"answer":"churns food and mixes it with digestive juices","hint":"It is part of the food tube.","explain":"The stomach churns food and mixes it with digestive juices."},
+    {"kind":"choice","prompt":"What is the small intestine mainly used for?","choices":["absorbing nutrients from digested food","chewing food","breathing","pumping blood"],"answer":"absorbing nutrients from digested food","hint":"Nutrients need to enter the bloodstream.","explain":"The small intestine absorbs nutrients into the blood."},
+    {"kind":"choice","prompt":"Which organ removes water from undigested food?","choices":["the large intestine","the mouth","the stomach only","the windpipe"],"answer":"the large intestine","hint":"It comes after the small intestine.","explain":"The large intestine absorbs water and forms faeces from waste."}
+  ]
+}

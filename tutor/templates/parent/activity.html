@@ -82,7 +82,7 @@
               {% if item.explain %}<div class="why">{{ item.explain }}</div>{% endif %}
               <div class="p-faint p-tiny" style="margin-top:5px">
                 {% if item.skill %}
-                  <span class="p-tag y{{ item.skill.year }}">Y{{ item.skill.year }}</span>
+                  <span class="p-tag {{ 'gcse' if item.skill.is_gcse else 'y' ~ item.skill.year }}">{{ item.skill.year_label }}</span>
                   {{ item.skill.name }} ·
                 {% endif %}
                 {{ item.when | ago }}

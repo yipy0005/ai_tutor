@@ -1,0 +1,20 @@
+{
+  "s5.forces.gravity": [
+    {"kind":"choice","prompt":"What force pulls unsupported objects towards Earth?","choices":["gravity","friction","magnetism","air resistance only"],"answer":"gravity","hint":"It keeps your feet on the ground.","explain":"Gravity attracts objects towards the Earth."},
+    {"kind":"choice","prompt":"What is weight?","choices":["the force of gravity acting on an object","the amount of space an object takes","the amount of matter only","the speed of an object"],"answer":"the force of gravity acting on an object","hint":"Weight can change on another planet.","explain":"Weight is the force of gravity acting on an object's mass."},
+    {"kind":"choice","prompt":"What usually happens to an object as it falls?","choices":["gravity pulls it towards the ground","gravity pushes it upwards","it loses all mass","it becomes weightless on Earth"],"answer":"gravity pulls it towards the ground","hint":"Think about the direction of the fall.","explain":"Gravity pulls falling objects towards the centre of the Earth."},
+    {"kind":"choice","prompt":"Which force can slow a falling object through air?","choices":["air resistance","gravity only","light","sound"],"answer":"air resistance","hint":"Air pushes against movement.","explain":"Air resistance acts against motion through the air."}
+  ],
+  "s5.space.earth": [
+    {"kind":"choice","prompt":"What does Earth orbit?","choices":["the Sun","the Moon","Mars","the North Star"],"answer":"the Sun","hint":"It is the star at the centre of our solar system.","explain":"Earth travels around the Sun in an orbit."},
+    {"kind":"choice","prompt":"What causes day and night?","choices":["Earth spinning on its axis","the Sun going around Earth each day","the Moon blocking the Sun every night","clouds covering half the planet"],"answer":"Earth spinning on its axis","hint":"One side faces the Sun while the other faces away.","explain":"As Earth rotates, different parts face the Sun and experience day or night."},
+    {"kind":"choice","prompt":"What is the Moon?","choices":["a natural satellite of Earth","a planet with its own Sun","a star","a comet made of clouds"],"answer":"a natural satellite of Earth","hint":"It travels around Earth.","explain":"The Moon is Earth's natural satellite."},
+    {"kind":"choice","prompt":"How long does Earth take to orbit the Sun?","choices":["about one year","about one day","about one hour","about one week"],"answer":"about one year","hint":"It gives us a year and the seasons.","explain":"Earth completes one orbit of the Sun in about 365 days."}
+  ],
+  "s5.materials.changes": [
+    {"kind":"choice","prompt":"Which change is usually reversible?","choices":["melting ice","baking a cake","burning wood","rusting iron"],"answer":"melting ice","hint":"The material can become solid again.","explain":"Melted ice can freeze back into water ice, so the change is reversible."},
+    {"kind":"choice","prompt":"Which change makes a new material?","choices":["burning paper","folding paper","cutting paper","dissolving sugar"],"answer":"burning paper","hint":"The ash and gases are different materials.","explain":"Burning is an irreversible change that produces new materials."},
+    {"kind":"choice","prompt":"What happens when salt dissolves in water?","choices":["the salt spreads through the water and can be recovered by evaporation","the salt turns into a new metal","the water freezes immediately","the salt disappears forever"],"answer":"the salt spreads through the water and can be recovered by evaporation","hint":"Dissolving is not the same as destroying.","explain":"The salt forms a solution and can be recovered when the water evaporates."},
+    {"kind":"choice","prompt":"Which is evidence that a new material may have formed?","choices":["a gas or new colour appears during a reaction","the shape changes by folding","the object is moved","the material is measured"],"answer":"a gas or new colour appears during a reaction","hint":"Look for a chemical change.","explain":"Bubbles, a new colour or a temperature change can show that new materials formed."}
+  ]
+}

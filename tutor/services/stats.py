@@ -13,12 +13,18 @@ from datetime import date, timedelta
 
 from sqlalchemy import func, select
 
-from ..content import ALL_SKILLS, SUBJECT_ORDER, SUBJECTS, YEAR_LABELS, get_skill, topic_tree
+from ..content import (
+    GCSE_TIER_LABELS,
+    SUBJECT_ORDER,
+    SUBJECTS,
+    YEAR_LABELS,
+    get_skill,
+    topic_tree,
+)
 from ..extensions import db
-from ..models import Child, DailyActivity, Quest, QuestQuestion, SkillProgress
-from . import great
+from ..models import Child, DailyActivity, Quest, SkillProgress
+from . import assessments, great, pathways, rewards, scheduler
 from . import quests as quest_service
-from . import scheduler
 
 MASTERY_THRESHOLD = 0.85
 
@@ -73,17 +79,86 @@ def overview(child: Child) -> dict:
     week_correct = sum(r.correct for r in rows)
     week_quests = sum(r.quests for r in rows)
 
+    settings = child.settings
     totals = quest_service.lifetime_totals(child.id)
     progress_rows = db.session.execute(
         select(SkillProgress).where(SkillProgress.child_id == child.id)
     ).scalars().all()
 
-    touched = [p for p in progress_rows if p.attempts > 0]
+    active_skills = pathways.active_skills(settings)
+    active_ids = {skill.id for skill in active_skills}
+    active_rows = [row for row in progress_rows if row.skill_id in active_ids]
+    touched = [p for p in active_rows if p.attempts > 0]
     mastered = [p for p in touched if p.mastery >= MASTERY_THRESHOLD and p.attempts >= 4]
     struggling = [p for p in touched if p.attempts >= 3 and p.mastery < 0.4]
+    active_gcse = pathways.is_gcse(settings)
 
-    settings = child.settings
     weekly_goal = settings.weekly_quest_goal or 0
+
+    path_quests = db.session.execute(
+        select(Quest).where(Quest.child_id == child.id)
+    ).scalars().all()
+    great_rows = [
+        (quest, question)
+        for quest in path_quests
+        if quest_service.quest_matches_path(child, quest)
+        for question in quest.questions
+    ]
+    great_assessments = []
+    great_diagnostics = []
+    pending_great_interviews = []
+    answered_for_great = 0
+    for quest, question in great_rows:
+        if question.is_correct is not None:
+            answered_for_great += 1
+        assessment = great.assessment_from_solution(question.solution)
+        if assessment is not None:
+            great_assessments.append(assessment)
+        diagnostic = great.diagnostic_from_solution(question.solution)
+        if diagnostic is not None:
+            great_diagnostics.append(diagnostic)
+            if diagnostic.get("scores") is None:
+                pending_great_interviews.append(
+                    {
+                        "quest_id": quest.id,
+                        "question_id": question.id,
+                        "position": question.position + 1,
+                        "quest_title": quest.title,
+                    }
+                )
+    great_report = great.aggregate(great_assessments)
+    great_report.update(
+        {
+            "answered": answered_for_great,
+            "unassessed": max(0, answered_for_great - great_report["assessed"]),
+            "coverage_pct": (
+                round(great_report["assessed"] / answered_for_great * 100)
+                if answered_for_great
+                else 0
+            ),
+        }
+    )
+    great_diagnostic_report = great.aggregate_diagnostics(great_diagnostics)
+    great_diagnostic_report.update(
+        {
+            "enabled": bool(settings.great_diagnostic),
+            "pending_interviews": pending_great_interviews,
+            "answered": answered_for_great,
+            "not_submitted": max(
+                0, answered_for_great - great_diagnostic_report["submitted"]
+            ),
+            "coverage_pct": (
+                round(great_diagnostic_report["reviewed"] / answered_for_great * 100)
+                if answered_for_great
+                else 0
+            ),
+            "submission_pct": (
+                round(great_diagnostic_report["submitted"] / answered_for_great * 100)
+                if answered_for_great
+                else 0
+            ),
+        }
+    )
 
     return {
         "today_minutes": round((today_row.seconds if today_row else 0) / 60),
@@ -101,15 +176,36 @@ def overview(child: Child) -> dict:
         "level": child.level,
         "xp": child.xp,
         "coins": child.coins,
-        "badges": len(child.badges),
+        "badges": len(rewards.visible_badge_awards(child)),
         "lifetime": totals,
-        "skills_total": len(ALL_SKILLS),
+        "pathway": "gcse_maths" if active_gcse else "primary",
+        "pathway_label": (
+            f"GCSE Maths · {GCSE_TIER_LABELS.get(settings.gcse_tier, settings.gcse_tier)}"
+            if active_gcse
+            else "Primary Years 1–6"
+        ),
+        "skills_total": len(active_skills),
         "skills_touched": len(touched),
         "skills_mastered": len(mastered),
         "skills_struggling": len(struggling),
-        "coverage_pct": round(len(touched) / len(ALL_SKILLS) * 100) if ALL_SKILLS else 0,
-        "mastered_pct": round(len(mastered) / len(ALL_SKILLS) * 100) if ALL_SKILLS else 0,
+        "coverage_pct": round(len(touched) / len(active_skills) * 100) if active_skills else 0,
+        "mastered_pct": round(len(mastered) / len(active_skills) * 100) if active_skills else 0,
+        "gcse": {
+            "enabled": active_gcse,
+            "tier": GCSE_TIER_LABELS.get(settings.gcse_tier, ""),
+            "skills_total": len(active_skills) if active_gcse else 0,
+            "skills_touched": len(touched) if active_gcse else 0,
+            "skills_mastered": len(mastered) if active_gcse else 0,
+            "coverage_pct": round(len(touched) / len(active_skills) * 100)
+            if active_gcse and active_skills
+            else 0,
+            "mastered_pct": round(len(mastered) / len(active_skills) * 100)
+            if active_gcse and active_skills
+            else 0,
+        },
         "due_now": scheduler.due_count(child.id),
+        "great": great_report,
+        "great_diagnostic": great_diagnostic_report,
     }
 
 
@@ -240,14 +336,25 @@ def _progress_index(child_id: int) -> dict[str, SkillProgress]:
 
 def subject_breakdown(child_id: int) -> list[dict]:
     progress = _progress_index(child_id)
+    child = db.session.get(Child, child_id)
+    subject_ids = pathways.subject_ids(child.settings) if child else list(SUBJECT_ORDER)
+
     out = []
-    for subject_id in SUBJECT_ORDER:
+    for subject_id in subject_ids:
         subject = SUBJECTS[subject_id]
-        skills = [s for s in ALL_SKILLS if s.subject == subject_id]
-        rows = [progress[s.id] for s in skills if s.id in progress and progress[s.id].attempts]
-        attempts = sum(r.attempts for r in rows)
-        correct = sum(r.correct for r in rows)
-        mastered = [r for r in rows if r.mastery >= MASTERY_THRESHOLD and r.attempts >= 4]
+        skills = pathways.active_skills(child.settings, subject_id) if child else []
+        rows = [
+            progress[skill.id]
+            for skill in skills
+            if skill.id in progress and progress[skill.id].attempts
+        ]
+        attempts = sum(row.attempts for row in rows)
+        correct = sum(row.correct for row in rows)
+        mastered = [
+            row
+            for row in rows
+            if row.mastery >= MASTERY_THRESHOLD and row.attempts >= 4
+        ]
         out.append(
             {
                 "id": subject_id,
@@ -262,21 +369,36 @@ def subject_breakdown(child_id: int) -> list[dict]:
                 "accuracy": round(correct / attempts * 100) if attempts else 0,
                 "coverage_pct": round(len(rows) / len(skills) * 100) if skills else 0,
                 "mastered_pct": round(len(mastered) / len(skills) * 100) if skills else 0,
-                "minutes": round(sum(r.total_seconds for r in rows) / 60),
+                "minutes": round(sum(row.total_seconds for row in rows) / 60),
+                "tier": (
+                    GCSE_TIER_LABELS.get(child.settings.gcse_tier)
+                    if subject_id == "gcse_maths" and child
+                    else None
+                ),
             }
         )
     return out
 
 
 def year_breakdown(child_id: int) -> list[dict]:
+    child = db.session.get(Child, child_id)
+    if child is None or pathways.is_gcse(child.settings):
+        return []
     progress = _progress_index(child_id)
     out = []
-    for year in (1, 2, 3):
-        skills = [s for s in ALL_SKILLS if s.year == year]
-        rows = [progress[s.id] for s in skills if s.id in progress and progress[s.id].attempts]
-        attempts = sum(r.attempts for r in rows)
-        correct = sum(r.correct for r in rows)
-        mastered = [r for r in rows if r.mastery >= MASTERY_THRESHOLD and r.attempts >= 4]
+    for year in pathways.year_ids(child.settings):
+        skills = [skill for skill in pathways.active_skills(child.settings) if skill.year == year]
+        rows = [
+            progress[skill.id]
+            for skill in skills
+            if skill.id in progress and progress[skill.id].attempts
+        ]
+        attempts = sum(row.attempts for row in rows)
+        correct = sum(row.correct for row in rows)
+        mastered = [
+            row for row in rows
+            if row.mastery >= MASTERY_THRESHOLD and row.attempts >= 4
+        ]
         out.append(
             {
                 "year": year,
@@ -293,11 +415,18 @@ def year_breakdown(child_id: int) -> list[dict]:
     return out
 
 
-def skill_matrix(child_id: int, subject: str) -> list[dict]:
-    """Year -> topic -> skills, each with its progress. Powers the mastery grid."""
+def skill_matrix(
+    child_id: int, subject: str, tier: str | None = None
+) -> list[dict]:
+    """Topic grid scoped to a primary subject or selected GCSE tier."""
+    child = db.session.get(Child, child_id)
+    if child is None or subject not in pathways.subject_ids(child.settings):
+        return []
     progress = _progress_index(child_id)
     groups = []
-    for year, topic, skills in topic_tree(subject):
+    for year, topic, skills in topic_tree(subject, tier):
+        if subject != "gcse_maths" and year not in pathways.year_ids(child.settings):
+            continue
         entries = []
         for skill in skills:
             row = progress.get(skill.id)
@@ -316,11 +445,14 @@ def skill_matrix(child_id: int, subject: str) -> list[dict]:
         groups.append(
             {
                 "year": year,
-                "year_label": YEAR_LABELS[year],
+                "year_label": skills[0].year_label if skills else YEAR_LABELS.get(year, ""),
+                "pathway_label": skills[0].pathway_label if skills else "",
                 "topic": topic,
                 "entries": entries,
-                "mastered": sum(1 for e in entries if e["mastery"] >= MASTERY_THRESHOLD * 100),
-                "touched": sum(1 for e in entries if e["attempts"] > 0),
+                "mastered": sum(
+                    1 for entry in entries if entry["mastery"] >= MASTERY_THRESHOLD * 100
+                ),
+                "touched": sum(1 for entry in entries if entry["attempts"] > 0),
                 "count": len(entries),
             }
         )
@@ -330,8 +462,12 @@ def skill_matrix(child_id: int, subject: str) -> list[dict]:
 def attention_list(child_id: int, limit: int = 8) -> list[dict]:
     """Skills worth a parent's attention, most concerning first."""
     progress = _progress_index(child_id)
+    child = db.session.get(Child, child_id)
+    active_ids = {skill.id for skill in pathways.active_skills(child.settings)} if child else set()
     items = []
     for skill_id, row in progress.items():
+        if skill_id not in active_ids:
+            continue
         skill = get_skill(skill_id)
         if skill is None or row.attempts < 2:
             continue
@@ -354,8 +490,12 @@ def attention_list(child_id: int, limit: int = 8) -> list[dict]:
 
 def wins_list(child_id: int, limit: int = 8) -> list[dict]:
     progress = _progress_index(child_id)
+    child = db.session.get(Child, child_id)
+    active_ids = {skill.id for skill in pathways.active_skills(child.settings)} if child else set()
     items = []
     for skill_id, row in progress.items():
+        if skill_id not in active_ids:
+            continue
         skill = get_skill(skill_id)
         if skill is None or row.attempts < 3 or row.mastery < MASTERY_THRESHOLD:
             continue
@@ -378,14 +518,21 @@ def wins_list(child_id: int, limit: int = 8) -> list[dict]:
 
 
 def quest_detail(child_id: int, quest_id: int) -> dict | None:
+    child = db.session.get(Child, child_id)
     quest = db.session.get(Quest, quest_id)
-    if quest is None or quest.child_id != child_id:
+    if (
+        child is None
+        or quest is None
+        or quest.child_id != child_id
+        or not quest_service.quest_matches_path(child, quest)
+    ):
         return None
     rows = []
     for question in quest.questions:
         skill = get_skill(question.skill_id)
         rows.append(
             {
+                "id": question.id,
                 "position": question.position + 1,
                 "skill": skill,
                 "kind": question.kind,
@@ -398,22 +545,44 @@ def quest_detail(child_id: int, quest_id: int) -> dict | None:
                 "answer": (question.solution or {}).get("answer", ""),
                 "explain": (question.solution or {}).get("explain", ""),
                 "correct": question.is_correct,
+                "answered": question.is_answered,
+                "pending": question.is_pending,
+                "manual": assessments.is_manual(question.kind),
+                "response": question.response_json,
+                "score": question.score,
+                "max_score": question.max_score,
+                "assessment": question.assessment_json or {},
+                "rubric": (question.solution or {}).get("assessment", {}),
+                "response_spec": (question.payload or {}).get("response_spec", {}),
+                "exam": (question.payload or {}).get("exam", {}),
                 "tries": question.tries,
                 "used_hint": question.used_hint,
                 "seconds": question.seconds,
+                "great": great.question_summary(question.solution),
+                "great_diagnostic": great.diagnostic_summary(question.solution),
             }
         )
     return {"quest": quest, "rows": rows}
 
 
 def recent_mistakes(child_id: int, limit: int = 12) -> list[dict]:
-    rows = db.session.execute(
-        select(QuestQuestion)
-        .join(Quest, Quest.id == QuestQuestion.quest_id)
-        .where(Quest.child_id == child_id, QuestQuestion.is_correct.is_(False))
-        .order_by(QuestQuestion.answered_at.desc())
-        .limit(limit)
+    child = db.session.get(Child, child_id)
+    if child is None:
+        return []
+    quests_for_child = db.session.execute(
+        select(Quest)
+        .where(Quest.child_id == child_id)
+        .order_by(Quest.finished_at.desc())
     ).scalars().all()
+    rows = [
+        question
+        for quest in quests_for_child
+        if quest_service.quest_matches_path(child, quest)
+        for question in quest.questions
+        if question.is_correct is False
+    ]
+    rows.sort(key=lambda question: question.answered_at or date.min, reverse=True)
+    rows = rows[:limit]
     out = []
     for question in rows:
         skill = get_skill(question.skill_id)
@@ -437,12 +606,19 @@ def subject_time_split(child_id: int) -> list[dict]:
         .where(Quest.child_id == child_id)
         .group_by(Quest.subject)
     ).all()
+    child = db.session.get(Child, child_id)
+    active_subjects = pathways.subject_ids(child.settings) if child else []
+    allowed = set(active_subjects)
+    if child and not pathways.is_gcse(child.settings):
+        allowed.add("mixed")
     totals: dict[str, int] = defaultdict(int)
     for subject, seconds in rows:
-        totals[subject] += int(seconds or 0)
+        if subject in allowed:
+            totals[subject] += int(seconds or 0)
     grand = sum(totals.values()) or 1
+    subject_ids = list(active_subjects)
     out = []
-    for subject_id in SUBJECT_ORDER + ["mixed"]:
+    for subject_id in subject_ids + ["mixed"]:
         seconds = totals.get(subject_id, 0)
         if not seconds:
             continue

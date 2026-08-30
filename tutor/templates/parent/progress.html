@@ -13,11 +13,18 @@
   </div>
 
   <div class="p-nav" style="background:var(--p-card);padding:6px;border-radius:11px;border:1px solid var(--p-line)">
+    {% if view_child.settings.gcse_tier not in ['foundation', 'higher'] %}
     {% for key in SUBJECT_ORDER %}
       <a href="{{ url_for('parent.progress', subject=key) }}" class="{{ 'on' if key == subject_id }}">
         {{ SUBJECTS[key].emoji }} {{ SUBJECTS[key].name }}
       </a>
     {% endfor %}
+    {% endif %}
+    {% if view_child.settings.gcse_tier in ['foundation', 'higher'] %}
+      <a href="{{ url_for('parent.progress', subject='gcse_maths') }}" class="{{ 'on' if subject_id == 'gcse_maths' }}">
+        {{ SUBJECTS['gcse_maths'].emoji }} GCSE Maths
+      </a>
+    {% endif %}
   </div>
 
   <div class="p-insight">
@@ -29,15 +36,20 @@
     </div>
   </div>
 
-  {% set ns = namespace(year=0) %}
+  {% set ns = namespace(year=99) %}
   {% for group in groups %}
     {% if group.year != ns.year %}
       {% set ns.year = group.year %}
       <h2 style="margin-top:14px">
-        <span class="p-tag y{{ group.year }}">{{ group.year_label }}</span>
-        <span class="p-faint p-tiny" style="font-weight:500">
-          {{ 'revision of earlier work' if group.year < 3 else 'new material for the year ahead' }}
-        </span>
+        {% if subject_id == 'gcse_maths' %}
+          <span class="p-tag gcse">GCSE Maths</span>
+          <span class="p-faint p-tiny" style="font-weight:500">{{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier · board-neutral starter content</span>
+        {% else %}
+          <span class="p-tag y{{ group.year }}">{{ group.year_label }}</span>
+          <span class="p-faint p-tiny" style="font-weight:500">
+            {{ 'revision of earlier work' if group.year < 3 else 'new material for the year ahead' }}
+          </span>
+        {% endif %}
       </h2>
     {% endif %}
 

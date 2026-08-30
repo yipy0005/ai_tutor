@@ -8,7 +8,7 @@
       <div style="font-size:2.6rem">🔒</div>
       <h1 style="margin-bottom:4px">Parent area</h1>
       <p class="p-muted p-tiny" style="margin:0">
-        Enter your PIN to see progress and change settings.
+        Sign in with your parent account name and PIN to manage linked learners.
       </p>
     </div>
 
@@ -22,11 +22,17 @@
       <form method="post">
         <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
         <div class="p-field">
+          <label for="login_name">Parent sign-in name</label>
+          <input type="text" id="login_name" name="login_name" maxlength="60"
+                 value="{{ login_name or 'parent' }}" autocomplete="username"
+                 autocapitalize="none" autofocus required>
+        </div>
+        <div class="p-field">
           <label for="pin">PIN</label>
           <input class="p-pin" type="password" id="pin" name="pin" inputmode="numeric"
                  pattern="[0-9]*" maxlength="8" autocomplete="current-password"
-                 autofocus required aria-describedby="pin-help">
-          <div class="help" id="pin-help">The default PIN is 1234 until you change it.</div>
+                 required aria-describedby="pin-help">
+          <div class="help" id="pin-help">Use the PIN chosen during initial setup. Change it later from Parent → Settings.</div>
         </div>
         <button class="p-btn block" type="submit">Unlock</button>
       </form>

@@ -11,6 +11,8 @@ the PIN gate, and every parent page.
 from __future__ import annotations
 
 import os
+import sqlite3
+import subprocess
 import sys
 import tempfile
 from pathlib import Path
@@ -34,17 +36,152 @@ def get_csrf(client) -> str:
         return session.get("_csrf", "")
 
 
+def answer_body(
+    question: dict,
+    answer: str = "",
+    seconds: int = 5,
+    solution: dict | None = None,
+) -> dict:
+    """Build a valid local submission for scalar, interactive, or rich questions."""
+    body = {"question_id": question["id"], "seconds": seconds}
+    kind = question.get("kind")
+    if kind == "free_text":
+        body["response"] = {
+            "text": (
+                "This smoke test records a clear response with enough detail "
+                "for the local review flow to store and review safely."
+            )
+        }
+    elif kind == "handwriting":
+        body["response"] = {"text": "Typed handwriting fallback for the smoke test."}
+    elif kind == "audio":
+        body["response"] = {"transcript": "I would explain this answer clearly."}
+    elif kind == "evidence":
+        body["response"] = {
+            "fields": {
+                str(field["id"]): f"Smoke test evidence for {field['label']}."
+                for field in question.get("response_spec", {}).get("fields", [])
+            }
+        }
+    elif kind in {"coordinate_points", "transformation_polygon"}:
+        response = (solution or {}).get("response_answer")
+        body["response"] = response if isinstance(response, dict) else {"type": kind, "points": []}
+    else:
+        body["answer"] = answer
+    return body
+
+
+def legacy_schema_check() -> None:
+    """Exercise account backfill against a database from before account tables."""
+    from datetime import date
+
+    from flask import Flask
+    from werkzeug.security import generate_password_hash
+
+    from tutor import create_app, db
+    from tutor.config import Config
+    from tutor.models import Child, ParentAccount, Settings, SkillProgress
+
+    root = Path(tempfile.mkdtemp(prefix="tutor-legacy-"))
+    database = root / "legacy.sqlite3"
+    legacy_config = type(
+        "LegacyConfig",
+        (Config,),
+        {
+            "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database}",
+            "INSTANCE_DIR": root,
+            "SECRET_KEY": "legacy-schema-check",
+        },
+    )
+
+    bare = Flask("legacy-fixture")
+    bare.config.from_object(legacy_config)
+    db.init_app(bare)
+    with bare.app_context():
+        db.metadata.create_all(
+            bind=db.engine,
+            tables=[Child.__table__, Settings.__table__, SkillProgress.__table__],
+        )
+        child = Child(name="Legacy", year_group=3, xp=321)
+        db.session.add(child)
+        db.session.flush()
+        db.session.add(Settings(child_id=child.id))
+        db.session.add(
+            SkillProgress(
+                child_id=child.id,
+                skill_id="m3.mult.times-8",
+                attempts=4,
+                correct=3,
+                mastery=0.65,
+                due_on=date.today(),
+            )
+        )
+        db.session.commit()
+        child_id = child.id
+
+    connection = sqlite3.connect(database)
+    connection.execute(
+        "CREATE TABLE parent_account ("
+        "id INTEGER PRIMARY KEY, pin_hash VARCHAR(255) NOT NULL, "
+        "auth_version INTEGER NOT NULL DEFAULT 1, updated_at DATETIME)"
+    )
+    connection.execute(
+        "INSERT INTO parent_account (id, pin_hash, auth_version) VALUES (1, ?, 1)",
+        (generate_password_hash("5678"),),
+    )
+    connection.commit()
+    connection.close()
+
+    legacy_app = create_app(legacy_config)
+    with legacy_app.app_context():
+        migrated_child = db.session.get(Child, child_id)
+        migrated_parent = db.session.get(ParentAccount, 1)
+        migrated_account = migrated_child.learner_account if migrated_child else None
+        migrated_progress = db.session.execute(
+            db.select(SkillProgress).where(SkillProgress.child_id == child_id)
+        ).scalar_one_or_none()
+        check(
+            "legacy parent setup state is backfilled",
+            migrated_parent is not None and migrated_parent.setup_complete is True,
+        )
+        check(
+            "legacy parent PIN is preserved",
+            migrated_parent is not None and migrated_parent.check_pin("5678"),
+        )
+        check(
+            "legacy learner account is backfilled",
+            migrated_account is not None and migrated_account.login_name == "legacy" and migrated_account.needs_activation,
+        )
+        check(
+            "legacy parent ownership is backfilled",
+            migrated_child is not None and any(link.parent_id == 1 for link in migrated_child.parent_links),
+        )
+        check("legacy learner XP is preserved", migrated_child is not None and migrated_child.xp == 321)
+        check(
+            "legacy skill progress is preserved",
+            migrated_progress is not None and migrated_progress.attempts == 4 and migrated_progress.mastery == 0.65,
+        )
+
+
 def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="tutor-smoke-"))
+    bootstrap_token = "smoke-bootstrap-token-0123456789abcdef0123456789abcdef"
+    bootstrap_token_file = tmp / "bootstrap_token"
     os.environ["DATABASE_URL"] = f"sqlite:///{tmp / 'smoke.sqlite3'}"
     os.environ["SECRET_KEY"] = "smoke-test-secret-key"
+    os.environ["PARENT_BOOTSTRAP_TOKEN"] = bootstrap_token
+    os.environ["BOOTSTRAP_TOKEN_FILE"] = str(bootstrap_token_file)
 
     from sqlalchemy import func
+    from werkzeug.security import check_password_hash
 
     from tutor import create_app, db
     from tutor.content import SKILLS_BY_ID
     from tutor.models import Child, Quest, QuestQuestion, SkillProgress
     from tutor.services import profiles
+
+    print("\nLegacy schema compatibility")
+    legacy_schema_check()
 
     app = create_app()
     app.config.update(TESTING=True)
@@ -52,18 +189,250 @@ def main() -> int:
     with app.app_context():
         db.create_all()
         # Reproduce what `pixi run setup` does before a parent ever opens the
-        # app: the parent account already exists with the default PIN. The PIN
-        # chosen on the welcome screen has to override it.
+        # app: the parent account already exists with the default PIN. Adult
+        # setup must configure it before the learner welcome form is allowed.
         profiles.ensure_parent_account()
         db.session.commit()
+        pending_parent = profiles.ensure_parent_account()
+        check(
+            "external bootstrap token is stored as a hash",
+            pending_parent.bootstrap_token_hash is not None
+            and bootstrap_token not in pending_parent.bootstrap_token_hash,
+        )
+        check("external bootstrap token is not written locally", not bootstrap_token_file.exists())
 
     client = app.test_client()
+
+    seed_tmp = Path(tempfile.mkdtemp(prefix="tutor-seed-check-"))
+    seed_db = seed_tmp / "seed.sqlite3"
+    seed_env = os.environ.copy()
+    seed_env["DATABASE_URL"] = f"sqlite:///{seed_db}"
+    seed_env["BOOTSTRAP_TOKEN_FILE"] = str(seed_tmp / "bootstrap_token")
+    seed_args = [
+        sys.executable,
+        "-m",
+        "scripts.seed",
+        "--name",
+        "Seed",
+        "--year",
+        "3",
+        "--learner-login",
+        "seed",
+        "--learner-pin",
+        "2468",
+        "--pin",
+        "9876",
+    ]
+    seed_result = subprocess.run(
+        seed_args,
+        cwd=Path(__file__).resolve().parents[1],
+        env=seed_env,
+        capture_output=True,
+        text=True,
+    )
+    check("seed CLI completes", seed_result.returncode == 0, seed_result.stderr[-300:])
+    if seed_db.exists():
+        connection = sqlite3.connect(seed_db)
+        row = connection.execute(
+            "SELECT pin_hash, setup_complete, bootstrap_token_hash, "
+            "bootstrap_token_consumed_at FROM parent_account WHERE id = 1"
+        ).fetchone()
+        connection.close()
+        check("seed CLI applies the requested parent PIN", row is not None and check_password_hash(row[0], "9876"))
+        check("seed CLI does not leave the default parent PIN", row is not None and not check_password_hash(row[0], "1234"))
+        check(
+            "seed CLI retires the bootstrap token",
+            row is not None and row[1] == 1 and row[2] is None and row[3] is not None,
+        )
+
+    # Local installations retrieve the plaintext token only through the
+    # explicit CLI. Keep this database and file separate from the hosted-token
+    # app above so both provisioning modes are covered in one run.
+    cli_tmp = Path(tempfile.mkdtemp(prefix="tutor-bootstrap-cli-"))
+    cli_db = cli_tmp / "cli.sqlite3"
+    cli_token_file = cli_tmp / "bootstrap_token"
+    cli_env = os.environ.copy()
+    cli_env.pop("PARENT_BOOTSTRAP_TOKEN", None)
+    cli_env["DATABASE_URL"] = f"sqlite:///{cli_db}"
+    cli_env["BOOTSTRAP_TOKEN_FILE"] = str(cli_token_file)
+    cli_env["SECRET_KEY"] = "smoke-cli-secret-key"
+
+    def run_bootstrap_cli(*arguments: str):
+        return subprocess.run(
+            [sys.executable, "-m", "scripts.bootstrap_token", *arguments],
+            cwd=Path(__file__).resolve().parents[1],
+            env=cli_env,
+            capture_output=True,
+            text=True,
+        )
+
+    local_result = run_bootstrap_cli()
+    local_token = local_result.stdout.strip()
+    check("local bootstrap-token CLI succeeds", local_result.returncode == 0, local_result.stderr[-300:])
+    check("local CLI returns a high-entropy token", len(local_token) >= 32)
+    check(
+        "local bootstrap token file is created",
+        cli_token_file.exists() and cli_token_file.read_text(encoding="utf-8").strip() == local_token,
+    )
+    check(
+        "local bootstrap token file is mode 0600",
+        cli_token_file.exists() and cli_token_file.stat().st_mode & 0o777 == 0o600,
+    )
+
+    repeat_result = run_bootstrap_cli()
+    check(
+        "repeated local CLI retrieval is stable",
+        repeat_result.returncode == 0
+        and bool(local_token)
+        and repeat_result.stdout.strip() == local_token,
+    )
+    rotate_result = run_bootstrap_cli("--rotate")
+    rotated_token = rotate_result.stdout.strip()
+    check("local bootstrap-token rotation succeeds", rotate_result.returncode == 0, rotate_result.stderr[-300:])
+    check(
+        "rotation replaces the local token",
+        len(rotated_token) >= 32 and rotated_token != local_token,
+    )
+    check(
+        "rotated token is persisted with mode 0600",
+        cli_token_file.exists()
+        and cli_token_file.read_text(encoding="utf-8").strip() == rotated_token
+        and cli_token_file.stat().st_mode & 0o777 == 0o600,
+    )
+    cli_seed_result = subprocess.run(
+        seed_args,
+        cwd=Path(__file__).resolve().parents[1],
+        env=cli_env,
+        capture_output=True,
+        text=True,
+    )
+    check("trusted local seed retires the local token", cli_seed_result.returncode == 0, cli_seed_result.stderr[-300:])
+    unavailable_result = run_bootstrap_cli()
+    check("bootstrap-token CLI is unavailable after setup", unavailable_result.returncode != 0)
+    check("trusted setup removes the local token file", not cli_token_file.exists())
 
     # ------------------------------------------------------------------
     print("\nFirst run")
     # ------------------------------------------------------------------
-    response = client.get("/", follow_redirects=True)
-    check("redirects to the welcome page", b"Learning Quest" in response.data, response.status_code)
+    response = client.get("/", follow_redirects=False)
+    check(
+        "redirects to adult parent setup",
+        response.status_code == 302 and response.headers.get("Location", "").endswith("/parent/setup"),
+        response.status_code,
+    )
+    response = client.get("/welcome", follow_redirects=False)
+    check(
+        "direct welcome requires adult setup",
+        response.status_code == 302 and response.headers.get("Location", "").endswith("/parent/setup"),
+        response.status_code,
+    )
+
+    pre_setup = app.test_client()
+    pre_setup.get("/parent/setup")
+    response = pre_setup.post(
+        "/parent/login",
+        data={
+            "_csrf": get_csrf(pre_setup),
+            "login_name": "parent",
+            "pin": app.config["DEFAULT_PARENT_PIN"],
+        },
+        follow_redirects=False,
+    )
+    check(
+        "default parent credentials cannot bypass bootstrap setup",
+        response.status_code == 302 and response.headers.get("Location", "").endswith("/parent/setup"),
+        response.status_code,
+    )
+    response = pre_setup.get("/parent/register", follow_redirects=False)
+    check(
+        "new parent registration waits for bootstrap setup",
+        response.status_code == 302 and response.headers.get("Location", "").endswith("/parent/setup"),
+        response.status_code,
+    )
+    with app.app_context():
+        incomplete_parent = profiles.ensure_parent_account()
+        incomplete_auth_version = incomplete_parent.auth_version
+    with pre_setup.session_transaction() as pre_setup_session:
+        pre_setup_session["parent_ok"] = True
+        pre_setup_session["parent_ok_at"] = 9999999999
+        pre_setup_session["parent_account_id"] = 1
+        pre_setup_session["parent_auth_version"] = incomplete_auth_version
+    response = pre_setup.get("/parent/children", follow_redirects=False)
+    check(
+        "incomplete parent sessions cannot manage learners",
+        response.status_code == 302 and "/login" in response.headers.get("Location", ""),
+        response.status_code,
+    )
+
+    response = client.get("/parent/setup", follow_redirects=True)
+    setup_markup = response.get_data(as_text=True)
+    check("adult setup page renders", b"Set up parent access" in response.data, response.status_code)
+    check("adult setup asks for a bootstrap token", b'name="bootstrap_token"' in response.data)
+    check("bootstrap token is not rendered in setup HTML", bootstrap_token not in setup_markup)
+    response = client.post(
+        "/parent/setup",
+        data={
+            "_csrf": get_csrf(client),
+            "bootstrap_token": "wrong-bootstrap-token",
+            "pin": "4321",
+            "confirm_pin": "4321",
+        },
+        follow_redirects=False,
+    )
+    check(
+        "wrong bootstrap token is refused",
+        response.status_code == 200 and b"setup token or parent pin" in response.data.lower(),
+        response.status_code,
+    )
+    with app.app_context():
+        pending_parent = profiles.ensure_parent_account()
+        check(
+            "wrong bootstrap token does not consume setup",
+            pending_parent.setup_complete is False and pending_parent.bootstrap_token_hash is not None,
+        )
+
+    response = client.post(
+        "/parent/setup",
+        data={
+            "_csrf": get_csrf(client),
+            "bootstrap_token": bootstrap_token,
+            "pin": "4321",
+            "confirm_pin": "4321",
+        },
+        follow_redirects=True,
+    )
+    check("adult setup opens learner welcome", b"Set up the first learner" in response.data, response.status_code)
+    with app.app_context():
+        configured_parent = profiles.ensure_parent_account()
+        check(
+            "bootstrap token is consumed after setup",
+            configured_parent.setup_complete is True
+            and configured_parent.bootstrap_token_hash is None
+            and configured_parent.bootstrap_token_consumed_at is not None,
+        )
+    replay = client.post(
+        "/parent/setup",
+        data={
+            "_csrf": get_csrf(client),
+            "bootstrap_token": bootstrap_token,
+            "pin": "4321",
+            "confirm_pin": "4321",
+        },
+        follow_redirects=False,
+    )
+    check(
+        "consumed bootstrap token cannot be replayed",
+        replay.status_code == 302 and replay.headers.get("Location", "").endswith("/welcome"),
+        replay.status_code,
+    )
+    check(
+        "learner welcome omits parent setup fields",
+        b"parent_pin" not in response.data and b"Parent PIN" not in response.data,
+    )
+    check(
+        "learner pathway control is labelled",
+        b'for="gcse_tier"' in response.data and b"Learning pathway" in response.data,
+    )
 
     response = client.post(
         "/welcome",
@@ -71,9 +440,13 @@ def main() -> int:
             "_csrf": get_csrf(client),
             "name": "Smoke",
             "year_group": "3",
-            "avatar_emoji": "🦊",
+            "avatar_character": "fox",
             "avatar_colour": "sunshine",
-            "pin": "4321",
+            "learner_login": "smoke",
+            "learner_pin": "2468",
+            # Legacy clients may still send this field. It must not change the
+            # already-configured parent PIN.
+            "parent_pin": "9999",
         },
         follow_redirects=True,
     )
@@ -94,10 +467,21 @@ def main() -> int:
             f"{child.settings.allowed_from_hour}-{child.settings.allowed_to_hour}",
         )
         check("the app is available by default", child.settings.within_allowed_hours())
+        account = child.learner_account
+        check(
+            "learner account is provisioned and active",
+            account is not None and account.login_name == "smoke" and not account.needs_activation,
+            account.login_name if account else None,
+        )
+        check("learner account is linked to the default parent", account is not None and any(link.parent_id == 1 for link in child.parent_links))
+        configured_parent = profiles.ensure_parent_account()
+        check("adult setup is recorded", configured_parent.setup_complete is True)
+        check("legacy welcome PIN cannot change parent access", configured_parent.check_pin("4321") and not configured_parent.check_pin("9999"))
 
     # ------------------------------------------------------------------
     print("\nChild pages")
     # ------------------------------------------------------------------
+    learner_markup: dict[str, str] = {}
     for label, url in [
         ("home", "/home"),
         ("maths", "/learn/maths"),
@@ -107,10 +491,49 @@ def main() -> int:
         ("shop", "/shop"),
         ("profile", "/me"),
         ("blocked screen", "/blocked"),
-        ("pick learner", "/pick"),
     ]:
         response = client.get(url)
         check(f"GET {url} ({label})", response.status_code == 200, response.status_code)
+        if url in {"/home", "/learn/maths", "/badges", "/me"}:
+            markup = response.get_data(as_text=True)
+            learner_markup[url] = markup
+            check(f"{url} includes the safe-area viewport", 'viewport-fit=cover' in markup)
+            check(f"{url} includes learner chrome", 'class="topbar"' in markup and 'class="tabbar"' in markup)
+            if url == "/home":
+                check("home navigation marks the active page", 'aria-current="page"' in markup)
+
+    response = client.get("/pick", follow_redirects=False)
+    check(
+        "legacy learner picker redirects to sign in",
+        response.status_code == 302 and response.headers.get("Location", "").endswith("/login"),
+        response.status_code,
+    )
+    response = client.get("/pick", follow_redirects=False)
+    check(
+        "learner picker does not enumerate profiles",
+        b"Smoke" not in response.data and b"Second" not in response.data,
+    )
+
+    response = client.post(
+        "/logout", data={"_csrf": get_csrf(client)}, follow_redirects=False
+    )
+    check("learner logout redirects to sign in", response.status_code == 302)
+    response = client.get("/home", follow_redirects=False)
+    check("learner pages reject a signed-out session", response.status_code == 302 and "/login" in response.headers.get("Location", ""))
+    legacy = app.test_client()
+    legacy.get("/")
+    with legacy.session_transaction() as legacy_session:
+        legacy_session["child_id"] = 1
+    response = legacy.get("/home", follow_redirects=False)
+    check("legacy child sessions are rejected", response.status_code == 302 and "/login" in response.headers.get("Location", ""))
+    with legacy.session_transaction() as legacy_session:
+        check("legacy child session key is cleared", "child_id" not in legacy_session)
+    response = client.post(
+        "/login",
+        data={"_csrf": get_csrf(client), "login_name": "smoke", "pin": "2468"},
+        follow_redirects=True,
+    )
+    check("learner can sign in with their own credentials", b"Smoke" in response.data, response.status_code)
 
     response = client.get("/learn/nonsense", follow_redirects=True)
     check("unknown subject redirects home", response.status_code == 200)
@@ -150,7 +573,31 @@ def main() -> int:
     )
 
     response = client.get(f"/play/{quest_id}")
+    play_markup = response.get_data(as_text=True)
     check("player page renders", response.status_code == 200, response.status_code)
+    check("player page omits learner topbar", 'class="topbar"' not in play_markup)
+    check("player page omits learner tabbar", 'class="tabbar"' not in play_markup)
+
+    # Static mobile presentation contracts are checked against the stable
+    # learner responses captured before the quest state changed.
+    check("home uses responsive action and totals grids", 'class="action-grid"' in learner_markup["/home"] and 'class="score-grid totals-grid"' in learner_markup["/home"])
+
+    css_markup = (Path(__file__).resolve().parents[1] / "tutor/static/css/kid.css").read_text()
+    check("mobile shell is breakpoint-scoped", "@media (max-width: 760px)" in css_markup)
+    check("desktop answer-pair layout remains", "@media (min-width: 560px)" in css_markup and ".choices.pairs" in css_markup)
+    check("mobile controls keep large touch targets", ".btn.big { min-height: 66px" in css_markup and ".choice { min-height: 72px" in css_markup)
+
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        child_row.settings.shop_enabled = False
+        db.session.commit()
+    response = client.get("/shop", follow_redirects=False)
+    check("disabled shop still redirects home", response.status_code == 302 and response.headers.get("Location", "").endswith("/home"), response.status_code)
+    with app.app_context():
+        child_row = db.session.execute(db.select(Child)).scalars().first()
+        child_row.settings.shop_enabled = True
+        db.session.commit()
+    check("enabled shop still renders", client.get("/shop").status_code == 200)
 
     with app.app_context():
         rows = (
@@ -160,7 +607,7 @@ def main() -> int:
             .scalars()
             .all()
         )
-        solutions = {row.id: (row.solution or {}).get("answer", "") for row in rows}
+        solutions = {row.id: row.solution or {} for row in rows}
 
     # Ask for a hint on the first question.
     first_id = quest["questions"][0]["id"]
@@ -169,8 +616,23 @@ def main() -> int:
     )
     check("hint endpoint responds", response.status_code == 200, response.status_code)
 
-    # Answer wrongly first (exercises the second-chance path), then correctly.
-    wrong_then_right = quest["questions"][0]
+    # Answer one auto-marked question wrongly first (exercises the
+    # second-chance path), then correctly. Mixed quests can also contain
+    # manual and interactive responses, so the smoke flow submits each kind
+    # with its valid response shape.
+    manual_kinds = {"free_text", "handwriting", "audio", "evidence"}
+    interactive_kinds = {"coordinate_points", "transformation_polygon"}
+    scored_questions = [
+        question for question in quest["questions"] if question.get("kind") not in manual_kinds
+    ]
+    retryable_questions = [
+        question for question in scored_questions if question.get("kind") not in interactive_kinds
+    ]
+    check("quest includes an auto-marked question", bool(retryable_questions))
+    if not retryable_questions:
+        return 1
+
+    wrong_then_right = retryable_questions[0]
     response = client.post(
         f"/api/quest/{quest_id}/answer",
         json={"question_id": wrong_then_right["id"], "answer": "!!definitely wrong!!", "seconds": 5},
@@ -181,11 +643,12 @@ def main() -> int:
 
     response = client.post(
         f"/api/quest/{quest_id}/answer",
-        json={
-            "question_id": wrong_then_right["id"],
-            "answer": solutions[wrong_then_right["id"]],
-            "seconds": 4,
-        },
+        json=answer_body(
+            wrong_then_right,
+            solutions[wrong_then_right["id"]].get("answer", ""),
+            seconds=4,
+            solution=solutions[wrong_then_right["id"]],
+        ),
         headers=headers,
     )
     body = response.get_json()
@@ -199,22 +662,31 @@ def main() -> int:
     )
     check("cannot answer the same question twice", response.status_code == 400, response.status_code)
 
-    # Answer the rest: all correct except the last, which we get wrong twice.
-    remaining = quest["questions"][1:]
-    deliberate_wrong = remaining[-1]["id"] if remaining else None
+    # Answer the rest: all remaining scored questions are correct, except a
+    # second auto-marked question when one is available, which gets wrong twice.
+    remaining = [
+        question for question in quest["questions"] if question["id"] != wrong_then_right["id"]
+    ]
+    deliberate_wrong = retryable_questions[-1]["id"] if len(retryable_questions) > 1 else None
     for question in remaining:
         qid = question["id"]
+        solution = solutions[qid]
         if qid == deliberate_wrong:
             for _ in range(2):
                 client.post(
                     f"/api/quest/{quest_id}/answer",
-                    json={"question_id": qid, "answer": "~nope~", "seconds": 3},
+                    json=answer_body(question, "~nope~", seconds=3, solution=solution),
                     headers=headers,
                 )
         else:
             client.post(
                 f"/api/quest/{quest_id}/answer",
-                json={"question_id": qid, "answer": solutions[qid], "seconds": 6},
+                json=answer_body(
+                    question,
+                    solution.get("answer", ""),
+                    seconds=6,
+                    solution=solution,
+                ),
                 headers=headers,
             )
 
@@ -227,8 +699,8 @@ def main() -> int:
     check("all questions answered", summary.get("answered") == len(quest["questions"]), summary.get("answered"))
     check(
         "score matches what we sent",
-        summary.get("correct") == len(quest["questions"]) - 1,
-        f"{summary.get('correct')} of {len(quest['questions'])}",
+        summary.get("correct") == len(scored_questions) - (1 if deliberate_wrong else 0),
+        f"{summary.get('correct')} of {len(scored_questions) - (1 if deliberate_wrong else 0)}",
     )
     check("at least one star awarded", summary.get("stars", 0) >= 1, summary.get("stars"))
     check("badges awarded on first quest", len(summary.get("badges", [])) >= 1, summary.get("badges"))
@@ -321,13 +793,13 @@ def main() -> int:
     check("parent area asks for a PIN", b"PIN" in response.data, response.status_code)
 
     response = client.post(
-        "/parent/login", data={"_csrf": get_csrf(client), "pin": "0000"}, follow_redirects=True
+        "/parent/login", data={"_csrf": get_csrf(client), "login_name": "parent", "pin": "0000"}, follow_redirects=True
     )
     check("wrong PIN is refused", b"not right" in response.data, response.status_code)
 
     response = client.post(
         "/parent/login",
-        data={"_csrf": get_csrf(client), "pin": app.config["DEFAULT_PARENT_PIN"]},
+        data={"_csrf": get_csrf(client), "login_name": "parent", "pin": app.config["DEFAULT_PARENT_PIN"]},
         follow_redirects=True,
     )
     check(
@@ -337,7 +809,7 @@ def main() -> int:
     )
 
     response = client.post(
-        "/parent/login", data={"_csrf": get_csrf(client), "pin": "4321"}, follow_redirects=True
+        "/parent/login", data={"_csrf": get_csrf(client), "login_name": "parent", "pin": "4321"}, follow_redirects=True
     )
     check("correct PIN unlocks", b"progress" in response.data.lower(), response.status_code)
 
@@ -354,6 +826,14 @@ def main() -> int:
     ]:
         response = client.get(url)
         check(f"GET {url} ({label})", response.status_code == 200, response.status_code)
+
+    response = client.get("/parent/children")
+    check(
+        "parent pathway controls are labelled",
+        b'for="pathway-' in response.data
+        and b'for="new-gcse-tier"' in response.data
+        and b"Learning pathway" in response.data,
+    )
 
     # Save settings.
     csrf = get_csrf(client)
@@ -438,6 +918,14 @@ def main() -> int:
         )
     check("focus skill appears in every quest", focus_hits == 8, f"{focus_hits}/8 quests")
 
+    # Keep a second already-unlocked browser to verify PIN changes revoke it.
+    stale_parent = app.test_client()
+    stale_parent.get("/parent/login")
+    stale_parent.post(
+        "/parent/login",
+        data={"_csrf": get_csrf(stale_parent), "login_name": "parent", "pin": "4321"},
+    )
+
     # PIN change.
     csrf = get_csrf(client)
     response = client.post(
@@ -446,6 +934,8 @@ def main() -> int:
         follow_redirects=True,
     )
     check("PIN can be changed", b"PIN updated" in response.data)
+    response = stale_parent.get("/parent/settings", follow_redirects=False)
+    check("parent PIN change invalidates older parent sessions", response.status_code == 302 and "/login" in response.headers.get("Location", ""))
 
     response = client.post("/parent/logout", data={"_csrf": get_csrf(client)}, follow_redirects=True)
     check("parent area locks", response.status_code == 200)
@@ -453,18 +943,201 @@ def main() -> int:
     check("locked area redirects to login", response.status_code == 302, response.status_code)
 
     # Add and delete a second learner.
-    client.post("/parent/login", data={"_csrf": get_csrf(client), "pin": "9876"})
+    client.post("/parent/login", data={"_csrf": get_csrf(client), "login_name": "parent", "pin": "9876"})
     csrf = get_csrf(client)
     response = client.post(
         "/parent/children",
         data={"_csrf": csrf, "name": "Second", "year_group": "2",
-              "avatar_emoji": "🐨", "avatar_colour": "ocean"},
+              "avatar_character": "bear", "avatar_colour": "ocean",
+              "login_name": "second", "learner_pin": "5678"},
         follow_redirects=True,
     )
     check("second learner added", b"Second" in response.data)
     with app.app_context():
         second = db.session.execute(db.select(Child).where(Child.name == "Second")).scalar_one()
+        first = db.session.execute(db.select(Child).where(Child.name == "Smoke")).scalar_one()
         second_id = second.id
+        first_id = first.id
+
+    # Learner sessions are account-bound: B cannot read A's quest, and changing
+    # A's credentials invalidates A's older session.
+    learner_a = app.test_client()
+    learner_a.get("/login")
+    learner_a.post(
+        "/login",
+        data={"_csrf": get_csrf(learner_a), "login_name": "smoke", "pin": "2468"},
+    )
+    learner_b = app.test_client()
+    learner_b.get("/login")
+    learner_b.post(
+        "/login",
+        data={"_csrf": get_csrf(learner_b), "login_name": "second", "pin": "5678"},
+    )
+    response = learner_b.get(f"/api/quest/{quest_id}")
+    check("learner B cannot read learner A's quest", response.status_code == 404, response.status_code)
+    response = learner_a.post("/logout", data={"_csrf": get_csrf(learner_a)})
+    check("learner logout completes", response.status_code == 302)
+    response = learner_a.get(f"/api/quest/{quest_id}")
+    check("learner logout invalidates API access", response.status_code == 401, response.status_code)
+    learner_a.post(
+        "/login",
+        data={"_csrf": get_csrf(learner_a), "login_name": "smoke", "pin": "2468"},
+    )
+    response = client.post(
+        f"/parent/children/{first_id}/update",
+        data={"_csrf": csrf, "name": "Smoke", "login_name": "smoke", "learner_pin": "2469",
+              "gcse_tier": "off", "year_group": "3"},
+        follow_redirects=True,
+    )
+    check("parent can update learner credentials", b"access updated" in response.data)
+    response = learner_a.get("/home", follow_redirects=False)
+    check("credential update invalidates an older learner session", response.status_code == 302 and "/login" in response.headers.get("Location", ""))
+    response = learner_a.get(f"/api/quest/{quest_id}")
+    check("credential update invalidates learner API access", response.status_code == 401, response.status_code)
+
+    # A second parent can manage a separate learner, but cannot see or mutate A.
+    parent_two = app.test_client()
+    parent_two.get("/parent/register")
+    response = parent_two.post(
+        "/parent/register",
+        data={"_csrf": get_csrf(parent_two), "login_name": "parent-two", "pin": "8765", "confirm_pin": "8765"},
+        follow_redirects=True,
+    )
+    check("second parent account can be created", b"Add another learner" in response.data)
+    duplicate_parent = app.test_client()
+    duplicate_parent.get("/parent/register")
+    response = duplicate_parent.post(
+        "/parent/register",
+        data={"_csrf": get_csrf(duplicate_parent), "login_name": "parent-two", "pin": "9999", "confirm_pin": "9999"},
+        follow_redirects=True,
+    )
+    check("duplicate parent account names are rejected", b"already in use" in response.data)
+    response = parent_two.post(
+        "/parent/children",
+        data={"_csrf": get_csrf(parent_two), "name": "Third", "year_group": "4",
+              "avatar_character": "owl", "avatar_colour": "forest", "login_name": "third",
+              "learner_pin": "3456"},
+        follow_redirects=True,
+    )
+    check("second parent can add a separate learner", b"Third" in response.data)
+    with app.app_context():
+        third = db.session.execute(db.select(Child).where(Child.name == "Third")).scalar_one()
+        third_id = third.id
+        check("second learner is linked to parent two", any(link.parent_id != 1 for link in third.parent_links))
+
+    response = client.get("/parent/children")
+    check("parent one cannot list parent two's learner", b"Third" not in response.data)
+    response = parent_two.get("/parent/children")
+    check("parent two cannot list parent one's learners", b"Smoke" not in response.data and b"Second" not in response.data)
+    response = parent_two.post(
+        f"/parent/children/{first_id}/update",
+        data={"_csrf": get_csrf(parent_two), "name": "Hijacked", "login_name": "hijacked", "learner_pin": "9999"},
+        follow_redirects=True,
+    )
+    check("parent two cannot edit parent one's learner", b"not managed" in response.data)
+    response = client.post(
+        f"/parent/view/{third_id}",
+        data={"_csrf": csrf},
+        follow_redirects=True,
+    )
+    check("parent one cannot view parent two's learner", b"Third" not in response.data and b"Smoke" in response.data)
+    response = client.post(
+        f"/parent/children/{third_id}/update",
+        data={"_csrf": csrf, "name": "Changed", "login_name": "changed", "learner_pin": "9999"},
+        follow_redirects=True,
+    )
+    check("parent one cannot edit parent two's learner", b"not managed" in response.data)
+    response = parent_two.post(
+        f"/parent/view/{first_id}",
+        data={"_csrf": get_csrf(parent_two)},
+        follow_redirects=True,
+    )
+    check("parent two cannot view parent one's learner", b"Third" in response.data and b"Smoke" not in response.data)
+    response = parent_two.post(
+        f"/parent/view/{second_id}",
+        data={"_csrf": get_csrf(parent_two)},
+        follow_redirects=True,
+    )
+    check("parent two cannot select parent one's second learner", b"Third" in response.data and b"Second" not in response.data)
+    response = parent_two.post(
+        f"/parent/children/{first_id}/delete",
+        data={"_csrf": get_csrf(parent_two), "confirm_name": "Smoke"},
+        follow_redirects=True,
+    )
+    check("parent two cannot delete parent one's learner", b"not managed" in response.data, response.status_code)
+    with parent_two.session_transaction() as parent_two_session:
+        parent_two_session["parent_child_id"] = first_id
+    response = parent_two.post(
+        "/parent/data/reset-all",
+        data={"_csrf": get_csrf(parent_two), "confirm_name": "Smoke", "keep_purchases": "on"},
+        follow_redirects=True,
+    )
+    check("parent two cannot reset parent one's learner", b"Third" in response.data and b"exactly" in response.data)
+    with app.app_context():
+        first_question_id = db.session.execute(
+            db.select(QuestQuestion.id).where(QuestQuestion.quest_id == quest_id)
+        ).scalars().first()
+    response = parent_two.post(
+        f"/parent/quest/{quest_id}/great-review",
+        data={"_csrf": get_csrf(parent_two), "question_id": first_question_id, "score_G": "0", "score_R": "0", "score_E": "0", "score_A": "0", "score_T": "0"},
+        follow_redirects=True,
+    )
+    check("parent two cannot review parent one's quest", b"not part of this learner" in response.data)
+    response = parent_two.post(
+        f"/parent/quest/{quest_id}/assessment-review",
+        data={"_csrf": get_csrf(parent_two), "question_id": first_question_id, "score": "0", "feedback": "No"},
+        follow_redirects=True,
+    )
+    check("parent two cannot assess parent one's quest", b"not part of this learner" in response.data)
+    response = client.post(
+        f"/parent/children/{third_id}/delete",
+        data={"_csrf": csrf, "confirm_name": "Third"},
+        follow_redirects=True,
+    )
+    check("parent one cannot delete parent two's learner", b"not managed" in response.data)
+    with app.app_context():
+        first_row = db.session.get(Child, first_id)
+        third_row = db.session.get(Child, third_id)
+        check("cross-parent edit left learner A unchanged", first_row is not None and first_row.name == "Smoke")
+        check("cross-parent delete left learner C intact", third_row is not None)
+
+    with app.app_context():
+        third_before = db.session.get(Child, third_id)
+        links_before = sorted(link.parent_id for link in third_before.parent_links)
+    restarted_app = create_app()
+    with restarted_app.app_context():
+        third_after = db.session.get(Child, third_id)
+        links_after = sorted(link.parent_id for link in third_after.parent_links)
+        check("app restart preserves parent ownership", links_after == links_before, links_after)
+
+    stale_learner = app.test_client()
+    stale_learner.get("/login")
+    stale_learner.post(
+        "/login",
+        data={"_csrf": get_csrf(stale_learner), "login_name": "third", "pin": "3456"},
+    )
+    response = parent_two.post(
+        f"/parent/children/{third_id}/delete",
+        data={"_csrf": get_csrf(parent_two), "confirm_name": "Third"},
+        follow_redirects=True,
+    )
+    check("owning parent can delete learner C", b"deleted" in response.data)
+    response = parent_two.post(
+        "/parent/children",
+        data={"_csrf": get_csrf(parent_two), "name": "Fourth", "year_group": "4",
+              "avatar_character": "owl", "avatar_colour": "forest", "login_name": "fourth",
+              "learner_pin": "4567"},
+        follow_redirects=True,
+    )
+    check("parent two can provision a replacement learner", b"Fourth" in response.data)
+    response = stale_learner.get("/home", follow_redirects=False)
+    check("deleted learner sessions cannot authenticate a replacement", response.status_code == 302 and "/login" in response.headers.get("Location", ""))
+    response = stale_learner.get(f"/api/quest/{quest_id}")
+    check("deleted learner API sessions cannot authenticate a replacement", response.status_code == 401, response.status_code)
+    with app.app_context():
+        fourth = db.session.execute(db.select(Child).where(Child.name == "Fourth")).scalar_one()
+        check("replacement learner remains parent-two scoped", [link.parent_id for link in fourth.parent_links] == [2])
+
     response = client.post(
         f"/parent/children/{second_id}/delete",
         data={"_csrf": csrf, "confirm_name": "wrong name"},
@@ -477,6 +1150,11 @@ def main() -> int:
         follow_redirects=True,
     )
     check("learner can be deleted", b"deleted" in response.data)
+
+    client.post(
+        "/login",
+        data={"_csrf": get_csrf(client), "login_name": "smoke", "pin": "2469"},
+    )
 
     # ------------------------------------------------------------------
     print("\nClearing and resetting data")
@@ -505,7 +1183,7 @@ def main() -> int:
         detail = client.get(f"/api/quest/{quest_id}").get_json()
         with app.app_context():
             answers = {
-                row.id: (row.solution or {}).get("answer", "")
+                row.id: row.solution or {}
                 for row in db.session.execute(
                     db.select(QuestQuestion).where(QuestQuestion.quest_id == quest_id)
                 ).scalars().all()
@@ -513,7 +1191,12 @@ def main() -> int:
         for question in detail["questions"]:
             client.post(
                 f"/api/quest/{quest_id}/answer",
-                json={"question_id": question["id"], "answer": answers[question["id"]], "seconds": 5},
+                json=answer_body(
+                    question,
+                    answers[question["id"]].get("answer", ""),
+                    seconds=5,
+                    solution=answers[question["id"]],
+                ),
                 headers={"X-CSRF-Token": get_csrf(client)},
             )
         client.post(f"/api/quest/{quest_id}/finish", json={}, headers={"X-CSRF-Token": get_csrf(client)})

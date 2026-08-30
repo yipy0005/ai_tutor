@@ -609,6 +609,306 @@
   }
 
   // -----------------------------------------------------------------------
+  // GCSE geometry and statistics diagrams
+  // -----------------------------------------------------------------------
+  function paletteColor(name, fallback) {
+    var colors = {
+      ocean: C.ocean,
+      berry: C.berry,
+      leaf: C.leaf,
+      sun: C.sun,
+      grape: C.grape,
+      ink: C.ink
+    };
+    return colors[name] || fallback || C.ocean;
+  }
+
+  function numberText(value) {
+    var rounded = Math.round(value);
+    return Math.abs(value - rounded) < 0.000001
+      ? String(rounded)
+      : String(Number(value.toFixed(2)));
+  }
+
+  function triangle(v) {
+    var mode = v.mode || "right";
+    var general = mode === "general";
+    var w = 340;
+    var h = 220;
+    var points = general
+      ? [[52, 176], [286, 176], [154, 48]]
+      : [[54, 176], [276, 176], [276, 56]];
+    var pointText = points.map(function (point) { return point.join(","); }).join(" ");
+    var body = '<polygon points="' + pointText + '" fill="#e9f2ff" stroke="' + C.ocean +
+      '" stroke-width="4" stroke-linejoin="round"/>';
+    var labels = v.labels || {};
+
+    if (!general) {
+      body += '<path d="M 252 176 L 252 152 L 276 152" fill="none" stroke="' +
+        C.berry + '" stroke-width="3"/>';
+      if (labels.base) body += txt(165, 204, labels.base, { size: 16, weight: 800 });
+      if (labels.height) {
+        body += txt(304, 118, labels.height, {
+          size: 16, weight: 800, transform: "rotate(-90 304 118)"
+        });
+      }
+      if (labels.hypotenuse) body += txt(150, 105, labels.hypotenuse, { size: 16, weight: 800 });
+      if (labels.angle) body += txt(84, 164, labels.angle, { size: 16, weight: 800, fill: C.berry });
+    } else {
+      if (labels.base) body += txt(169, 204, labels.base, { size: 16, weight: 800 });
+      if (labels.left) body += txt(74, 158, labels.left, { size: 16, weight: 800, fill: C.berry });
+      if (labels.right) body += txt(260, 158, labels.right, { size: 16, weight: 800, fill: C.berry });
+      if (labels.top) body += txt(154, 76, labels.top, { size: 16, weight: 800, fill: C.berry });
+    }
+    return svg(w, h, body, {
+      label: v.aria_label || (general ? "a labelled triangle" : "a labelled right-angled triangle")
+    });
+  }
+
+  function coordinateGrid(v) {
+    var xmin = v.x_min == null ? -5 : Number(v.x_min);
+    var xmax = v.x_max == null ? 5 : Number(v.x_max);
+    var ymin = v.y_min == null ? -5 : Number(v.y_min);
+    var ymax = v.y_max == null ? 5 : Number(v.y_max);
+    var step = v.grid_step == null ? 1 : Number(v.grid_step);
+    var w = 380;
+    var h = 270;
+    var left = 48;
+    var right = 356;
+    var top = 22;
+    var bottom = 218;
+    var xSpan = xmax - xmin || 1;
+    var ySpan = ymax - ymin || 1;
+    var px = function (x) { return left + ((x - xmin) / xSpan) * (right - left); };
+    var py = function (y) { return bottom - ((y - ymin) / ySpan) * (bottom - top); };
+    var body = '<rect x="' + left + '" y="' + top + '" width="' + (right - left) +
+      '" height="' + (bottom - top) + '" fill="#fff" stroke="' + C.line + '" stroke-width="1"/>';
+    var firstX = Math.ceil(xmin / step - 0.000001);
+    var lastX = Math.floor(xmax / step + 0.000001);
+    var firstY = Math.ceil(ymin / step - 0.000001);
+    var lastY = Math.floor(ymax / step + 0.000001);
+    var i;
+
+    for (i = firstX; i <= lastX; i++) {
+      var xValue = i * step;
+      var x = px(xValue);
+      body += '<line x1="' + x.toFixed(1) + '" y1="' + top + '" x2="' + x.toFixed(1) +
+        '" y2="' + bottom + '" stroke="' + C.line + '" stroke-width="1"/>';
+      body += txt(x.toFixed(1), bottom + 18, numberText(xValue), {
+        size: 11, weight: 700, fill: C.soft
+      });
+    }
+    for (i = firstY; i <= lastY; i++) {
+      var yValue = i * step;
+      var y = py(yValue);
+      body += '<line x1="' + left + '" y1="' + y.toFixed(1) + '" x2="' + right +
+        '" y2="' + y.toFixed(1) + '" stroke="' + C.line + '" stroke-width="1"/>';
+      if (Math.abs(yValue) > 0.000001) {
+        body += txt(left - 8, (y + 4).toFixed(1), numberText(yValue), {
+          size: 11, weight: 700, anchor: "end", fill: C.soft
+        });
+      }
+    }
+    if (xmin <= 0 && xmax >= 0) {
+      var axisX = px(0);
+      body += '<line x1="' + axisX.toFixed(1) + '" y1="' + top + '" x2="' + axisX.toFixed(1) +
+        '" y2="' + bottom + '" stroke="' + C.ink + '" stroke-width="2.5"/>';
+    }
+    if (ymin <= 0 && ymax >= 0) {
+      var axisY = py(0);
+      body += '<line x1="' + left + '" y1="' + axisY.toFixed(1) + '" x2="' + right +
+        '" y2="' + axisY.toFixed(1) + '" stroke="' + C.ink + '" stroke-width="2.5"/>';
+    }
+    if (v.x_label) body += txt(right, bottom + 38, v.x_label, { size: 13, weight: 800, anchor: "end" });
+    if (v.y_label) body += txt(left - 28, top + 4, v.y_label, { size: 13, weight: 800, anchor: "end" });
+
+    (v.lines || []).forEach(function (line) {
+      var coords = [];
+      if (typeof line.gradient === "number" && typeof line.intercept === "number") {
+        coords = [[xmin, line.gradient * xmin + line.intercept], [xmax, line.gradient * xmax + line.intercept]];
+      } else if (Array.isArray(line.points)) {
+        coords = line.points;
+      }
+      if (coords.length >= 2) {
+        var linePoints = coords.map(function (point) {
+          return px(Number(point[0])).toFixed(1) + "," + py(Number(point[1])).toFixed(1);
+        }).join(" ");
+        body += '<polyline points="' + linePoints + '" fill="none" stroke="' +
+          paletteColor(line.color, C.berry) + '" stroke-width="4" stroke-linecap="round"/>';
+      }
+    });
+
+    (v.polygons || []).forEach(function (polygon) {
+      if (!Array.isArray(polygon.points) || polygon.points.length < 3) return;
+      var polygonPoints = polygon.points.map(function (point) {
+        return px(Number(point[0])).toFixed(1) + "," + py(Number(point[1])).toFixed(1);
+      }).join(" ");
+      var dashed = polygon.style === "dashed" ? ' stroke-dasharray="7 5"' : "";
+      var fill = polygon.style === "dashed" ? "#fff4fa" : "#e9f2ff";
+      body += '<polygon points="' + polygonPoints + '" fill="' + fill + '" fill-opacity="0.72" stroke="' +
+        paletteColor(polygon.color, C.ocean) + '" stroke-width="3"' + dashed + '/>';
+      if (polygon.label) {
+        var centre = polygon.points.reduce(function (sum, point) {
+          return [sum[0] + Number(point[0]), sum[1] + Number(point[1])];
+        }, [0, 0]);
+        centre[0] /= polygon.points.length;
+        centre[1] /= polygon.points.length;
+        body += txt(px(centre[0]), py(centre[1]), polygon.label, { size: 13, weight: 800 });
+      }
+    });
+
+    (v.points || []).forEach(function (point) {
+      var cx = px(Number(point.x));
+      var cy = py(Number(point.y));
+      body += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="6" fill="' +
+        paletteColor(point.color, C.berry) + '" stroke="#fff" stroke-width="2"/>';
+      if (point.label) body += txt(cx + 10, cy - 8, point.label, { size: 13, weight: 800, anchor: "start" });
+    });
+    return svg(w, h, body, { label: v.aria_label || "a coordinate grid" });
+  }
+
+  function scatterPlot(v) {
+    var xmin = Number(v.x_min);
+    var xmax = Number(v.x_max);
+    var ymin = Number(v.y_min);
+    var ymax = Number(v.y_max);
+    var w = 390;
+    var h = 270;
+    var left = 52;
+    var right = 362;
+    var top = v.title ? 36 : 22;
+    var bottom = 216;
+    var xSpan = xmax - xmin || 1;
+    var ySpan = ymax - ymin || 1;
+    var px = function (x) { return left + ((x - xmin) / xSpan) * (right - left); };
+    var py = function (y) { return bottom - ((y - ymin) / ySpan) * (bottom - top); };
+    var body = v.title ? txt(w / 2, 20, v.title, { size: 15, weight: 800 }) : "";
+    var t;
+    for (t = 0; t <= 5; t++) {
+      var xv = xmin + (xSpan * t) / 5;
+      var x = px(xv);
+      var yv = ymin + (ySpan * t) / 5;
+      var y = py(yv);
+      body += '<line x1="' + x.toFixed(1) + '" y1="' + top + '" x2="' + x.toFixed(1) +
+        '" y2="' + bottom + '" stroke="' + C.line + '" stroke-width="1"/>';
+      body += '<line x1="' + left + '" y1="' + y.toFixed(1) + '" x2="' + right +
+        '" y2="' + y.toFixed(1) + '" stroke="' + C.line + '" stroke-width="1"/>';
+      body += txt(x.toFixed(1), bottom + 18, numberText(xv), { size: 11, weight: 700, fill: C.soft });
+      if (t > 0) body += txt(left - 8, (y + 4).toFixed(1), numberText(yv), {
+        size: 11, weight: 700, anchor: "end", fill: C.soft
+      });
+    }
+    body += '<line x1="' + left + '" y1="' + top + '" x2="' + left + '" y2="' + bottom +
+      '" stroke="' + C.ink + '" stroke-width="2.5"/><line x1="' + left + '" y1="' + bottom +
+      '" x2="' + right + '" y2="' + bottom + '" stroke="' + C.ink + '" stroke-width="2.5"/>';
+    (v.points || []).forEach(function (point) {
+      body += '<circle cx="' + px(Number(point[0])).toFixed(1) + '" cy="' +
+        py(Number(point[1])).toFixed(1) + '" r="5.5" fill="' + C.berry + '" stroke="#fff" stroke-width="2"/>';
+    });
+    if (v.x_label) body += txt(right, bottom + 40, v.x_label, { size: 13, weight: 800, anchor: "end" });
+    if (v.y_label) body += txt(left - 28, top + 4, v.y_label, { size: 13, weight: 800, anchor: "end" });
+    return svg(w, h, body, { label: v.aria_label || "a scatter plot" });
+  }
+
+  function histogram(v) {
+    var bins = v.bins || [];
+    if (!bins.length) return "";
+    var min = Number(bins[0].start);
+    var max = Number(bins[bins.length - 1].end);
+    var peak = Math.max.apply(null, bins.map(function (bin) { return Number(bin.density); }).concat([1]));
+    var w = 390;
+    var h = 270;
+    var left = 52;
+    var right = 362;
+    var top = v.title ? 36 : 22;
+    var bottom = 216;
+    var xSpan = max - min || 1;
+    var px = function (x) { return left + ((x - min) / xSpan) * (right - left); };
+    var body = v.title ? txt(w / 2, 20, v.title, { size: 15, weight: 800 }) : "";
+    var t;
+    for (t = 0; t <= 5; t++) {
+      var value = (peak * t) / 5;
+      var y = bottom - (value / peak) * (bottom - top);
+      body += '<line x1="' + left + '" y1="' + y.toFixed(1) + '" x2="' + right +
+        '" y2="' + y.toFixed(1) + '" stroke="' + C.line + '" stroke-width="1"/>';
+      if (t > 0) body += txt(left - 8, (y + 4).toFixed(1), numberText(value), {
+        size: 11, weight: 700, anchor: "end", fill: C.soft
+      });
+    }
+    body += '<line x1="' + left + '" y1="' + top + '" x2="' + left + '" y2="' + bottom +
+      '" stroke="' + C.ink + '" stroke-width="2.5"/><line x1="' + left + '" y1="' + bottom +
+      '" x2="' + right + '" y2="' + bottom + '" stroke="' + C.ink + '" stroke-width="2.5"/>';
+    bins.forEach(function (bin) {
+      var x1 = px(Number(bin.start));
+      var x2 = px(Number(bin.end));
+      var height = (Number(bin.density) / peak) * (bottom - top);
+      body += '<rect x="' + x1.toFixed(1) + '" y="' + (bottom - height).toFixed(1) +
+        '" width="' + Math.max(1, x2 - x1).toFixed(1) + '" height="' + height.toFixed(1) +
+        '" fill="#e9f2ff" stroke="' + C.ocean + '" stroke-width="2"/>';
+      body += txt((x1 + x2) / 2, bottom + 18,
+        numberText(Number(bin.start)) + "–" + numberText(Number(bin.end)), {
+          size: 11, weight: 700, fill: C.soft
+        });
+    });
+    if (v.x_label) body += txt(right, bottom + 40, v.x_label, { size: 13, weight: 800, anchor: "end" });
+    if (v.y_label) body += txt(left - 28, top + 4, v.y_label, { size: 13, weight: 800, anchor: "end" });
+    return svg(w, h, body, { label: v.aria_label || "a histogram" });
+  }
+
+  function boxPlot(v) {
+    var min = Number(v.min);
+    var q1 = Number(v.q1);
+    var median = Number(v.median);
+    var q3 = Number(v.q3);
+    var max = Number(v.max);
+    var axisMin = v.axis_min == null ? min : Number(v.axis_min);
+    var axisMax = v.axis_max == null ? max : Number(v.axis_max);
+    var w = 390;
+    var h = v.title ? 180 : 155;
+    var left = 42;
+    var right = 358;
+    var axisY = v.title ? 105 : 82;
+    var xSpan = axisMax - axisMin || 1;
+    var px = function (value) { return left + ((value - axisMin) / xSpan) * (right - left); };
+    var body = v.title ? txt(w / 2, 20, v.title, { size: 15, weight: 800 }) : "";
+    var t;
+    for (t = 0; t <= 5; t++) {
+      var value = axisMin + (xSpan * t) / 5;
+      var x = px(value);
+      body += '<line x1="' + x.toFixed(1) + '" y1="' + (axisY - 18) + '" x2="' +
+        x.toFixed(1) + '" y2="' + (axisY + 18) + '" stroke="' + C.line + '" stroke-width="1"/>';
+      body += txt(x.toFixed(1), axisY + 42, numberText(value), { size: 11, weight: 700, fill: C.soft });
+    }
+    body += '<line x1="' + left + '" y1="' + axisY + '" x2="' + right + '" y2="' + axisY +
+      '" stroke="' + C.ink + '" stroke-width="2.5"/>';
+    body += '<line x1="' + px(min).toFixed(1) + '" y1="' + axisY + '" x2="' + px(max).toFixed(1) +
+      '" y2="' + axisY + '" stroke="' + C.berry + '" stroke-width="4"/>';
+    body += '<line x1="' + px(min).toFixed(1) + '" y1="' + (axisY - 15) + '" x2="' + px(min).toFixed(1) +
+      '" y2="' + (axisY + 15) + '" stroke="' + C.berry + '" stroke-width="3"/>';
+    body += '<line x1="' + px(max).toFixed(1) + '" y1="' + (axisY - 15) + '" x2="' + px(max).toFixed(1) +
+      '" y2="' + (axisY + 15) + '" stroke="' + C.berry + '" stroke-width="3"/>';
+    body += '<rect x="' + px(q1).toFixed(1) + '" y="' + (axisY - 25) + '" width="' +
+      Math.max(1, px(q3) - px(q1)).toFixed(1) + '" height="50" fill="#e9f2ff" stroke="' +
+      C.ocean + '" stroke-width="3"/>';
+    body += '<line x1="' + px(median).toFixed(1) + '" y1="' + (axisY - 25) + '" x2="' +
+      px(median).toFixed(1) + '" y2="' + (axisY + 25) + '" stroke="' + C.grape + '" stroke-width="4"/>';
+    if (v.label) body += txt(w / 2, axisY - 38, v.label, { size: 13, weight: 800 });
+    return svg(w, h, body, { label: v.aria_label || "a box plot" });
+  }
+
+  function renderInteractive(visual) {
+    if (!visual || visual.type !== "coordinate_grid") return "";
+    var markup = coordinateGrid(visual);
+    var attrs =
+      'class="interactive-grid" data-interactive-grid="true" tabindex="0" ' +
+      'aria-describedby="interactive-instructions" ' +
+      'data-x-min="' + esc(visual.x_min) + '" data-x-max="' + esc(visual.x_max) +
+      '" data-y-min="' + esc(visual.y_min) + '" data-y-max="' + esc(visual.y_max) +
+      '" data-plot-left="48" data-plot-right="356" data-plot-top="22" data-plot-bottom="218"';
+    return markup.replace("<svg ", "<svg " + attrs + " ");
+  }
+
+  // -----------------------------------------------------------------------
   // Dispatch
   // -----------------------------------------------------------------------
   var RENDERERS = {
@@ -628,6 +928,11 @@
     rect: rect,
     angle: angle,
     lines: lines,
+    triangle: triangle,
+    coordinate_grid: coordinateGrid,
+    scatter_plot: scatterPlot,
+    histogram: histogram,
+    box_plot: boxPlot,
     column: column,
     share: share,
     partition: partition
@@ -645,5 +950,5 @@
     }
   }
 
-  global.Visuals = { render: render };
+  global.Visuals = { render: render, renderInteractive: renderInteractive };
 })(window);

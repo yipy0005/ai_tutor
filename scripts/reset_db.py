@@ -11,7 +11,7 @@ from __future__ import annotations
 import sys
 
 from tutor import create_app, db
-from tutor.services import maintenance
+from tutor.services import maintenance, profiles
 
 
 def main() -> int:
@@ -35,6 +35,7 @@ def main() -> int:
                     print(f"Backup saved to {backup}")
                     print("Restore it later with:  pixi run restore-backup")
 
+            profiles.remove_bootstrap_token_file()
             db.session.remove()
             db.engine.dispose()
             for suffix in ("", "-wal", "-shm"):

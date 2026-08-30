@@ -1,0 +1,43 @@
+{% extends "parent/_base.html" %}
+{% block title %}Create parent account{% endblock %}
+
+{% block content %}
+<div class="p-login">
+  <div class="p-card">
+    <div class="p-center" style="margin-bottom:18px">
+      <div style="font-size:2.6rem">👨‍👩‍👧</div>
+      <h1 style="margin-bottom:4px">Create a parent account</h1>
+      <p class="p-muted p-tiny" style="margin:0">
+        Each parent account can manage only the learners linked to it.
+      </p>
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="p-field">
+        <label for="login_name">Parent sign-in name</label>
+        <input type="text" id="login_name" name="login_name" maxlength="60"
+               autocomplete="username" autocapitalize="none" required autofocus
+               placeholder="e.g. alex-family">
+      </div>
+      <div class="p-field">
+        <label for="pin">Parent PIN</label>
+        <input class="p-pin" type="password" id="pin" name="pin" inputmode="numeric"
+               pattern="[0-9]*" maxlength="8" autocomplete="new-password" required>
+      </div>
+      <div class="p-field">
+        <label for="confirm_pin">Confirm parent PIN</label>
+        <input class="p-pin" type="password" id="confirm_pin" name="confirm_pin"
+               inputmode="numeric" pattern="[0-9]*" maxlength="8"
+               autocomplete="new-password" required>
+      </div>
+      <button class="p-btn block" type="submit">Create account</button>
+    </form>
+
+    <p class="p-center p-tiny" style="margin:16px 0 0">
+      Already have an account? <a href="{{ url_for('parent.login') }}">Sign in</a>
+      · <a href="{{ url_for('kid.index') }}">Learner app</a>
+    </p>
+  </div>
+</div>
+{% endblock %}

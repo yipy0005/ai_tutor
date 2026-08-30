@@ -203,6 +203,7 @@ body.parent a { color: var(--p-brand-dark); }
 .p-tag.y1 { background: #e6f6ea; color: #14682a; }
 .p-tag.y2 { background: #e5eefc; color: #1a4f8b; }
 .p-tag.y3 { background: #f3e8ff; color: #6b21a8; }
+.p-tag.gcse { background: #eee4ff; color: #6139a4; }
 .p-tag.good { background: #dcfce7; color: #14532d; }
 .p-tag.warn { background: #fef3c7; color: #78350f; }
 .p-tag.bad { background: #fee2e2; color: #7f1d1d; }
@@ -460,10 +461,50 @@ fieldset.p-set legend {
 .p-review .a { font-size: 0.86rem; color: var(--p-soft); margin-top: 4px; }
 .p-review .why { font-size: 0.86rem; color: var(--p-soft); margin-top: 4px; font-style: italic; }
 
+/* GREAT diagnostics ----------------------------------------------------- */
+.great-summary { display: grid; grid-template-columns: minmax(180px, 0.7fr) minmax(260px, 1.3fr); gap: 20px; align-items: start; }
+.great-section-head { display: flex; align-items: baseline; gap: 9px; flex-wrap: wrap; margin: 4px 0 10px; }
+.great-section-head h3 { margin: 0; }
+.great-self-reflection { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--p-line); }
+.great-total { font-size: 1.8rem; font-weight: 750; letter-spacing: -0.03em; }
+.great-total small { display: block; color: var(--p-soft); font-size: 0.78rem; font-weight: 500; letter-spacing: 0; }
+.great-stage-list { display: grid; gap: 10px; }
+.great-stage-line { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(80px, 1.4fr) auto; gap: 9px; align-items: center; font-size: 0.82rem; }
+.great-stage-line .label { color: var(--p-soft); }
+.great-stage-line .score { color: var(--p-ink); font-variant-numeric: tabular-nums; text-align: right; }
+.great-stage-line .p-bar { height: 9px; }
+.great-note { margin: 13px 0 0; color: var(--p-soft); font-size: 0.78rem; }
 .great-pending-links { display: grid; gap: 8px; margin-top: 12px; }
 .great-pending-link { justify-content: space-between; min-height: 44px; text-align: left; }
 .great-pending-next { display: grid; gap: 2px; }
 .great-pending-next small { color: var(--p-soft); font-size: 0.76rem; font-weight: 500; }
+.great-review { margin-top: 9px; padding: 9px 11px; border-radius: 9px; background: #f7f8fc; border: 1px solid var(--p-line); }
+.great-review-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 0.82rem; color: var(--p-soft); }
+.great-review-head b { color: var(--p-ink); }
+.great-review-stages { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
+.p-tag.great-0 { background: #fee2e2; color: #7f1d1d; }
+.p-tag.great-1 { background: #fef3c7; color: #78350f; }
+.p-tag.great-2 { background: #dcfce7; color: #14532d; }
+.great-diagnostic-review { margin-top: 11px; padding: 12px; border: 1px solid #cbd5ff; border-radius: 11px; background: #fafbff; }
+.great-review-instruction { margin: 8px 0 10px; color: var(--p-soft); font-size: 0.78rem; }
+.great-evidence-list { display: grid; gap: 8px; }
+.great-evidence-row { display: grid; grid-template-columns: minmax(180px, 0.7fr) minmax(220px, 1.3fr); gap: 10px; padding: 10px; border: 1px solid var(--p-line); border-radius: 9px; background: var(--p-card); }
+.great-evidence-stage { display: flex; gap: 8px; align-items: flex-start; min-width: 0; }
+.great-evidence-letter { display: inline-grid; place-items: center; flex: 0 0 auto; width: 25px; height: 25px; border-radius: 7px; background: #e0e7ff; color: var(--p-brand-dark); font-size: 0.77rem; font-weight: 750; }
+.great-evidence-prompt { margin-top: 3px; color: var(--p-soft); font-size: 0.76rem; line-height: 1.35; }
+.great-evidence-response { min-width: 0; margin: 0; padding: 8px 10px; border-left: 3px solid #cbd5ff; color: var(--p-ink); font-size: 0.84rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.great-review-form { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--p-line); }
+.great-review-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 9px; margin-bottom: 12px; }
+.great-score-field { min-width: 0; padding: 8px; border: 1px solid var(--p-line); border-radius: 9px; }
+.great-score-field legend { padding: 0 4px; color: var(--p-soft); font-size: 0.75rem; font-weight: 700; }
+.great-score-options { display: grid; gap: 5px; }
+.great-score-options input { position: absolute; width: 1px; height: 1px; opacity: 0; }
+.great-score-options label { display: flex; align-items: center; gap: 6px; min-height: 32px; padding: 5px 6px; border: 1px solid var(--p-line); border-radius: 7px; color: var(--p-soft); font-size: 0.72rem; line-height: 1.15; cursor: pointer; }
+.great-score-options label b { display: grid; place-items: center; width: 21px; height: 21px; flex: 0 0 auto; border-radius: 50%; background: #eef1f7; color: var(--p-ink); }
+.great-score-options label:hover { border-color: #aebbf5; }
+.great-score-options input:checked + label { border-color: var(--p-brand); background: #eef1ff; color: var(--p-brand-dark); }
+.great-score-options input:checked + label b { background: var(--p-brand); color: #fff; }
+.great-score-options input:focus-visible + label { outline: 3px solid #a8b6ff; outline-offset: 2px; }
 
 details.p-details summary {
   cursor: pointer;
@@ -503,4 +544,32 @@ body.parent code {
   .p-skill .figures { justify-content: space-between; }
   .p-skill .track { width: 100%; }
   body.parent h1 { font-size: 1.3rem; }
+  .great-summary { grid-template-columns: 1fr; }
+  .great-stage-line { grid-template-columns: minmax(120px, 1fr) minmax(70px, 1fr) auto; }
+}
+
+/* Open-ended evidence and GCSE exam snapshots -------------------------- */
+.p-review.pending { border-left: 4px solid var(--p-warn); }
+.exam-snapshot { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-top: 7px; color: var(--p-soft); font-size: 0.76rem; }
+.exam-snapshot > span:not(.p-tag) { padding: 2px 7px; border: 1px solid var(--p-line); border-radius: 6px; background: #fafbfe; }
+.assessment-review { margin-top: 11px; padding: 12px; border: 1px solid #cbd5ff; border-radius: 11px; background: #fafbff; }
+.assessment-review-head { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; color: var(--p-soft); font-size: 0.82rem; }
+.assessment-review-head b { color: var(--p-ink); }
+.assessment-response { margin: 9px 0; padding: 10px 12px; border-left: 3px solid #cbd5ff; white-space: pre-wrap; overflow-wrap: anywhere; color: var(--p-ink); background: var(--p-card); }
+.assessment-audio { display: block; width: 100%; margin-top: 10px; }
+.assessment-fields { display: grid; gap: 7px; margin-top: 10px; }
+.assessment-fields > div { display: grid; gap: 2px; padding: 8px 10px; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-card); }
+.assessment-fields span { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--p-soft); font-size: 0.86rem; }
+.assessment-review-form { margin-top: 13px; padding-top: 12px; border-top: 1px solid var(--p-line); }
+.assessment-criteria { display: grid; gap: 8px; }
+.assessment-criteria label { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 10px; border: 1px solid var(--p-line); border-radius: 8px; background: var(--p-card); }
+.assessment-criteria label > span { display: grid; gap: 2px; min-width: 0; }
+.assessment-criteria small { color: var(--p-soft); font-size: 0.76rem; font-weight: 400; }
+.assessment-criteria input { width: 70px; min-height: 38px; }
+.assessment-feedback { display: grid; gap: 5px; margin: 12px 0; color: var(--p-soft); font-size: 0.82rem; font-weight: 650; }
+.assessment-feedback textarea { min-height: 60px !important; }
+.assessment-feedback-note { margin: 10px 0 0; padding: 9px 11px; border-radius: 8px; background: #f0fdf4; color: var(--p-soft); font-size: 0.84rem; }
+@media (max-width: 600px) {
+  .assessment-criteria label { align-items: flex-start; }
+  .assessment-criteria input { flex: 0 0 64px; }
 }

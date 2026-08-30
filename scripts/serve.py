@@ -40,6 +40,16 @@ QUIET_ERRNOS = frozenset(
     }
 )
 
+# Every TLS connection opens with a handshake record: byte 0x16, then a major
+# protocol version of 0x03. No HTTP request can start that way, so those two
+# bytes are enough to recognise a client trying https:// against this
+# plain-http server.
+TLS_RECORD_START = b"\x16\x03"
+
+# Client addresses that have already been told this server is http-only. One
+# explanation per device is plenty; browsers retry a dozen times in a burst.
+_told_about_https: set[str] = set()
+
 
 class QuietRequestHandler(WSGIRequestHandler):
     """A request handler that ignores clients hanging up mid-handshake.
@@ -48,6 +58,10 @@ class QuietRequestHandler(WSGIRequestHandler):
     inside ``handle_one_request`` instead would leave ``close_connection``
     false, so the keep-alive loop in ``handle`` would immediately retry the
     failing read and spin at 100% CPU for every dropped connection.
+
+    ``handle_one_request`` is extended for a separate reason: to turn away
+    clients speaking TLS before the base class tries to read their handshake as
+    a line of HTTP.
     """
 
     def handle(self) -> None:
@@ -57,6 +71,58 @@ class QuietRequestHandler(WSGIRequestHandler):
             if exc.errno not in QUIET_ERRNOS:
                 raise
             self.close_connection = True
+
+    def handle_one_request(self) -> None:
+        """Serve one request, unless the client turns out to be talking TLS.
+
+        Browsers upgrade addresses to https:// on their own initiative, and
+        remember the decision, so a laptop on the home network can start
+        sending TLS handshakes here even though nobody typed "https". The
+        development server reads those raw bytes as a request line and logs two
+        lines of mojibake plus a 400 for each attempt — dozens of lines that
+        say nothing and bury the requests that matter. Hang up instead, and
+        explain the problem once in words a parent can act on.
+        """
+        if self._client_is_speaking_tls():
+            # Must be set: leaving it false sends the keep-alive loop in
+            # handle() straight back into this method, forever.
+            self.close_connection = True
+            self._explain_http_only()
+            return
+        super().handle_one_request()
+
+    def _client_is_speaking_tls(self) -> bool:
+        """Look at the first bytes without consuming them."""
+        try:
+            # rfile is a BufferedReader here, so peek leaves the data in place
+            # for the normal request path. It returns b"" at end of file.
+            return self.rfile.peek(2)[:2] == TLS_RECORD_START
+        except (AttributeError, OSError, ValueError):
+            # Unbuffered reader, or the client vanished. Neither is worth a
+            # word; let the ordinary path deal with whatever is there.
+            return False
+
+    def _explain_http_only(self) -> None:
+        client = self.client_address[0]
+        if client in _told_about_https:
+            return
+        _told_about_https.add(client)
+
+        # The local end of this very connection is the address the device
+        # actually reached, which makes for a link that is known to work.
+        try:
+            address, port = self.connection.getsockname()[:2]
+        except OSError:
+            address, port = "127.0.0.1", Config.PORT
+
+        print()
+        print(f"  ⚠️  {client} is trying to connect with https://, which this server")
+        print(f"     does not speak. On that device use  http://{address}:{port}")
+        print("     If the browser keeps forcing https by itself, turn off")
+        print('     "Always use secure connections" (Chrome and Edge:')
+        print("     Settings → Privacy and security → Security), or clear the site's")
+        print("     saved data for this address. Nothing here is broken.")
+        print()
 
     def connection_dropped(self, error, environ=None) -> None:  # noqa: ANN001
         """Called by werkzeug when a client disappears. Nothing worth saying."""

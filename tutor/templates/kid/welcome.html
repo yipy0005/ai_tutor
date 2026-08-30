@@ -14,9 +14,9 @@
     <div class="art-holder bob" style="width:118px;height:118px;margin:0 auto">
       {{ icon('pip-cheer') }}
     </div>
-    <h1 style="margin:8px 0 4px">Let's set up your Learning Quest</h1>
+    <h1 style="margin:8px 0 4px">Set up the first learner</h1>
     <p class="muted" style="margin:0;font-weight:700">
-      Revise Year 1 and 2, and get a head start on Year 3.
+      Create a private learner sign-in to get started.
     </p>
   </div>
 
@@ -30,14 +30,42 @@
     </div>
 
     <div class="field">
-      <label for="year_group">Which year are they going into?</label>
-      <select id="year_group" name="year_group">
-        <option value="2">Year 2</option>
-        <option value="3" selected>Year 3</option>
-        <option value="4">Year 4</option>
+      <label for="learner_login">Learner sign-in name</label>
+      <input type="text" id="learner_login" name="learner_login" required maxlength="60"
+             autocomplete="username" autocapitalize="none" placeholder="e.g. amelia">
+      <div class="muted tiny" style="margin-top:6px">
+        This is the name the learner will use every time they sign in.
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="learner_pin">Learner PIN (4 to 8 digits)</label>
+      <input type="password" id="learner_pin" name="learner_pin" inputmode="numeric"
+             pattern="[0-9]*" maxlength="8" autocomplete="new-password" required
+             placeholder="2468">
+    </div>
+
+    <div class="field">
+      <label for="gcse_tier">Learning pathway</label>
+      <select id="gcse_tier" name="gcse_tier">
+        <option value="off" selected>Primary — Year 1–6</option>
+        <option value="foundation">GCSE Maths — Foundation</option>
+        <option value="higher">GCSE Maths — Higher</option>
       </select>
       <div class="muted tiny" style="margin-top:6px">
-        This sets the starting balance between revision and new work. You can change it later.
+        GCSE learners see GCSE Maths only. Primary learners use the selected year group.
+      </div>
+    </div>
+
+    <div class="field" id="welcome-year-field">
+      <label for="year_group">Primary year group they are entering</label>
+      <select id="year_group" name="year_group">
+        {% for year in primary_years %}
+          <option value="{{ year }}" {{ 'selected' if year == 3 }}>{{ YEAR_LABELS[year] }}</option>
+        {% endfor %}
+      </select>
+      <div class="muted tiny" style="margin-top:6px">
+        This is used for Primary learners only.
       </div>
     </div>
 
@@ -69,17 +97,30 @@
       </div>
     </div>
 
-    <div class="field">
-      <label for="pin">Parent PIN (4 to 8 digits)</label>
-      <input type="text" id="pin" name="pin" inputmode="numeric" pattern="[0-9]*" maxlength="8"
-             autocomplete="off" placeholder="1234">
-      <div class="muted tiny" style="margin-top:6px">
-        This keeps the settings and progress pages out of little hands.
-        Leave it blank to use <b>1234</b> and change it later.
-      </div>
-    </div>
-
     <button class="btn big block leaf" type="submit">Start learning</button>
   </form>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    "use strict";
+    var pathway = document.getElementById("gcse_tier");
+    var yearField = document.getElementById("welcome-year-field");
+    var yearSelect = document.getElementById("year_group");
+    if (!pathway || !yearField || !yearSelect) return;
+
+    function syncPathwayFields() {
+      var isGcse = pathway.value === "foundation" || pathway.value === "higher";
+      yearField.hidden = isGcse;
+      yearField.setAttribute("aria-hidden", isGcse ? "true" : "false");
+      yearSelect.disabled = isGcse;
+      yearSelect.setAttribute("aria-disabled", isGcse ? "true" : "false");
+    }
+
+    pathway.addEventListener("change", syncPathwayFields);
+    syncPathwayFields();
+  }());
+</script>
 {% endblock %}

@@ -34,20 +34,28 @@ description = "Create the SQLite database and all tables."
 cmd = "python -m scripts.init_db"
 
 [tasks.seed]
-description = "Load the curriculum content and create the default learner profile."
+description = "Load curriculum content and optionally create a learner or demo profile."
 cmd = "python -m scripts.seed"
 
 [tasks.setup]
 description = "Create the database then seed it. Run this first."
 depends-on = ["init-db", "seed"]
 
+[tasks.bootstrap-token]
+description = "Print or rotate the one-time token for initial parent setup."
+cmd = "python -m scripts.bootstrap_token"
+
 [tasks.dev]
-description = "Run the development server with auto-reload on http://127.0.0.1:5001"
+description = "Run the app with the Flask development server."
 cmd = "flask --app tutor:create_app run --debug --host 127.0.0.1 --port 5001"
 
 [tasks.serve]
 description = "Run the app for everyday family use (reachable on your home network)."
 cmd = "python -m scripts.serve"
+
+[tasks.cloudflare-origin]
+description = "Run the app on loopback for a Cloudflare Tunnel origin."
+cmd = "HOST=127.0.0.1 PORT=5001 SESSION_COOKIE_SECURE=1 python -m scripts.serve"
 
 [tasks.reset-db]
 description = "Delete the database and rebuild it from scratch. Destroys all progress."
@@ -62,12 +70,16 @@ description = "List the database backups."
 cmd = "python -m scripts.restore_backup --list"
 
 [tasks.add-child]
-description = "Add a learner profile: pixi run add-child --name Emma --year 3"
+description = "Add a learner profile: pixi run add-child --name Emma --year 3; omit credentials to activate from Parent → Learners."
 cmd = "python -m scripts.add_child"
 
 [tasks.content-check]
 description = "Validate every question in the content banks and generators."
 cmd = "python -m scripts.content_check"
+
+[tasks.assessment-check]
+description = "Focused checks for rich assessments and GCSE board metadata."
+cmd = "python -m scripts.assessment_check"
 
 [tasks.smoke]
 description = "End-to-end check that every route and the whole quest flow work."

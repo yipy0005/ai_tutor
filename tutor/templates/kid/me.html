@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block title %}My profile{% endblock %}
 
 {% block content %}
@@ -30,7 +31,7 @@
       Level {{ child.level }} · {{ child.xp_to_next_level }} XP to level {{ child.level + 1 }}
     </p>
 
-    <div class="score-grid" style="grid-template-columns:repeat(4,1fr)">
+    <div class="score-grid profile-stats">
       <div><b class="nums">{{ child.streak_days }}</b><span>day streak</span></div>
       <div><b class="nums">{{ totals.quests }}</b><span>quests</span></div>
       <div><b class="nums">{{ totals.accuracy }}%</b><span>right</span></div>
@@ -78,13 +79,10 @@
   </form>
 
   <div class="center" style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">Parents</a>
-    {% if child_count > 1 %}
-      <form method="post" action="{{ url_for('kid.switch') }}" style="display:inline">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <button class="parent-link" type="submit" style="cursor:pointer">Switch learner</button>
-      </form>
-    {% endif %}
+    <form method="post" action="{{ url_for('kid.logout') }}" style="display:inline">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="signout-link" type="submit" style="cursor:pointer">Sign out</button>
+    </form>
   </div>
 </div>
 {% endblock %}

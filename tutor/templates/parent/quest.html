@@ -46,7 +46,7 @@
       <h2 class="p-grow">Every question, exactly as it was asked</h2>
     </div>
     {% for row in rows %}
-      <div class="p-review {{ 'right' if row.correct else ('wrong' if row.correct is false else '') }}">
+      <div id="question-{{ row.id }}" class="p-review {{ 'right' if row.correct else ('pending' if row.pending else ('wrong' if row.correct is false else '')) }}">
         <div style="display:flex;gap:10px;align-items:baseline">
           <span class="p-faint p-mono">{{ row.position }}.</span>
           <div style="flex:1 1 auto;min-width:0">
@@ -59,9 +59,23 @@
                 Options: {{ row.choices | join(' · ') }}
               </div>
             {% endif %}
+            {% if row.exam %}
+              <div class="exam-snapshot">
+                <span class="p-tag gcse">{{ row.exam.board_label }}</span>
+                <span>{{ row.exam.paper_label }}</span>
+                <span>{{ row.exam.marks }} mark{{ '' if row.exam.marks == 1 else 's' }}</span>
+                <span>{{ 'Calculator' if row.exam.calculator else 'Non-calculator' }}</span>
+                <span>{{ row.exam.command_word }} · {{ row.exam.assessment_objective }}</span>
+              </div>
+            {% endif %}
             <div class="a">
-              {% if row.correct is none %}
+              {% if not row.answered %}
                 <span class="p-tag new">not answered</span>
+              {% elif row.manual %}
+                <span class="p-tag {{ 'warn' if row.pending else ('good' if row.correct else 'bad') }}">
+                  {% if row.pending %}awaiting review{% elif row.score is not none %}{{ row.score }}/{{ row.max_score }} marks{% else %}reviewed{% endif %}
+                </span>
+                {% if row.given %}<b>{{ row.given }}</b>{% endif %}
               {% elif row.correct %}
                 ✅ Answered <b>{{ row.given }}</b>
                 {% if row.tries > 1 %}<span class="p-tag warn">on try {{ row.tries }}</span>{% endif %}
@@ -70,14 +84,130 @@
               {% endif %}
             </div>
             {% if row.explain %}<div class="why">{{ row.explain }}</div>{% endif %}
+            {% if row.manual and row.answered %}
+              <div class="assessment-review">
+                <div class="assessment-review-head">
+                  <b>Open-ended evidence</b>
+                  {% if row.pending %}<span class="p-tag warn">Parent review needed</span>{% else %}<span class="p-tag good">Reviewed · {{ row.score }}/{{ row.max_score }}</span>{% endif %}
+                </div>
+                {% if row.response.type == 'audio' and row.response.audio %}
+                  <audio controls preload="metadata" class="assessment-audio" src="{{ row.response.audio }}">Your browser cannot play this local recording.</audio>
+                  {% if row.response.duration_ms %}<div class="p-faint p-tiny">{{ (row.response.duration_ms / 1000) | round(1) }} seconds · stored locally</div>{% endif %}
+                {% endif %}
+                {% if row.response.transcript %}
+                  <blockquote class="assessment-response">{{ row.response.transcript }}</blockquote>
+                {% elif row.response.text %}
+                  <blockquote class="assessment-response">{{ row.response.text }}</blockquote>
+                {% elif row.response.fields %}
+                  <div class="assessment-fields">
+                    {% for field in row.response_spec.fields %}
+                      <div><b>{{ field.label }}</b><span>{{ row.response.fields.get(field.id, '—') }}</span></div>
+                    {% endfor %}
+                  </div>
+                {% elif row.response.strokes %}
+                  <p class="p-muted p-tiny">Handwriting drawing submitted ({{ row.response.strokes | length }} strokes).</p>
+                {% endif %}
+                {% if row.pending %}
+                  <form method="post" class="assessment-review-form" action="{{ url_for('parent.assessment_review', quest_id=quest.id) }}">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                    <input type="hidden" name="question_id" value="{{ row.id }}">
+                    <div class="assessment-criteria">
+                      {% for criterion in row.rubric.criteria %}
+                        <label>
+                          <span><b>{{ criterion.label }}</b><small>{{ criterion.description }} · 0–{{ criterion.max }}</small></span>
+                          <input type="number" name="score_{{ criterion.id }}" min="0" max="{{ criterion.max }}" required aria-label="Score for {{ criterion.label }}">
+                        </label>
+                      {% endfor %}
+                    </div>
+                    <label class="assessment-feedback">Feedback for the learner
+                      <textarea name="feedback" rows="2" maxlength="1200" placeholder="One kind next step (optional)"></textarea>
+                    </label>
+                    <button class="p-btn small" type="submit">Save open-ended review</button>
+                  </form>
+                {% elif row.assessment.feedback %}
+                  <p class="assessment-feedback-note"><b>Feedback:</b> {{ row.assessment.feedback }}</p>
+                {% endif %}
+              </div>
+            {% endif %}
+            {% if row.great %}
+              <div class="great-review great-self-review">
+                <div class="great-review-head">
+                  <b>Child self-reflection · GREAT {{ row.great.profile }}</b>
+                  <span>{{ row.great.total }}/10</span>
+                  <span class="p-tag">not observed evidence</span>
+                  {% if row.great.first_help %}
+                    <span>· first help: {{ row.great.first_help.key }} — {{ row.great.first_help.label }}</span>
+                  {% else %}
+                    <span>· marked independent at every stage</span>
+                  {% endif %}
+                </div>
+                <div class="great-review-stages">
+                  {% for stage in row.great.stages %}
+                    <span class="p-tag great-{{ stage.score }}" title="{{ stage.label }}">
+                      {{ stage.key }} {{ stage.score }}
+                    </span>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endif %}
+            {% if row.great_diagnostic %}
+              <div class="great-diagnostic-review">
+                <div class="great-review-head">
+                  <b>Observed GREAT evidence</b>
+                  {% if row.great_diagnostic.reviewed %}
+                    <span class="p-tag good">Reviewed · {{ row.great_diagnostic.profile }} · {{ row.great_diagnostic.total }}/10</span>
+                  {% else %}
+                    <span class="p-tag warn">Awaiting parent review</span>
+                  {% endif %}
+                </div>
+                <p class="great-review-instruction">Score the child’s explanation for each stage, not whether the final answer was right: 0 = cannot independently, 1 = with a prompt or scaffold, 2 = independent evidence.</p>
+                <div class="great-evidence-list">
+                  {% for stage in row.great_diagnostic.stages %}
+                    <div class="great-evidence-row">
+                      <div class="great-evidence-stage">
+                        <span class="great-evidence-letter">{{ stage.key }}</span>
+                        <div>
+                          <b>{{ stage.label }}</b>
+                          <div class="great-evidence-prompt">{{ stage.prompt }}</div>
+                        </div>
+                      </div>
+                      <blockquote class="great-evidence-response">{{ stage.response }}</blockquote>
+                    </div>
+                  {% endfor %}
+                </div>
+                <form method="post" class="great-review-form" action="{{ url_for('parent.great_review', quest_id=quest.id) }}">
+                  <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+                  <input type="hidden" name="question_id" value="{{ row.id }}">
+                  <div class="great-review-grid">
+                    {% for stage in row.great_diagnostic.stages %}
+                      <fieldset class="great-score-field">
+                        <legend><span class="great-evidence-letter">{{ stage.key }}</span> {{ stage.label }}</legend>
+                        <div class="great-score-options">
+                          {% for score in [0, 1, 2] %}
+                            <input type="radio" name="score_{{ stage.key }}" value="{{ score }}" id="great-{{ row.id }}-{{ stage.key }}-{{ score }}" required {% if stage.score is not none and stage.score == score %}checked{% endif %}>
+                            <label for="great-{{ row.id }}-{{ stage.key }}-{{ score }}">
+                              <b>{{ score }}</b>
+                              <span>{% if score == 0 %}Cannot independently{% elif score == 1 %}With a prompt{% else %}Independent{% endif %}</span>
+                            </label>
+                          {% endfor %}
+                        </div>
+                      </fieldset>
+                    {% endfor %}
+                  </div>
+                  <button class="p-btn small" type="submit">{{ 'Update review' if row.great_diagnostic.reviewed else 'Save review' }}</button>
+                </form>
+              </div>
+            {% elif row.correct is not none and not row.great %}
+              <div style="margin-top:8px"><span class="p-tag new">No GREAT record</span></div>
+            {% endif %}
             <div class="p-faint p-tiny" style="margin-top:5px">
               {% if row.skill %}
-                <span class="p-tag y{{ row.skill.year }}">Y{{ row.skill.year }}</span>
+                <span class="p-tag {{ 'gcse' if row.skill.is_gcse else 'y' ~ row.skill.year }}">{{ row.skill.year_label }}</span>
                 <a href="{{ url_for('parent.progress', subject=row.skill.subject) }}">{{ row.skill.name }}</a>
                 · {{ row.skill.nc_ref }} ·
               {% endif %}
               <span class="p-tag">Difficulty: {{ row.difficulty_label }}</span>
-              {{ row.seconds }}s
+              · {{ row.seconds }}s
               {% if row.used_hint %} · used a clue{% endif %}
             </div>
           </div>

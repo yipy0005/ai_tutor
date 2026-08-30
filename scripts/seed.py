@@ -27,12 +27,17 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--name",
         default=None,
-        help="Create a learner profile now. Omit it and the app's welcome screen will ask.",
+        help="Create a learner profile now. Omit it and the app will guide you through adult setup.",
     )
     parser.add_argument("--year", type=int, default=3, help="Year group they are entering")
     parser.add_argument("--pin", default=None, help="Parent PIN (defaults to 1234)")
+    parser.add_argument("--learner-login", default=None, help="Learner sign-in name for --name")
+    parser.add_argument("--learner-pin", default=None, help="Learner PIN for --name")
     parser.add_argument("--demo", action="store_true", help="Also create a Demo profile with history")
-    return parser.parse_args()
+    args = parser.parse_args()
+    if args.learner_pin and not args.learner_login:
+        parser.error("--learner-pin requires --learner-login")
+    return args
 
 
 def build_demo_history(child, weeks: int = 6) -> None:
@@ -170,16 +175,30 @@ def main() -> int:
     with app.app_context():
         db.create_all()
 
-        account = profiles.ensure_parent_account(args.pin)
+        account = profiles.ensure_parent_account()
+        if args.pin is not None:
+            pin = profiles.validate_pin(args.pin, required=True, label="parent")
+            account.set_pin(pin)
+        if args.name or args.demo or args.pin is not None:
+            profiles.mark_parent_setup_complete(account)
         db.session.commit()
 
         existing = profiles.all_children()
         if existing:
             print(f"Existing profiles: {', '.join(c.name for c in existing)}")
         elif args.name:
-            child = profiles.create_child(args.name, args.year)
+            child = profiles.create_child(
+                args.name,
+                args.year,
+                learner_login=args.learner_login,
+                learner_pin=args.learner_pin,
+            )
+            profiles.link_parent_child(account.id, child.id)
             db.session.commit()
             print(f"Created learner profile: {child.name} (Year {child.year_group})")
+            print(f"Learner sign-in name: {child.learner_account.login_name}")
+            if child.learner_account.needs_activation:
+                print("Set the learner PIN from Parent → Learners before signing in.")
         else:
             print("No learner profile yet — the app will ask for a name on first visit.")
 
@@ -187,6 +206,7 @@ def main() -> int:
             demo = next((c for c in profiles.all_children() if c.name == "Demo"), None)
             if demo is None:
                 demo = profiles.create_child("Demo", 3, "panda", "grape")
+                profiles.link_parent_child(account.id, demo.id)
                 db.session.commit()
                 print("Building six weeks of demo history (this takes a moment)…")
                 build_demo_history(demo)
@@ -200,7 +220,7 @@ def main() -> int:
         print(f"Skills:          {summary['skills']}")
         print(f"Bank questions:  {summary['bank_questions']}")
         print(f"Maths generators:{summary['generators']}")
-        print(f"Parent PIN:      {'as supplied' if args.pin else Config.DEFAULT_PARENT_PIN}")
+        print(f"Parent PIN:      {'as supplied' if args.pin else 'choose in adult setup'}")
         print()
         print(f"Next:  pixi run serve   then open http://127.0.0.1:{Config.PORT}")
         _ = account

@@ -18,7 +18,11 @@
           {{ icon('char-' ~ character_id(row.child.avatar_emoji)) }}
         </span>
         <h2 class="p-grow" style="margin:0">{{ row.child.name }}</h2>
-        <span class="p-tag">Year {{ row.child.year_group }}</span>
+        {% if row.child.settings.gcse_tier in ['foundation', 'higher'] %}
+          <span class="p-tag gcse">GCSE Maths · {{ GCSE_TIER_LABELS[row.child.settings.gcse_tier] }}</span>
+        {% else %}
+          <span class="p-tag">Year {{ row.child.year_group }}</span>
+        {% endif %}
         <span class="p-tag">Level {{ row.child.level }}</span>
       </div>
 
@@ -50,10 +54,36 @@
             <input type="text" id="name-{{ row.child.id }}" name="name" value="{{ row.child.name }}" maxlength="60">
           </div>
           <div class="p-field">
-            <label for="year-{{ row.child.id }}">Year group</label>
-            <select id="year-{{ row.child.id }}" name="year_group">
+            <label for="login-{{ row.child.id }}">Learner sign-in name</label>
+            <input type="text" id="login-{{ row.child.id }}" name="login_name"
+                   value="{{ row.child.learner_account.login_name if row.child.learner_account else '' }}"
+                   maxlength="60" autocomplete="username" autocapitalize="none" required>
+          </div>
+          <div class="p-field">
+            <label for="pin-{{ row.child.id }}">New learner PIN</label>
+            <input type="password" id="pin-{{ row.child.id }}" name="learner_pin"
+                   inputmode="numeric" pattern="[0-9]*" maxlength="8"
+                   autocomplete="new-password" placeholder="Leave blank to keep it">
+          </div>
+          <div class="p-field">
+            <label for="pathway-{{ row.child.id }}">Learning pathway</label>
+            <select id="pathway-{{ row.child.id }}" name="gcse_tier"
+                    data-pathway-select data-year-field-id="year-field-{{ row.child.id }}">
+              <option value="off" {{ 'selected' if row.child.settings.gcse_tier == 'off' }}>Primary — use year group</option>
+              <option value="foundation" {{ 'selected' if row.child.settings.gcse_tier == 'foundation' }}>GCSE Maths — Foundation</option>
+              <option value="higher" {{ 'selected' if row.child.settings.gcse_tier == 'higher' }}>GCSE Maths — Higher</option>
+            </select>
+          </div>
+          <div class="p-field" id="year-field-{{ row.child.id }}"
+               data-pathway-year-field
+               {{ 'hidden' if row.child.settings.gcse_tier in ['foundation', 'higher'] }}
+               aria-hidden="{{ 'true' if row.child.settings.gcse_tier in ['foundation', 'higher'] else 'false' }}">
+            <label for="year-{{ row.child.id }}">Primary year group</label>
+            <select id="year-{{ row.child.id }}" name="year_group"
+                    {{ 'disabled' if row.child.settings.gcse_tier in ['foundation', 'higher'] }}
+                    aria-disabled="{{ 'true' if row.child.settings.gcse_tier in ['foundation', 'higher'] else 'false' }}">
               {% for year in range(1, 7) %}
-                <option value="{{ year }}" {{ 'selected' if year == row.child.year_group }}>Year {{ year }}</option>
+                <option value="{{ year }}" {{ 'selected' if year == row.child.year_group }}>{{ YEAR_LABELS[year] }}</option>
               {% endfor %}
             </select>
           </div>
@@ -105,12 +135,33 @@
           <input type="text" id="new-name" name="name" maxlength="60" required placeholder="e.g. Emma">
         </div>
         <div class="p-field">
-          <label for="new-year">Year group they are entering</label>
+          <label for="new-login">Learner sign-in name</label>
+          <input type="text" id="new-login" name="login_name" maxlength="60"
+                 autocomplete="username" autocapitalize="none" required placeholder="e.g. emma">
+        </div>
+        <div class="p-field">
+          <label for="new-pin">Learner PIN (4–8 digits)</label>
+          <input type="password" id="new-pin" name="learner_pin" inputmode="numeric"
+                 pattern="[0-9]*" maxlength="8" autocomplete="new-password" required>
+        </div>
+        <div class="p-field">
+          <label for="new-gcse-tier">Learning pathway</label>
+          <select id="new-gcse-tier" name="gcse_tier"
+                  data-pathway-select data-year-field-id="new-year-field">
+            <option value="off" selected>Primary — use year group</option>
+            <option value="foundation">GCSE Maths — Foundation</option>
+            <option value="higher">GCSE Maths — Higher</option>
+          </select>
+          <div class="help">Choose GCSE Maths here to remove the primary year-group question.</div>
+        </div>
+        <div class="p-field" id="new-year-field" data-pathway-year-field>
+          <label for="new-year">Primary year group they are entering</label>
           <select id="new-year" name="year_group">
             {% for year in range(1, 7) %}
               <option value="{{ year }}" {{ 'selected' if year == 3 }}>Year {{ year }}</option>
             {% endfor %}
           </select>
+          <div class="help" id="new-year-help">Used for primary learners only.</div>
         </div>
         <div class="p-field">
           <label for="new-emoji">Character</label>
@@ -133,4 +184,31 @@
     </form>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  (function () {
+    "use strict";
+    var selectors = document.querySelectorAll("[data-pathway-select]");
+
+    Array.prototype.forEach.call(selectors, function (pathway) {
+      var fieldId = pathway.getAttribute("data-year-field-id");
+      var yearField = document.getElementById(fieldId);
+      var yearSelect = yearField && yearField.querySelector("select");
+      if (!yearField || !yearSelect) return;
+
+      function syncPathwayFields() {
+        var isGcse = pathway.value === "foundation" || pathway.value === "higher";
+        yearField.hidden = isGcse;
+        yearField.setAttribute("aria-hidden", isGcse ? "true" : "false");
+        yearSelect.disabled = isGcse;
+        yearSelect.setAttribute("aria-disabled", isGcse ? "true" : "false");
+      }
+
+      pathway.addEventListener("change", syncPathwayFields);
+      syncPathwayFields();
+    });
+  }());
+</script>
 {% endblock %}

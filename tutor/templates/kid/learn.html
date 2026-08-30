@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block title %}{{ subject.name }}{% endblock %}
 
 {% block content %}
@@ -25,26 +26,37 @@
     {% else %}
       <div class="stack">
         <button type="button" class="btn big block leaf" data-start-quest
-                data-subject="{{ subject.id }}" data-mode="mixed">
-          {{ subject.name }} quest
+                data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id == 'gcse_maths' else '' }}" data-mode="mixed">
+          {{ subject.name }} quest{% if tier %} · {{ GCSE_TIER_LABELS[tier] }}{% endif %}
         </button>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
-          <button type="button" class="btn ghost" data-start-quest
-                  data-subject="{{ subject.id }}" data-mode="revision">Revision</button>
-          <button type="button" class="btn ghost" data-start-quest
-                  data-subject="{{ subject.id }}" data-mode="ahead">Year 3</button>
-        </div>
+        {% if subject.id == 'gcse_maths' %}
+          <div class="note" style="margin-top:4px">
+            {{ icon('scene-bulb') }}<div>Board-neutral starter practice for the <b>{{ GCSE_TIER_LABELS[tier] }}</b> tier. Exam-board-specific content can be added later.</div>
+          </div>
+        {% else %}
+          <div class="action-grid">
+            <button type="button" class="btn ghost" data-start-quest
+                    data-subject="{{ subject.id }}" data-mode="revision">Revision</button>
+            <button type="button" class="btn ghost" data-start-quest
+                    data-subject="{{ subject.id }}" data-mode="ahead">New {{ YEAR_LABELS[latest_year] }}</button>
+          </div>
+        {% endif %}
       </div>
     {% endif %}
   </div>
 
-  {% set ns = namespace(year=0) %}
+  {% set ns = namespace(year=99) %}
   {% for group in groups %}
     {% if group.year != ns.year %}
       {% set ns.year = group.year %}
       <h2 style="margin-top:8px">
-        <span class="pill y{{ group.year }}">{{ YEAR_LABELS[group.year] }}</span>
-        <span class="muted tiny" style="font-weight:600">{{ YEAR_BLURBS[group.year] }}</span>
+        {% if subject.id == 'gcse_maths' %}
+          <span class="pill gcse">GCSE</span>
+          <span class="muted tiny" style="font-weight:600">{{ GCSE_TIER_LABELS[tier] }} tier</span>
+        {% else %}
+          <span class="pill y{{ group.year }}">{{ YEAR_LABELS[group.year] }}</span>
+          <span class="muted tiny" style="font-weight:600">{{ YEAR_BLURBS[group.year] }}</span>
+        {% endif %}
       </h2>
     {% endif %}
 
@@ -71,6 +83,7 @@
             </div>
             {% if not blocked %}
               <button type="button" class="btn small ghost" data-start-quest
+                      data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id == 'gcse_maths' else '' }}"
                       data-mode="skill" data-skill="{{ entry.skill.id }}" data-count="6"
                       aria-label="Practise {{ entry.skill.name }}">
                 Practise

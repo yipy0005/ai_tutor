@@ -28,6 +28,16 @@ def create_app(config_object: type[Config] = Config) -> Flask:
     db.init_app(app)
 
     from . import models  # noqa: F401  (registers the tables)
+    from .schema import ensure_compatibility_schema
+
+    with app.app_context():
+        ensure_compatibility_schema(app.config["SQLALCHEMY_DATABASE_URI"])
+        # ``create_all`` is additive: it creates the account tables on an
+        # existing household database without rewriting any progress rows.
+        db.create_all()
+        from .services import profiles
+
+        profiles.ensure_account_data()
 
     _register_blueprints(app)
     _register_csrf(app)
@@ -95,26 +105,40 @@ def _register_context(app: Flask) -> None:
     from markupsafe import Markup
 
     from . import art
-    from .content import SUBJECT_ORDER, SUBJECTS, YEAR_BLURBS, YEAR_LABELS
-    from .services import profiles
-
+    from .content import (
+        GCSE_TIER_LABELS,
+        PATHWAY_BLURBS,
+        PATHWAY_LABELS,
+        PATHWAY_SUBJECT_ORDER,
+        SUBJECT_ORDER,
+        SUBJECTS,
+        YEAR_BLURBS,
+        YEAR_LABELS,
+    )
     @app.context_processor
     def inject_globals():  # noqa: ANN202
         child = getattr(g, "child", None)
         settings = child.settings if child else None
+        learner_account = getattr(g, "learner_account", None)
+        parent_account = getattr(g, "parent_account", None)
         return {
             "csrf_token": csrf_token,
             "SUBJECTS": SUBJECTS,
             "SUBJECT_ORDER": SUBJECT_ORDER,
+            "PATHWAY_SUBJECT_ORDER": PATHWAY_SUBJECT_ORDER,
+            "PATHWAY_LABELS": PATHWAY_LABELS,
+            "PATHWAY_BLURBS": PATHWAY_BLURBS,
+            "GCSE_TIER_LABELS": GCSE_TIER_LABELS,
             "YEAR_LABELS": YEAR_LABELS,
             "YEAR_BLURBS": YEAR_BLURBS,
             "child": child,
             "settings": settings,
+            "learner_account": learner_account,
+            "parent_account": parent_account,
             "body_classes": _body_classes(settings),
             "today": date.today(),
             "now": datetime.now(),
-            "parent_unlocked": bool(session.get("parent_ok")),
-            "child_count": len(profiles.all_children()),
+            "parent_unlocked": bool(session.get("parent_ok") and parent_account),
             # Artwork
             "art_sprite": Markup(art.sprite()),
             "art_characters": art.CHARACTERS,

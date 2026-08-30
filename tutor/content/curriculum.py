@@ -1,12 +1,13 @@
-"""The curriculum map: subjects -> topics -> skills for Years 1, 2 and 3.
+"""Curriculum map for England Primary Years 1–6 and board-neutral GCSE Maths.
 
-Aligned to the English National Curriculum (Key Stage 1 for Years 1-2 and
-lower Key Stage 2 for Year 3). Skill ids are stable strings; progress in the
+The app keeps Primary skills (Maths, English and Science) separate from the
+exclusive GCSE Maths pathway. Skill ids are stable strings; progress in the
 database is keyed on them, so renaming an id resets that skill's history.
 
-Maths skills are ``generated`` (a Python function invents a fresh question each
-time, so practice never runs out). English and Science skills are ``bank``
-skills backed by hand-written questions in ``content/banks/*.json``.
+Maths and the declarative expansion skills are generated procedurally, while
+English and Science starter skills remain backed by curated JSON banks. The
+expanded catalogue adds a validated question factory for each newly declared
+objective.
 """
 
 from __future__ import annotations
@@ -38,15 +39,30 @@ SUBJECTS: dict[str, Subject] = {
     "science": Subject(
         "science", "Science", "🔬", "leaf", "Plants, animals, rocks and light"
     ),
+    "gcse_maths": Subject(
+        "gcse_maths", "GCSE Maths", "📐", "grape", "Foundation or Higher UK GCSE practice"
+    ),
 }
 
+# Keep this list primary-only: years, mixes, and existing reports depend on it.
 SUBJECT_ORDER = ["maths", "english", "science"]
+PATHWAY_SUBJECT_ORDER = ["gcse_maths"]
+GCSE_TIERS = ("foundation", "higher")
+GCSE_TIER_LABELS = {"foundation": "Foundation", "higher": "Higher"}
 
-YEAR_LABELS = {1: "Year 1", 2: "Year 2", 3: "Year 3"}
+PRIMARY_YEARS = (1, 2, 3, 4, 5, 6)
+YEAR_LABELS = {year: f"Year {year}" for year in PRIMARY_YEARS}
 YEAR_BLURBS = {
     1: "Revision — things you learned in Year 1",
     2: "Revision — things you learned in Year 2",
     3: "Getting ahead — brand new Year 3 work",
+    4: "Building confidence with Year 4 work",
+    5: "Building confidence with Year 5 work",
+    6: "Getting ready for secondary school",
+}
+PATHWAY_LABELS = {"gcse_maths": "GCSE Maths"}
+PATHWAY_BLURBS = {
+    "gcse_maths": "Board-neutral UK GCSE Maths practice",
 }
 
 
@@ -66,14 +82,29 @@ class Skill:
     generator: str | None = None
     nc_ref: str = ""  # what the National Curriculum calls it (for parents)
     tags: tuple[str, ...] = field(default_factory=tuple)
+    pathway: str = "primary"
+    tiers: tuple[str, ...] = field(default_factory=tuple)
 
     @property
     def subject_obj(self) -> Subject:
         return SUBJECTS[self.subject]
 
     @property
+    def is_gcse(self) -> bool:
+        return self.pathway == "gcse_maths"
+
+    @property
     def year_label(self) -> str:
+        if self.is_gcse:
+            return "GCSE"
         return YEAR_LABELS.get(self.year, f"Year {self.year}")
+
+    @property
+    def pathway_label(self) -> str:
+        return PATHWAY_LABELS.get(self.pathway, "Primary")
+
+    def eligible_for_tier(self, tier: str | None) -> bool:
+        return not self.is_gcse or tier in self.tiers
 
 
 def _g(
@@ -234,6 +265,30 @@ MATHS_SKILLS: list[Skill] = [
        "shapes_3", "Draw 2-D shapes and make 3-D shapes; recognise them in different orientations"),
     _g("m3.stats.bar-chart", "Bar charts and tables", "maths", "Statistics", 3,
        "bar_chart_3", "Interpret and present data using bar charts, pictograms and tables"),
+
+    # ---- Year 4 ----------------------------------------------------------
+    _g("m4.pv.thousands", "Thousands and ten-thousands", "maths", "Number & place value", 4,
+       "place_value_10000", "Recognise the place value of digits in numbers up to 10,000"),
+    _g("m4.calc.add-sub", "Four-digit addition and subtraction", "maths", "Addition & subtraction", 4,
+       "add_sub_4digit", "Add and subtract numbers with up to four digits"),
+    _g("m4.mult.tables", "Six, seven and nine times tables", "maths", "Multiplication & division", 4,
+       "times_tables_4", "Recall multiplication and division facts for the 6, 7 and 9 times tables"),
+
+    # ---- Year 5 ----------------------------------------------------------
+    _g("m5.pv.large-numbers", "Large numbers", "maths", "Number & place value", 5,
+       "place_value_million", "Read, write and compare numbers up to one million"),
+    _g("m5.calc.multiply", "Multiplying larger numbers", "maths", "Multiplication & division", 5,
+       "multiply_5", "Multiply numbers up to four digits by one- or two-digit numbers"),
+    _g("m5.frac.decimals", "Fractions and decimals", "maths", "Fractions", 5,
+       "fraction_decimal_5", "Recognise and use equivalent fractions, decimals and percentages"),
+
+    # ---- Year 6 ----------------------------------------------------------
+    _g("m6.pv.negative", "Negative numbers", "maths", "Number & place value", 6,
+       "negative_numbers_6", "Use negative numbers in context and calculate intervals across zero"),
+    _g("m6.ratio.percent", "Ratio and percentage problems", "maths", "Ratio & proportion", 6,
+       "ratio_percent_6", "Solve problems involving ratio and percentages"),
+    _g("m6.algebra.one-step", "Simple algebra", "maths", "Algebra", 6,
+       "algebra_6", "Use simple formulae and find unknown values in one-step equations"),
 ]
 
 
@@ -335,6 +390,30 @@ ENGLISH_SKILLS: list[Skill] = [
        "Using dictionaries to check the meaning of unfamiliar words"),
     _b("e3.read.comprehension", "Reading detective", "english", "Reading", 3,
        "Retrieve and record information; draw inferences and justify with evidence"),
+
+    # ---- Year 4 ----------------------------------------------------------
+    _b("e4.spell.tion", "The -tion ending", "english", "Spelling", 4,
+       "The suffix -tion"),
+    _b("e4.gram.fronted-adverbials", "Fronted adverbials", "english", "Grammar", 4,
+       "Using fronted adverbials and commas after them"),
+    _b("e4.punct.commas-clauses", "Commas for clauses", "english", "Punctuation", 4,
+       "Using commas after fronted adverbials and to mark subordinate clauses"),
+
+    # ---- Year 5 ----------------------------------------------------------
+    _b("e5.spell.ough", "The -ough spelling", "english", "Spelling", 5,
+       "Words containing the letter-string -ough"),
+    _b("e5.gram.relative-clauses", "Relative clauses", "english", "Grammar", 5,
+       "Using relative clauses beginning with who, which, where, when, whose, that or omitted"),
+    _b("e5.punct.brackets", "Brackets and dashes", "english", "Punctuation", 5,
+       "Using brackets, dashes or commas to indicate parenthesis"),
+
+    # ---- Year 6 ----------------------------------------------------------
+    _b("e6.spell.homophones", "Tricky homophones", "english", "Spelling", 6,
+       "Distinguish between commonly confused words and homophones"),
+    _b("e6.gram.passive", "Active and passive voice", "english", "Grammar", 6,
+       "Using the passive voice to affect the presentation of information"),
+    _b("e6.punct.semicolons", "Semicolons and colons", "english", "Punctuation", 6,
+       "Using semi-colons, colons and dashes to mark boundaries between independent clauses"),
 ]
 
 
@@ -412,11 +491,180 @@ SCIENCE_SKILLS: list[Skill] = [
        "Describe magnets as having two poles; predict whether magnets attract or repel"),
     _b("s3.forces.magnetic-materials", "Magnetic materials", "science", "Forces & magnets", 3,
        "Compare and group together a variety of everyday materials on whether they are attracted to a magnet"),
+
+    # ---- Year 4 ----------------------------------------------------------
+    _b("s4.electricity.circuits", "Simple electrical circuits", "science", "Electricity", 4,
+       "Identify common appliances that run on electricity and construct simple circuits"),
+    _b("s4.states.water", "Changing states of water", "science", "States of matter", 4,
+       "Compare and group materials according to whether they are solids, liquids or gases"),
+    _b("s4.digestive.system", "The digestive system", "science", "Animals including humans", 4,
+       "Describe the simple functions of the basic parts of the digestive system"),
+
+    # ---- Year 5 ----------------------------------------------------------
+    _b("s5.forces.gravity", "Forces and gravity", "science", "Forces", 5,
+       "Explain that unsupported objects fall towards the Earth because of gravity"),
+    _b("s5.space.earth", "Earth and space", "science", "Earth and space", 5,
+       "Describe the movement of the Earth and other bodies in the solar system"),
+    _b("s5.materials.changes", "Reversible and irreversible changes", "science", "Properties & changes of materials", 5,
+       "Know that some changes result in new materials and are not usually reversible"),
+
+    # ---- Year 6 ----------------------------------------------------------
+    _b("s6.evolution.adaptation", "Evolution and adaptation", "science", "Evolution & inheritance", 6,
+       "Recognise that living things have changed over time and fossils provide information about life"),
+    _b("s6.electricity.voltage", "Voltage and brightness", "science", "Electricity", 6,
+       "Associate the brightness of a lamp or volume of a buzzer with the number and voltage of cells"),
+    _b("s6.living.classification", "Classifying living things", "science", "Living things & habitats", 6,
+       "Describe how living things are classified into broad groups according to common observable characteristics"),
 ]
 
 
-ALL_SKILLS: list[Skill] = MATHS_SKILLS + ENGLISH_SKILLS + SCIENCE_SKILLS
-SKILLS_BY_ID: dict[str, Skill] = {s.id: s for s in ALL_SKILLS}
+# ---------------------------------------------------------------------------
+# GCSE Maths — board-neutral starter pathway
+# ---------------------------------------------------------------------------
+
+
+def _gcse(
+    sid: str,
+    name: str,
+    topic: str,
+    tiers: tuple[str, ...],
+    nc: str,
+) -> Skill:
+    return Skill(
+        sid,
+        name,
+        "gcse_maths",
+        topic,
+        0,
+        "bank",
+        None,
+        nc,
+        tiers,
+        "gcse_maths",
+        tiers,
+    )
+
+
+GCSE_MATHS_SKILLS: list[Skill] = [
+    _gcse(
+        "gcse.maths.number.fdp",
+        "Fractions, decimals and percentages",
+        "Number",
+        ("foundation", "higher"),
+        "Convert between fractions, decimals and percentages",
+    ),
+    _gcse(
+        "gcse.maths.number.ratio",
+        "Ratio and proportion",
+        "Number",
+        ("foundation", "higher"),
+        "Use ratio notation and solve proportion problems",
+    ),
+    _gcse(
+        "gcse.maths.algebra.linear-equations",
+        "Linear equations",
+        "Algebra",
+        ("foundation", "higher"),
+        "Solve linear equations in one unknown",
+    ),
+    _gcse(
+        "gcse.maths.algebra.sequences",
+        "Sequences",
+        "Algebra",
+        ("foundation", "higher"),
+        "Recognise and use arithmetic sequences",
+    ),
+    _gcse(
+        "gcse.maths.geometry.angles",
+        "Angles and polygons",
+        "Geometry and measures",
+        ("foundation", "higher"),
+        "Apply angle facts in parallel lines and polygons",
+    ),
+    _gcse(
+        "gcse.maths.geometry.pythagoras",
+        "Pythagoras' theorem",
+        "Geometry and measures",
+        ("foundation", "higher"),
+        "Use Pythagoras' theorem in right-angled triangles",
+    ),
+    _gcse(
+        "gcse.maths.statistics.averages",
+        "Averages and spread",
+        "Statistics",
+        ("foundation", "higher"),
+        "Calculate and interpret mean, median, mode and range",
+    ),
+    _gcse(
+        "gcse.maths.statistics.probability",
+        "Probability",
+        "Statistics",
+        ("foundation", "higher"),
+        "Use probabilities on a scale from 0 to 1",
+    ),
+    _gcse(
+        "gcse.maths.graphs.linear",
+        "Linear graphs",
+        "Graphs",
+        ("foundation", "higher"),
+        "Interpret and use linear graphs",
+    ),
+    _gcse(
+        "gcse.maths.number.standard-form",
+        "Standard form",
+        "Number",
+        ("higher",),
+        "Calculate with numbers in standard form",
+    ),
+    _gcse(
+        "gcse.maths.algebra.quadratics",
+        "Quadratic expressions",
+        "Algebra",
+        ("higher",),
+        "Expand and factorise quadratic expressions",
+    ),
+    _gcse(
+        "gcse.maths.algebra.simultaneous",
+        "Simultaneous equations",
+        "Algebra",
+        ("higher",),
+        "Solve two simultaneous linear equations",
+    ),
+    _gcse(
+        "gcse.maths.geometry.trigonometry",
+        "Trigonometry",
+        "Geometry and measures",
+        ("higher",),
+        "Use sine, cosine and tangent in right-angled triangles",
+    ),
+]
+
+
+# Full England coverage is kept in a separate declarative module so the
+# original starter catalogue remains readable and existing IDs remain stable.
+from .full_coverage import (  # noqa: E402
+    GCSE_MATHS_EXTRA,
+    PRIMARY_ENGLISH_EXTRA,
+    PRIMARY_MATHS_EXTRA,
+    PRIMARY_SCIENCE_EXTRA,
+)
+from .rich_assessments import PRIMARY_ASSESSMENT_EXTRA  # noqa: E402
+
+MATHS_SKILLS.extend(PRIMARY_MATHS_EXTRA)
+ENGLISH_SKILLS.extend(PRIMARY_ENGLISH_EXTRA)
+SCIENCE_SKILLS.extend(PRIMARY_SCIENCE_EXTRA)
+ENGLISH_SKILLS.extend(
+    skill for skill in PRIMARY_ASSESSMENT_EXTRA if skill.subject == "english"
+)
+SCIENCE_SKILLS.extend(
+    skill for skill in PRIMARY_ASSESSMENT_EXTRA if skill.subject == "science"
+)
+GCSE_MATHS_SKILLS.extend(GCSE_MATHS_EXTRA)
+
+PRIMARY_SKILLS: list[Skill] = MATHS_SKILLS + ENGLISH_SKILLS + SCIENCE_SKILLS
+ALL_SKILLS: list[Skill] = PRIMARY_SKILLS
+ALL_CONTENT_SKILLS: list[Skill] = PRIMARY_SKILLS + GCSE_MATHS_SKILLS
+SKILLS_BY_ID: dict[str, Skill] = {s.id: s for s in ALL_CONTENT_SKILLS}
 
 
 # ---------------------------------------------------------------------------
@@ -437,32 +685,75 @@ def skills_for(
     subject: str | None = None,
     years: list[int] | tuple[int, ...] | None = None,
     topic: str | None = None,
+    tier: str | None = None,
 ) -> list[Skill]:
-    out = ALL_SKILLS
-    if subject:
-        out = [s for s in out if s.subject == subject]
-    if years:
-        wanted = {int(y) for y in years}
-        out = [s for s in out if s.year in wanted]
+    """Return skills for a primary subject or the explicit GCSE pathway.
+
+    The default registry remains primary-only so existing year-based callers and
+    denominators cannot accidentally absorb GCSE content.
+    """
+    if subject == "gcse_maths":
+        out = gcse_skills_for(tier)
+    else:
+        out = ALL_SKILLS
+        if subject:
+            out = [s for s in out if s.subject == subject]
+        if years:
+            wanted = {int(y) for y in years}
+            out = [s for s in out if s.year in wanted]
     if topic:
         out = [s for s in out if s.topic == topic]
     return list(out)
 
 
+def gcse_skills_for(tier: str | None = None) -> list[Skill]:
+    if tier not in GCSE_TIERS:
+        return []
+    return [skill for skill in GCSE_MATHS_SKILLS if skill.eligible_for_tier(tier)]
+
+
 @cache
 def topics_for(subject: str, year: int) -> list[str]:
     seen: list[str] = []
-    for skill in ALL_SKILLS:
+    source = GCSE_MATHS_SKILLS if subject == "gcse_maths" else ALL_SKILLS
+    for skill in source:
         if skill.subject == subject and skill.year == year and skill.topic not in seen:
             seen.append(skill.topic)
     return seen
 
 
 @cache
-def topic_tree(subject: str) -> list[tuple[int, str, tuple[Skill, ...]]]:
-    """[(year, topic, skills)] ordered by year then curriculum order."""
+def gcse_topic_tree(tier: str) -> tuple[tuple[int, str, tuple[Skill, ...]], ...]:
+    """[(0, topic, skills)] for a selected GCSE tier."""
+    groups: list[tuple[int, str, tuple[Skill, ...]]] = []
+    seen: list[str] = []
+    for skill in gcse_skills_for(tier):
+        if skill.topic in seen:
+            continue
+        seen.append(skill.topic)
+        groups.append(
+            (
+                0,
+                skill.topic,
+                tuple(s for s in gcse_skills_for(tier) if s.topic == skill.topic),
+            )
+        )
+    return tuple(groups)
+
+
+@cache
+def topic_tree(
+    subject: str, tier: str | None = None
+) -> list[tuple[int, str, tuple[Skill, ...]]]:
+    """[(year, topic, skills)] ordered by curriculum order.
+
+    Primary callers retain the original Years 1–3 contract. GCSE uses year 0
+    internally and should display ``skill.year_label`` (GCSE), never ``Year 0``.
+    """
+    if subject == "gcse_maths":
+        return list(gcse_topic_tree(tier or ""))
     out: list[tuple[int, str, tuple[Skill, ...]]] = []
-    for year in (1, 2, 3):
+    for year in PRIMARY_YEARS:
         for topic in topics_for(subject, year):
             group = tuple(
                 s
@@ -474,8 +765,11 @@ def topic_tree(subject: str) -> list[tuple[int, str, tuple[Skill, ...]]]:
 
 
 def subject_counts() -> dict[str, dict[int, int]]:
-    """{subject: {year: number of skills}} — used on the parent overview."""
-    counts: dict[str, dict[int, int]] = {s: {1: 0, 2: 0, 3: 0} for s in SUBJECTS}
+    """{subject: {year: number of skills}} — primary overview contract."""
+    counts: dict[str, dict[int, int]] = {
+        subject: dict.fromkeys(PRIMARY_YEARS, 0)
+        for subject in SUBJECT_ORDER
+    }
     for skill in ALL_SKILLS:
         counts[skill.subject][skill.year] += 1
     return counts

@@ -441,7 +441,14 @@ def subject_symbols() -> str:
   <path d="M60 62 q14 -10 14 -26 q-14 6 -14 26z" fill="#a5e887" stroke="{INK}"
         stroke-width="2.5" stroke-linejoin="round"/>
 </symbol>"""
-    return maths + english + science
+    gcse_maths = f"""<symbol id="icon-gcse_maths" viewBox="0 0 120 120">
+  <path d="M20 88 A40 40 0 0 1 100 88" fill="#efe5ff" stroke="{INK}" stroke-width="3.5"/>
+  <path d="M28 88 h64" stroke="{INK}" stroke-width="3.5" stroke-linecap="round"/>
+  <path d="M60 88 V42 M42 88 L48 51 M78 88 L72 51" stroke="#8b5cf6" stroke-width="3.5" stroke-linecap="round"/>
+  <circle cx="60" cy="88" r="6" fill="#ffd166" stroke="{INK}" stroke-width="3"/>
+  <path d="M32 101 h56" stroke="{INK}" stroke-width="4" stroke-linecap="round"/>
+</symbol>"""
+    return maths + english + science + gcse_maths
 
 
 # ---------------------------------------------------------------------------

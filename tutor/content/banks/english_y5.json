@@ -1,0 +1,20 @@
+{
+  "e5.spell.ough": [
+    {"kind":"choice","prompt":"Which spelling is correct? The sound of a cough is ...","choices":["cough","coff","cauf","coughh"],"answer":"cough","hint":"This word uses -ough.","explain":"cough is spelt c-o-u-g-h."},
+    {"kind":"choice","prompt":"Which word rhymes with 'though'?","choices":["although","rough","through","cough"],"answer":"although","hint":"It has the long 'oh' sound.","explain":"Though and although use -ough with the long 'oh' sound."},
+    {"kind":"choice","prompt":"Choose the correct spelling for the word meaning 'not easy'.","choices":["tough","tuff","toff","touff"],"answer":"tough","hint":"It ends in -ough.","explain":"tough is the correct spelling."},
+    {"kind":"choice","prompt":"Which word has the same ending but a different sound from 'through'?","choices":["thought","true","threw","thorough"],"answer":"thought","hint":"Say each word aloud.","explain":"Thought uses -ough with an 'or' sound, while through has an 'oo' sound."}
+  ],
+  "e5.gram.relative-clauses": [
+    {"kind":"choice","prompt":"Which word can begin a relative clause about a person?","choices":["who","where","when","which"],"answer":"who","hint":"It refers to a person.","explain":"Who commonly introduces a relative clause about a person."},
+    {"kind":"choice","prompt":"Complete the sentence: 'The castle, ___ was built long ago, is open today.'","choices":["which","who","where","when"],"answer":"which","hint":"The clause describes a thing.","explain":"Which refers back to the castle."},
+    {"kind":"choice","prompt":"Which sentence contains a relative clause?","choices":["The girl who won smiled.","The girl smiled brightly.","The winning girl smiled.","The girl smiled."],"answer":"The girl who won smiled.","hint":"Look for extra information beginning with who, which or that.","explain":"'who won' is a relative clause describing the girl."},
+    {"kind":"choice","prompt":"Which word can refer to a place in a relative clause?","choices":["where","who","whose","that"],"answer":"where","hint":"It means 'in which place'.","explain":"Where can introduce information about a place."}
+  ],
+  "e5.punct.brackets": [
+    {"kind":"choice","prompt":"What do brackets usually show?","choices":["extra information","the end of every sentence","a question","a spoken command"],"answer":"extra information","hint":"The sentence still makes sense without the words inside.","explain":"Brackets can enclose parenthesis: extra information."},
+    {"kind":"choice","prompt":"Which sentence uses brackets correctly?","choices":["The owl (a nocturnal bird) hunted at night.","The owl a (nocturnal bird hunted at night.","The owl (a nocturnal bird hunted) at night.","The (owl a nocturnal bird) hunted at night."],"answer":"The owl (a nocturnal bird) hunted at night.","hint":"The extra phrase should have an opening and closing bracket.","explain":"The parenthesis 'a nocturnal bird' is enclosed by brackets."},
+    {"kind":"choice","prompt":"Which punctuation can mark parenthesis besides brackets?","choices":["dashes or commas","question marks only","apostrophes only","full stops inside every phrase"],"answer":"dashes or commas","hint":"There are three common ways to show extra information.","explain":"Parenthesis can be marked with brackets, dashes or commas."},
+    {"kind":"choice","prompt":"Which version is punctuated correctly?","choices":["The train — which was late — finally arrived.","The train which — was late finally arrived.","The train — which was late finally arrived.","The train which was late — finally arrived."],"answer":"The train — which was late — finally arrived.","hint":"Both dashes should surround the extra clause.","explain":"The pair of dashes marks the parenthesis."}
+  ]
+}

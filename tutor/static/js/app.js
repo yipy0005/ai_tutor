@@ -286,6 +286,7 @@
     api
       .post("/api/quest/start", {
         subject: trigger.dataset.subject || null,
+        pathway: trigger.dataset.pathway || null,
         mode: trigger.dataset.mode || "mixed",
         skill_id: trigger.dataset.skill || null,
         count: trigger.dataset.count ? parseInt(trigger.dataset.count, 10) : null

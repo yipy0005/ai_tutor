@@ -135,6 +135,33 @@
       <legend>📚 What to practise</legend>
 
       <div class="p-field">
+        <label for="gcse_tier">Learning pathway</label>
+        <select id="gcse_tier" name="gcse_tier">
+          {% for key, label in gcse_tier_options.items() %}
+            <option value="{{ key }}" {{ 'selected' if key == s.gcse_tier }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="help">
+          GCSE Maths is its own pathway. Foundation and Higher learners see GCSE Maths practice only; Primary learners use the Year 1–6 controls below when GCSE is Off.
+        </div>
+      </div>
+
+      {% if pathway_is_gcse %}
+      <div class="p-field">
+        <label for="gcse_board">Exam-board practice style</label>
+        <select id="gcse_board" name="gcse_board">
+          {% for key, label in gcse_board_options.items() %}
+            <option value="{{ key }}" {{ 'selected' if key == s.gcse_board }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="help">
+          Board profiles add paper, calculator, command-word, marks and assessment-objective context. They do not change Foundation/Higher eligibility or duplicate skill mastery.
+        </div>
+      </div>
+      {% endif %}
+
+      {% if not pathway_is_gcse %}
+      <div class="p-field">
         <label>Subjects</label>
         <div class="p-checks two">
           {% for key in SUBJECT_ORDER %}
@@ -153,7 +180,7 @@
       <div class="p-field">
         <label>Year groups</label>
         <div class="p-checks two">
-          {% for year in [1, 2, 3] %}
+          {% for year in primary_years %}
             <label class="p-check">
               <input type="checkbox" name="years_enabled" value="{{ year }}"
                      {{ 'checked' if year in (s.years_enabled or []) }}>
@@ -169,11 +196,10 @@
       <div class="p-field">
         <label>Balance between revision and getting ahead</label>
         <p class="help" style="margin:0 0 10px">
-          These are relative weights, not percentages — the app normalises them. A summer
-          before Year 3 works well at roughly 15 / 35 / 50: enough Year 1 and 2 to keep it
-          fresh, with most of the effort on new material.
+          These are relative weights across the enabled Primary years, not percentages — the app
+          normalises them. Put the most weight on the learner's current year if they are catching up.
         </p>
-        {% for year in [1, 2, 3] %}
+        {% for year in primary_years %}
           <div class="p-field" style="margin-bottom:10px">
             <label for="mix{{ year }}" style="font-weight:600;font-size:0.85rem">
               <span class="p-tag y{{ year }}">{{ YEAR_LABELS[year] }}</span>
@@ -187,6 +213,7 @@
           </div>
         {% endfor %}
       </div>
+      {% endif %}
 
       <div class="p-field">
         <label for="difficulty_mode">Difficulty</label>
@@ -225,7 +252,7 @@
                        {{ 'checked' if skill.id in focus_skills }}>
                 <span>
                   <span class="t">{{ SUBJECTS[skill.subject].emoji }} {{ skill.name }}
-                    <span class="p-tag y{{ skill.year }}">Y{{ skill.year }}</span></span>
+                    <span class="p-tag {{ 'gcse' if skill.is_gcse else 'y' ~ skill.year }}">{{ skill.year_label }}</span></span>
                   <span class="d">{{ progress.mastery_pct }}% mastery over {{ progress.attempts }} questions</span>
                 </span>
               </label>
@@ -237,6 +264,7 @@
       <details class="p-details">
         <summary>Choose from all {{ all_skills | length }} skills</summary>
         {% set suggested_ids = suggested_focus | map(attribute='0') | map(attribute='id') | list %}
+        {% if not pathway_is_gcse %}
         {% for subject_key in SUBJECT_ORDER %}
           <h3 style="margin-top:14px">{{ SUBJECTS[subject_key].emoji }} {{ SUBJECTS[subject_key].name }}</h3>
           <div class="p-checks two">
@@ -246,13 +274,29 @@
                        {{ 'checked' if skill.id in focus_skills }}>
                 <span>
                   <span class="t">{{ skill.name }}
-                    <span class="p-tag y{{ skill.year }}">Y{{ skill.year }}</span></span>
+                    <span class="p-tag {{ 'gcse' if skill.is_gcse else 'y' ~ skill.year }}">{{ skill.year_label }}</span></span>
                   <span class="d">{{ skill.topic }}</span>
                 </span>
               </label>
             {% endfor %}
           </div>
         {% endfor %}
+        {% endif %}
+        {% if pathway_is_gcse %}
+          <h3 style="margin-top:14px">{{ SUBJECTS['gcse_maths'].emoji }} {{ SUBJECTS['gcse_maths'].name }} · {{ GCSE_TIER_LABELS[s.gcse_tier] }}</h3>
+          <div class="p-checks two">
+            {% for skill in all_skills if skill.subject == 'gcse_maths' and skill.id not in suggested_ids %}
+              <label class="p-check">
+                <input type="checkbox" name="focus_skills" value="{{ skill.id }}"
+                       {{ 'checked' if skill.id in focus_skills }}>
+                <span>
+                  <span class="t">{{ skill.name }} <span class="p-tag gcse">GCSE</span></span>
+                  <span class="d">{{ skill.topic }} · {{ GCSE_TIER_LABELS[s.gcse_tier] }} tier</span>
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        {% endif %}
       </details>
     </fieldset>
 
@@ -264,6 +308,11 @@
           <input type="checkbox" name="allow_hints" {{ 'checked' if s.allow_hints }}>
           <span><span class="t">Offer clues</span>
             <span class="d">A "give me a clue" button on every question.</span></span>
+        </label>
+        <label class="p-check">
+          <input type="checkbox" name="great_diagnostic" {{ 'checked' if s.great_diagnostic }}>
+          <span><span class="t">Evidence-based GREAT interview</span>
+            <span class="d">After each answer, collect what the child says for Given, Required, Link, Act and Test. A parent reviews the evidence and scores it — the child does not score themselves.</span></span>
         </label>
         <label class="p-check">
           <input type="checkbox" name="second_chance" {{ 'checked' if s.second_chance }}>

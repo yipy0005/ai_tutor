@@ -13,7 +13,7 @@
         as="font" type="font/woff2" crossorigin>
   <link rel="icon" href="{{ url_for('static', filename='icon.svg') }}">
   <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon.svg') }}">
-  <link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/kid.css', v='mobile-flash-2') }}">
   {% block head %}{% endblock %}
 </head>
 <body class="{{ body_classes }}{% block body_class %}{% endblock %}">
@@ -38,7 +38,7 @@
         <span>Level <b id="hdr-level">{{ child.level }}</b></span>
         <span class="nums"><b id="hdr-xp">{{ child.xp }}</b> XP</span>
       </div>
-      <div class="xp" style="width:136px;margin-top:4px" aria-hidden="true">
+      <div class="xp header-xp" aria-hidden="true">
         <span id="hdr-bar" style="width: {{ child.level_progress_pct }}%"></span>
       </div>
     </div>
@@ -55,7 +55,7 @@
 {% endblock %}
 
 {% block main %}
-<main class="wrap" style="padding-top:18px">
+<main class="wrap page-main">
   {% with messages = get_flashed_messages(with_categories=true) %}
     {% if messages %}
       <ul class="flashes">
@@ -76,18 +76,22 @@
 {% block nav %}
 {% if child %}
 <nav class="tabbar" aria-label="Main">
-  <a href="{{ url_for('kid.home') }}" class="{{ 'on' if request.endpoint == 'kid.home' }}">
+  <a href="{{ url_for('kid.home') }}" class="{{ 'on' if request.endpoint == 'kid.home' }}"
+     {% if request.endpoint == 'kid.home' %}aria-current="page"{% endif %}>
     {{ icon('scene-tree') }} Home
   </a>
-  <a href="{{ url_for('kid.badges') }}" class="{{ 'on' if request.endpoint == 'kid.badges' }}">
+  <a href="{{ url_for('kid.badges') }}" class="{{ 'on' if request.endpoint == 'kid.badges' }}"
+     {% if request.endpoint == 'kid.badges' %}aria-current="page"{% endif %}>
     {{ icon('rosette-mastery') }} Badges
   </a>
   {% if settings and settings.shop_enabled %}
-  <a href="{{ url_for('kid.shop') }}" class="{{ 'on' if request.endpoint == 'kid.shop' }}">
+  <a href="{{ url_for('kid.shop') }}" class="{{ 'on' if request.endpoint == 'kid.shop' }}"
+     {% if request.endpoint == 'kid.shop' %}aria-current="page"{% endif %}>
     {{ icon('scene-coin') }} Shop
   </a>
   {% endif %}
-  <a href="{{ url_for('kid.me') }}" class="{{ 'on' if request.endpoint == 'kid.me' }}">
+  <a href="{{ url_for('kid.me') }}" class="{{ 'on' if request.endpoint == 'kid.me' }}"
+     {% if request.endpoint == 'kid.me' %}aria-current="page"{% endif %}>
     {{ icon('char-' ~ my_char) }} Me
   </a>
 </nav>

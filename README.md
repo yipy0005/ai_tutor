@@ -1,13 +1,13 @@
 # Learning Quest
 
-A small Flask web app for a child in the English school system who is between
-Year 2 and Year 3. It does two things at once: keeps Year 1 and Year 2 fresh
-through spaced repetition, and introduces the Year 3 curriculum early so
-September feels familiar rather than new.
+A small Flask web app for a child in the English school system from Year 1 to
+Year 6, or taking board-neutral GCSE Maths at Foundation or Higher tier. It
+keeps practice inside the learner's active pathway: Primary learners see
+Maths, English and Science; GCSE learners see GCSE Maths only.
 
-It runs on one computer in your house. There is no account, no cloud, no
-tracking and no network access — your child's progress lives in a single SQLite
-file in `instance/`.
+The app runs on one computer in your house. Learners and parents have local
+accounts, with no cloud, tracking or network access — progress lives in a
+single SQLite file in `instance/`.
 
 ---
 
@@ -17,18 +17,32 @@ Everything runs through [pixi](https://pixi.sh). You do not need to install
 Python, Flask or anything else yourself.
 
 ```bash
-pixi run setup     # create the database (once)
-pixi run serve     # start the app
+pixi run setup             # create the database (once)
+pixi run bootstrap-token   # print the one-time setup token; keep it private
+pixi run serve
 ```
 
-Then open **http://127.0.0.1:5001**. The first screen asks for your child's
-name and a parent PIN, and you are away.
+Then open **http://127.0.0.1:5001**. The first screen is an adult-only parent setup page. Enter the token from `pixi run bootstrap-token`, choose the parent PIN, then create the first learner's private sign-in name and PIN. The token is consumed after successful setup; use `pixi run bootstrap-token -- --rotate` before setup if it is lost.
+
+For hosted deployments, set `PARENT_BOOTSTRAP_TOKEN` through the deployment secret manager instead of using a local token file. Never put that value in a URL, source file or normal server log. Keep first-run setup on `127.0.0.1`; if setup must be reached remotely, use HTTPS because the token is a bearer secret.
+
+The learner uses their own credentials on every sign-in; learner profiles cannot be selected or switched from the learner app.
+
+The default parent account is **parent**. Use **Parent → Create another parent
+account** for a second parent. Each parent sees and manages only learners linked
+to that account. From **Parent → Learners**, add another learner with a unique
+sign-in name and PIN, or change an existing learner's credentials. Changing a
+learner PIN signs out older sessions for that learner.
 
 `pixi run serve` also prints a second address on your home wi-fi, so a tablet
 in the kitchen can use the same app.
 
 > **Port 5001, not 5000.** On macOS the AirPlay Receiver service occupies port
 > 5000 and answers with a bare `403`, which is a miserable thing to debug.
+
+For a restricted remote deployment through Cloudflare Tunnel, follow
+[`docs/CLOUDFLARE_TUNNEL.md`](docs/CLOUDFLARE_TUNNEL.md). Keep the origin bound
+to loopback and put Cloudflare Access in front of the complete hostname.
 
 ### Want to see the parent dashboard with data in it first?
 
@@ -38,9 +52,11 @@ pixi run seed -- --demo
 
 That adds a profile called **Demo** with six weeks of invented practice
 history, so the charts, mastery grid and insights all have something to show.
-Delete it whenever you like from **Parent → Learners**.
+For a named learner created from the terminal, provide credentials explicitly:
+`pixi run seed -- --name Amelia --year 3 --learner-login amelia --learner-pin 2468`.
+If credentials are omitted, the profile receives a generated sign-in name and
+must be activated by a parent from **Parent → Learners** before it can sign in.
 
----
 
 ## What a child sees
 
@@ -142,12 +158,14 @@ three of these together.
 **Quest review** — every question exactly as it was asked, what your child
 answered, whether a clue was used, how long each one took.
 
-**Learners** — add siblings, rename, change year group, delete a profile.
+**Learners** — add siblings, give each learner a private sign-in name and PIN,
+rename, change year group, update access, or delete a profile. A parent account
+only lists learners linked to it.
 
 **Clear data** — see below.
 
-**Curriculum** — the full map of all 145 skills and where the questions come
-from.
+**Curriculum** — the full map of the app's 391 Primary skills and 82 GCSE
+Maths skills, with the question source for each objective.
 
 ### Settings a parent controls
 
@@ -161,8 +179,8 @@ Suggested defaults are in brackets.
 | Daily and weekly quest goals | *(3 per day, 18 per week)* |
 | Hours the app is available | *(off — any time)* |
 | Subjects | Maths, English, Science *(all on)* |
-| Year groups | Year 1, 2, 3 *(all on)* |
-| Revision vs getting ahead | Weights per year *(15 / 35 / 50)* |
+| Year groups | Primary Years 1–6 *(all on)*; GCSE uses Foundation/Higher instead |
+| Revision vs getting ahead | Weights per enabled Primary year |
 | Difficulty | Gentle · Adaptive · Challenge *(Adaptive)* |
 | Focus skills | Reserved a slot in every quest |
 | Clues | On/off *(on)* |
@@ -179,7 +197,7 @@ Suggested defaults are in brackets.
 | Coin shop | On/off *(on)* |
 | A note on the home screen | Free text |
 | An agreed reward | Free text |
-| Parent PIN | 4–8 digits *(1234)* |
+| Parent account and PIN | Sign-in name plus a 4–8 digit PIN *(parent / 1234)* |
 
 Two worth explaining:
 
@@ -264,29 +282,37 @@ hard produces easier numbers than one they have nailed.
 
 ## What it covers
 
-145 skills across Years 1, 2 and 3, mapped to the English National Curriculum
-(Key Stage 1 and lower Key Stage 2).
+The app's supported Primary curriculum covers 391 objective-level skills across
+Maths, English and Science in Years 1–6. GCSE Maths adds 82 board-neutral
+objective-level skills: 57 Foundation-eligible and 82 Higher-eligible, with
+Higher including 25 extension skills. Every declared skill has a playable,
+validated question source.
 
-| Subject | Year 1 | Year 2 | Year 3 | Total | Questions |
-|---|---|---|---|---|---|
-| **Maths** | 16 | 20 | 33 | 69 | Generated — never repeats |
-| **English** | 10 | 16 | 18 | 44 | 420 written questions |
-| **Science** | 8 | 8 | 16 | 32 | 259 written questions |
+| Subject | Year 1 | Year 2 | Year 3 | Year 4 | Year 5 | Year 6 | Total |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| **Maths** | 24 | 32 | 41 | 25 | 27 | 30 | 179 |
+| **English** | 19 | 26 | 27 | 17 | 16 | 17 | 122 |
+| **Science** | 12 | 13 | 22 | 14 | 16 | 13 | 90 |
 
-**Maths** skills are *procedural*: a Python function invents a fresh question
-every time, so practice genuinely never runs out. Place value, the four
-operations, all the times tables through Year 3, fractions, money, time, Roman
-numerals, measurement and conversion, perimeter, angles, lines, shape
-properties, and statistics.
+| GCSE pathway | Skills | Question source |
+|---|---:|---|
+| **Foundation** | 57 | Generated and curated questions |
+| **Higher** | 82 | Foundation content plus Higher extensions |
 
-**English** covers phonics and spelling patterns, the Year 1–3 statutory word
-lists, punctuation up to inverted commas and plural possessive apostrophes,
-grammar from joining words to the present perfect, and reading comprehension
-over six original passages.
+Maths skills are procedural or declarative generated questions, so practice
+continues beyond a fixed worksheet. English and Science include grammar,
+spelling, reading, writing knowledge, scientific concepts and working
+scientifically. GCSE Maths covers the common DfE domains—Number, Algebra,
+Ratio and proportion, Geometry and measures, Probability and Statistics—with
+Higher extensions such as surds, quadratic methods, circle theorems, vectors,
+histograms and cumulative frequency.
 
-**Science** covers plants, animals and humans, materials, seasons, habitats and
-food chains, nutrition, skeletons and muscles, rocks and fossils and soil, light
-and shadows, and forces and magnets.
+This is the complete objective map currently implemented for the app's supported
+subjects. The wider England Primary National Curriculum also includes subjects
+such as History, Geography, Computing, Art, Music, PE and Languages; those are
+not yet separate learner pathways in this application. English composition,
+handwriting, spoken-language performance and practical scientific investigation
+also need richer open-ended assessment than the current question player offers.
 
 ### Adding your own questions
 
@@ -329,7 +355,7 @@ and each question's own answer passing the marker.
 | `pixi run serve` | Start the app for everyday use. |
 | `pixi run dev` | Development server with auto-reload. |
 | `pixi run seed -- --demo` | Add a Demo profile with six weeks of history. |
-| `pixi run add-child --name Emma --year 2` | Add a learner from the terminal. |
+| `pixi run add-child --name Emma --year 2 --learner-login emma --learner-pin 2468` | Add a learner with sign-in credentials from the terminal. |
 | `pixi run content-check` | Validate every question. |
 | `pixi run smoke` | End-to-end check of every page and the quest flow. |
 | `pixi run backups` | List the database backups. |
@@ -345,8 +371,9 @@ and each question's own answer passing the marker.
 ```
 tutor/
   content/          the curriculum: what to teach and how to ask it
-    curriculum.py     145 skills, mapped to National Curriculum objectives
-    generators.py     69 maths question generators
+    curriculum.py     391 Primary + 82 GCSE skills and topic trees
+    full_coverage.py   declarative England objective map and question factories
+    generators.py      generated question helpers and registry
     banks/*.json      English and Science questions, and reading passages
     __init__.py       drawing questions, and marking answers
   services/         the thinking
@@ -389,8 +416,8 @@ from `static/fonts/`. It works with the wi-fi off.
 ## Verification
 
 ```bash
-pixi run content-check   # 145 skills, 679 written questions, 69 generators
-pixi run smoke           # 140 checks: pages, quest flow, settings, resets, limits, PIN
+pixi run content-check   # validate curriculum content
+pixi run smoke           # end-to-end route, quest, setup and isolation checks
 pixi run -e dev lint
 ```
 
@@ -452,3 +479,7 @@ This is built for one family on one home network.
 * `pixi run serve` uses Flask's built-in development server, which is fine for a
   household and is **not** hardened for the public internet. Do not port-forward
   it or expose it beyond your home network.
+
+## iOS and TestFlight
+
+The repository now includes a SwiftUI/WKWebView iOS shell in [`ios/`](ios/). It reuses the responsive learner UI while keeping question generation, marking, parent protection, and progress on Flask. TestFlight requires a stable HTTPS deployment; the local `pixi run serve` process is for household development only. Start with [`ios/README.md`](ios/README.md) and [`docs/TESTFLIGHT.md`](docs/TESTFLIGHT.md).

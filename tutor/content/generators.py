@@ -1852,6 +1852,166 @@ def bar_chart_3(rng: random.Random, level: int = 1) -> Question:
     )
 
 
+# ===========================================================================
+# YEARS 4–6 — starter maths coverage
+# ===========================================================================
+
+
+@generator("place_value_10000")
+def place_value_10000(rng: random.Random, level: int = 1) -> Question:
+    n = rng.randint(1_000, 9_999)
+    digits = str(n)
+    places = [
+        ("thousands", int(digits[-4]) * 1_000),
+        ("hundreds", int(digits[-3]) * 100),
+        ("tens", int(digits[-2]) * 10),
+        ("ones", int(digits[-1])),
+    ]
+    place, value = rng.choice(places)
+    digit = value // {"thousands": 1_000, "hundreds": 100, "tens": 10, "ones": 1}[place]
+    return mc(
+        f"What is the value of the {place} digit in {n}?",
+        value,
+        [digit, value + 10, value + 100, n],
+        rng,
+        hint="The position of a digit tells you its value.",
+        explain=f"The {place} digit is {digit}, so it is worth {value}.",
+    )
+
+
+@generator("add_sub_4digit")
+def add_sub_4digit(rng: random.Random, level: int = 1) -> Question:
+    if rng.random() < 0.5:
+        a = rng.randint(1_000, 7_999)
+        b = rng.randint(100, 9_999 - a)
+        answer = a + b
+        op = "+"
+    else:
+        a = rng.randint(2_000, 9_999)
+        b = rng.randint(100, a - 1)
+        answer = a - b
+        op = "−"
+    return txt(
+        f"{a} {op} {b} = ?",
+        answer,
+        hint="Line up the place values carefully.",
+        explain=f"{a} {op} {b} = {answer}",
+    )
+
+
+@generator("times_tables_4")
+def times_tables_4(rng: random.Random, level: int = 1) -> Question:
+    table = rng.choice([6, 7, 9])
+    factor = rng.randint(2, 12)
+    answer = table * factor
+    return mc(
+        f"What is {table} × {factor}?",
+        answer,
+        [answer - table, answer + table, table + factor],
+        rng,
+        hint=f"Recall your {table} times table.",
+        explain=f"{table} × {factor} = {answer}.",
+    )
+
+
+@generator("place_value_million")
+def place_value_million(rng: random.Random, level: int = 1) -> Question:
+    n = rng.randint(10_000, 999_999)
+    digits = str(n).zfill(6)
+    places = [
+        ("hundred-thousands", int(digits[0]) * 100_000),
+        ("ten-thousands", int(digits[1]) * 10_000),
+        ("thousands", int(digits[2]) * 1_000),
+        ("hundreds", int(digits[3]) * 100),
+        ("tens", int(digits[4]) * 10),
+        ("ones", int(digits[5])),
+    ]
+    place, value = rng.choice(places)
+    return mc(
+        f"What is the value of the {place} digit in {n}?",
+        value,
+        [value + 10, value + 100, value + 1_000, int(digits[-1])],
+        rng,
+        hint="Look at the place-value column, not just the digit.",
+        explain=f"The {place} digit is worth {value}.",
+    )
+
+
+@generator("multiply_5")
+def multiply_5(rng: random.Random, level: int = 1) -> Question:
+    a = rng.randint(12, 999)
+    b = rng.randint(2, 12)
+    answer = a * b
+    return txt(
+        f"{a} × {b} = ?",
+        answer,
+        hint="Partition the larger number or use a written method.",
+        explain=f"{a} × {b} = {answer}",
+    )
+
+
+@generator("fraction_decimal_5")
+def fraction_decimal_5(rng: random.Random, level: int = 1) -> Question:
+    pairs = [
+        ("1/2", "0.5", ["0.2", "0.25", "0.75"]),
+        ("1/4", "0.25", ["0.4", "0.2", "0.75"]),
+        ("3/4", "0.75", ["0.3", "0.25", "0.5"]),
+        ("1/5", "0.2", ["0.1", "0.5", "0.25"]),
+        ("3/5", "0.6", ["0.3", "0.35", "0.75"]),
+    ]
+    fraction, decimal, distractors = rng.choice(pairs)
+    return mc(
+        f"Which decimal is equal to {fraction}?",
+        decimal,
+        distractors,
+        rng,
+        hint="Convert the fraction into tenths or hundredths.",
+        explain=f"{fraction} is equal to {decimal}.",
+    )
+
+
+@generator("negative_numbers_6")
+def negative_numbers_6(rng: random.Random, level: int = 1) -> Question:
+    start = rng.randint(-15, 15)
+    change = rng.randint(-8, 8) or 3
+    answer = start + change
+    sign = "+" if change >= 0 else "−"
+    amount = abs(change)
+    return txt(
+        f"Start at {start}. Move {amount} {('forward' if change >= 0 else 'back')}. Where do you land?",
+        answer,
+        hint="Count along the number line, crossing zero if needed.",
+        explain=f"{start} {sign} {amount} = {answer}",
+    )
+
+
+@generator("ratio_percent_6")
+def ratio_percent_6(rng: random.Random, level: int = 1) -> Question:
+    total = rng.choice([40, 60, 80, 100, 120, 200])
+    percent = rng.choice([10, 20, 25, 50])
+    answer = total * percent // 100
+    return txt(
+        f"What is {percent}% of {total}?",
+        answer,
+        hint="Find 10% first, then build the percentage you need.",
+        explain=f"{percent}% of {total} = {answer}",
+    )
+
+
+@generator("algebra_6")
+def algebra_6(rng: random.Random, level: int = 1) -> Question:
+    coefficient = rng.randint(2, 9)
+    x = rng.randint(2, 12)
+    constant = rng.randint(1, 15)
+    total = coefficient * x + constant
+    return txt(
+        f"Solve: {coefficient}x + {constant} = {total}",
+        x,
+        hint="Subtract the constant, then divide by the coefficient.",
+        explain=f"{total} − {constant} = {coefficient}x, so x = {x}.",
+    )
+
+
 # ---------------------------------------------------------------------------
 # Public helper
 # ---------------------------------------------------------------------------

@@ -1,0 +1,20 @@
+{
+  "e4.spell.tion": [
+    {"kind":"choice","prompt":"Which spelling is correct? The act of inventing something is ...","choices":["invention","invenshun","inventtion","inventione"],"answer":"invention","hint":"The ending sounds like 'shun'.","explain":"invent becomes invention: the suffix is spelt -tion."},
+    {"kind":"choice","prompt":"Which word ends with -tion?","choices":["celebration","celebrashun","celebratione","celebrate"],"answer":"celebration","hint":"Look for the spelling of the 'shun' sound.","explain":"Celebration ends in -tion."},
+    {"kind":"choice","prompt":"Choose the correct spelling.","choices":["direction","direcshun","directtion","direktion"],"answer":"direction","hint":"The suffix is -tion.","explain":"direction is spelt d-i-r-e-c-t-i-o-n."},
+    {"kind":"choice","prompt":"What noun comes from the verb 'educate'?","choices":["education","educashun","educattion","educating"],"answer":"education","hint":"Drop the final e before adding -ion.","explain":"educate becomes education."}
+  ],
+  "e4.gram.fronted-adverbials": [
+    {"kind":"choice","prompt":"Which sentence starts with a fronted adverbial?","choices":["After lunch, we went outside.","We went outside after lunch.","We went after lunch outside.","Lunch was outside."],"answer":"After lunch, we went outside.","hint":"It tells when and comes before the main clause.","explain":"'After lunch' is a fronted adverbial and is followed by a comma."},
+    {"kind":"choice","prompt":"Which word best completes this sentence? '___, the fox crept through the grass.'","choices":["Silently","Silence","Silent","Silenter"],"answer":"Silently","hint":"We need a word describing how it crept.","explain":"Silently is an adverb. A fronted adverbial can be followed by a comma."},
+    {"kind":"choice","prompt":"Which punctuation follows a fronted adverbial?","choices":["a comma","a full stop","a question mark","an apostrophe"],"answer":"a comma","hint":"It separates the opening adverbial from the main clause.","explain":"A comma commonly follows a fronted adverbial."},
+    {"kind":"choice","prompt":"Which phrase tells where?","choices":["Under the bridge,","The bridge was old.","A bridge and a road.","Bridge carefully."],"answer":"Under the bridge,","hint":"It describes the place of the action.","explain":"'Under the bridge' is a fronted adverbial of place."}
+  ],
+  "e4.punct.commas-clauses": [
+    {"kind":"choice","prompt":"Which sentence uses a comma correctly?","choices":["Although it was cold, we went out.","Although, it was cold we went out.","Although it was cold we, went out.","Although it, was cold we went out."],"answer":"Although it was cold, we went out.","hint":"The comma follows the opening subordinate clause.","explain":"A comma separates the subordinate clause from the main clause."},
+    {"kind":"choice","prompt":"Choose the correctly punctuated sentence.","choices":["Before the bell rang, everyone sat down.","Before, the bell rang everyone sat down.","Before the bell, rang everyone sat down.","Before the bell rang everyone, sat down."],"answer":"Before the bell rang, everyone sat down.","hint":"Keep the opening clause together.","explain":"The comma comes after the complete opening clause."},
+    {"kind":"choice","prompt":"What can a comma separate?","choices":["an opening subordinate clause from the main clause","every noun from its verb","a subject from its verb always","the letters in a word"],"answer":"an opening subordinate clause from the main clause","hint":"Think about sentences beginning with although, when or before.","explain":"A comma can mark the boundary after an opening subordinate clause."},
+    {"kind":"choice","prompt":"Which sentence needs a comma after 'In the morning'?","choices":["In the morning, the birds sang.","In the morning the birds, sang.","In, the morning the birds sang.","In the morning the birds sang"],"answer":"In the morning, the birds sang.","hint":"The opening phrase tells when.","explain":"A comma follows the fronted adverbial 'In the morning'."}
+  ]
+}

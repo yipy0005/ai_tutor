@@ -51,13 +51,27 @@ class Config:
     PERMANENT_SESSION_LIFETIME = 60 * 60 * 24 * 90
     SESSION_COOKIE_SAMESITE = "Lax"
     SESSION_COOKIE_HTTPONLY = True
+    SESSION_COOKIE_SECURE = os.environ.get("SESSION_COOKIE_SECURE", "0").lower() in {
+        "1", "true", "yes", "on"
+    }
 
     JSON_SORT_KEYS = False
     TEMPLATES_AUTO_RELOAD = True
+    # Rich local responses are JSON requests. Keep audio bounded so a child
+    # cannot accidentally fill the SQLite database with an unbounded blob.
+    MAX_CONTENT_LENGTH = 4 * 1024 * 1024
 
-    # The parent area is protected by a PIN. This is the value used when a
-    # profile is first created; a parent can change it in Parent -> Settings.
+    # The parent area is protected by a PIN. The default is retained for
+    # compatibility and CLI provisioning; fresh web setup asks an adult to
+    # choose a PIN before the first learner is created.
     DEFAULT_PARENT_PIN = os.environ.get("DEFAULT_PARENT_PIN", "1234")
+
+    # Bootstrap token for first-run adult setup. Local installations store
+    # the plaintext token in this 0600 file; hosted deployments should set
+    # PARENT_BOOTSTRAP_TOKEN through a secret manager instead.
+    BOOTSTRAP_TOKEN_FILE = Path(
+        os.environ.get("BOOTSTRAP_TOKEN_FILE", str(INSTANCE_DIR / "bootstrap_token"))
+    )
 
     # Host/port used by `pixi run serve`.
     # 5001 rather than 5000: on macOS the AirPlay Receiver service holds 5000

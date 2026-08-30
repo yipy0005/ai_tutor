@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+
 {% block title %}{{ child.name }}'s Learning Quest{% endblock %}
 
 {% block content %}
@@ -32,11 +33,11 @@
     <svg class="cloud b" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
     <svg class="cloud c" aria-hidden="true" viewBox="0 0 120 60"><use href="#scene-cloud"/></svg>
 
-    <div style="display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap">
-      <div class="art-holder bob" style="width:104px;height:104px">
+    <div class="hero-intro">
+      <div class="art-holder hero-avatar bob">
         {{ icon('pip-' ~ ('sleep' if blocked else ('cheer' if state.quests_today else 'happy'))) }}
       </div>
-      <div style="flex:1 1 220px;min-width:0">
+      <div class="hero-copy">
         <h1 id="hero-heading" style="margin-bottom:4px">
           {% if blocked %}See you soon, {{ child.name }}!
           {% elif state.quests_today %}Great going, {{ child.name }}!
@@ -100,12 +101,12 @@
         <button type="button" class="btn big block leaf" data-start-quest data-mode="mixed">
           {{ icon('scene-star') }} Start a quest
         </button>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="action-grid">
           <button type="button" class="btn ghost" data-start-quest data-mode="revision">
-            Revise Y1 &amp; Y2
+            {% if pathway_is_gcse %}GCSE revision{% else %}Revise earlier work{% endif %}
           </button>
           <button type="button" class="btn ghost" data-start-quest data-mode="ahead">
-            New Year 3 work
+            {% if pathway_is_gcse %}GCSE challenge{% else %}New Year {{ latest_year }} work{% endif %}
           </button>
         </div>
       </div>
@@ -125,7 +126,7 @@
           <div class="art-holder badge-art">{{ icon('icon-' ~ card.subject.id) }}</div>
           <div class="info">
             <h2>{{ card.subject.name }}</h2>
-            <div class="muted tiny">{{ card.subject.blurb }}</div>
+            <div class="muted tiny">{{ card.subject.blurb }}{% if card.tier %} · {{ GCSE_TIER_LABELS[card.tier] }} tier{% endif %}</div>
             <div class="meter {{ card.subject.id }}" aria-hidden="true">
               <span style="width: {{ card.pct }}%"></span>
             </div>
@@ -151,7 +152,7 @@
           <div class="art-holder">{{ icon('icon-' ~ skill.subject) }}</div>
           <div class="grow">
             <b>{{ skill.name }}</b>
-            <small><span class="pill y{{ skill.year }}">Year {{ skill.year }}</span></small>
+            <small><span class="pill {{ 'gcse' if skill.is_gcse else 'y' ~ skill.year }}">{{ skill.year_label }}</span></small>
           </div>
           <button type="button" class="btn small grape" data-start-quest
                   data-mode="skill" data-skill="{{ skill.id }}" data-count="6">
@@ -169,7 +170,7 @@
       <div class="art-holder" style="width:40px;height:40px">{{ icon('rosette-mastery') }}</div>
       <h3 class="grow">My totals</h3>
     </div>
-    <div class="score-grid" style="grid-template-columns:repeat(4,1fr);margin:0">
+    <div class="score-grid totals-grid">
       <div><b class="nums">{{ totals.quests }}</b><span>quests</span></div>
       <div><b class="nums">{{ totals.questions }}</b><span>questions</span></div>
       <div><b class="nums">{{ totals.accuracy }}%</b><span>right</span></div>
@@ -203,13 +204,10 @@
   {% endif %}
 
   <div class="center" style="padding:8px 0 6px;display:flex;gap:8px;justify-content:center;flex-wrap:wrap">
-    <a class="parent-link" href="{{ url_for('parent.dashboard') }}">Parents</a>
-    {% if child_count > 1 %}
-      <form method="post" action="{{ url_for('kid.switch') }}" style="display:inline">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <button class="parent-link" type="submit" style="cursor:pointer">Switch learner</button>
-      </form>
-    {% endif %}
+    <form method="post" action="{{ url_for('kid.logout') }}" style="display:inline">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <button class="signout-link" type="submit" style="cursor:pointer">Sign out</button>
+    </form>
   </div>
 </div>
 {% endblock %}

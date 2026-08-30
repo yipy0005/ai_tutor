@@ -1,0 +1,41 @@
+{% extends "parent/_base.html" %}
+
+{% block title %}Initial parent setup{% endblock %}
+
+{% block content %}
+<div class="p-login">
+  <div class="p-card">
+    <div class="p-center" style="margin-bottom:18px">
+      <div style="font-size:2.6rem">🔒</div>
+      <h1 style="margin-bottom:4px">Set up parent access</h1>
+      <p class="p-muted p-tiny" style="margin:0">
+        Choose the PIN that protects learner settings and progress before creating the first learner.
+      </p>
+    </div>
+
+    <form method="post">
+      <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
+      <div class="p-field">
+        <label for="bootstrap_token">Initial setup token</label>
+        <input class="p-pin" type="password" id="bootstrap_token" name="bootstrap_token"
+               autocomplete="off" required aria-describedby="bootstrap-token-help">
+        <div class="help" id="bootstrap-token-help">Run <code>pixi run bootstrap-token</code> on the server, or use the token supplied by your deployment secret manager.</div>
+      </div>
+      <div class="p-field">
+        <label for="pin">Parent PIN (4 to 8 digits)</label>
+        <input class="p-pin" type="password" id="pin" name="pin" inputmode="numeric"
+               pattern="[0-9]*" maxlength="8" autocomplete="new-password"
+               autofocus required aria-describedby="pin-help">
+        <div class="help" id="pin-help">Keep this PIN private. You will use it to manage learner accounts.</div>
+      </div>
+      <div class="p-field">
+        <label for="confirm_pin">Confirm parent PIN</label>
+        <input class="p-pin" type="password" id="confirm_pin" name="confirm_pin"
+               inputmode="numeric" pattern="[0-9]*" maxlength="8"
+               autocomplete="new-password" required>
+      </div>
+      <button class="p-btn block" type="submit">Continue to learner setup</button>
+    </form>
+  </div>
+</div>
+{% endblock %}

@@ -22,6 +22,7 @@
     <h1 style="margin-top:10px">{{ quest.title }}</h1>
     <div class="score-grid">
       <div><b class="nums">{{ summary.correct }}/{{ summary.answered }}</b><span>right</span></div>
+      {% if summary.pending %}<div><b class="nums">{{ summary.pending }}</b><span>awaiting review</span></div>{% endif %}
       <div><b class="nums">{{ summary.accuracy }}%</b><span>score</span></div>
       <div><b class="nums">{{ summary.minutes }}</b><span>minutes</span></div>
     </div>
@@ -39,24 +40,34 @@
     <div class="rows">
       {% for item in summary.review %}
         <div class="row" style="align-items:flex-start;
-             border-color: {{ 'var(--ok-line)' if item.correct else 'var(--no-line)' }}">
+             border-color: {{ 'var(--sun)' if item.pending else ('var(--ok-line)' if item.correct else 'var(--no-line)') }}">
           <div class="art-holder" style="width:36px;height:36px">
-            {{ icon('scene-tick' if item.correct else 'scene-bulb') }}
+            {{ icon('scene-bulb' if item.pending else ('scene-tick' if item.correct else 'scene-bulb')) }}
           </div>
           <div class="grow">
             <b>{{ item.prompt }}</b>
             <small>
-              {% if item.correct %}
+              {% if item.pending %}
+                Your response was saved. A grown-up can review it later.
+              {% elif item.manual and item.score is not none %}
+                Reviewed: <b>{{ item.score }}/{{ item.max_score }}</b> marks.
+              {% elif item.correct %}
                 You said <b>{{ item.given }}</b> — correct!
               {% else %}
                 You said <b>{{ item.given or '—' }}</b>. The answer is <b>{{ item.answer }}</b>.
               {% endif %}
             </small>
-            {% if item.explain and not item.correct %}
+            {% if item.feedback %}<small style="display:block;margin-top:4px">{{ item.feedback }}</small>{% endif %}
+            {% if item.explain and not item.correct and not item.manual %}
               <small style="display:block;margin-top:4px">{{ item.explain }}</small>
             {% endif %}
             <small style="display:block;margin-top:4px">
-              {% if item.year %}<span class="pill y{{ item.year }}">Year {{ item.year }}</span>{% endif %}
+              {% if item.year_label %}
+                <span class="pill gcse">{{ item.year_label }}</span>
+                {% if item.tier %}<span class="pill gcse">{{ item.tier }} tier</span>{% endif %}
+              {% elif item.year %}
+                <span class="pill y{{ item.year }}">Year {{ item.year }}</span>
+              {% endif %}
               {{ item.skill }}
             </small>
           </div>

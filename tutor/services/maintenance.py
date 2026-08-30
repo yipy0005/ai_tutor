@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 
 from ..config import Config
 from ..content import SUBJECTS, get_skill
@@ -37,7 +37,7 @@ from ..models import (
     QuestQuestion,
     SkillProgress,
 )
-from . import rewards
+from . import assessments, rewards
 
 KEEP_BACKUPS = 20
 
@@ -198,38 +198,67 @@ def restore_backup(name: str) -> str | None:
 # ---------------------------------------------------------------------------
 
 
+def _quest_is_active(child: Child, quest: Quest) -> bool:
+    """Return true only for quests in the learner's current curriculum."""
+    from . import pathways
+
+    return pathways.quest_matches_path(
+        child.settings,
+        quest.subject,
+        [question.skill_id for question in quest.questions],
+    )
+
+
+def _child_quests(child: Child, *, finished_only: bool = False) -> list[Quest]:
+    stmt = select(Quest).where(Quest.child_id == child.id)
+    if finished_only:
+        stmt = stmt.where(Quest.finished_at.is_not(None))
+    return db.session.execute(stmt.order_by(Quest.started_at)).scalars().all()
+
+
+def _active_quests(child: Child, *, finished_only: bool = False) -> list[Quest]:
+    return [
+        quest
+        for quest in _child_quests(child, finished_only=finished_only)
+        if _quest_is_active(child, quest)
+    ]
+
+
 def stored_summary(child: Child) -> dict:
-    """Plain counts of everything held for one learner."""
+    """Counts for the learner's active pathway, not incompatible old history."""
+    from . import pathways
 
-    def count(model) -> int:
-        return db.session.execute(
-            select(func.count(model.id)).where(model.child_id == child.id)
-        ).scalar_one()
-
-    answered = db.session.execute(
-        select(func.count(QuestQuestion.id))
-        .join(Quest, Quest.id == QuestQuestion.quest_id)
-        .where(Quest.child_id == child.id, QuestQuestion.is_correct.is_not(None))
+    active_quests = _active_quests(child, finished_only=True)
+    active_ids = {skill.id for skill in pathways.active_skills(child.settings)}
+    progress_rows = db.session.execute(
+        select(SkillProgress).where(SkillProgress.child_id == child.id)
+    ).scalars().all()
+    answered = sum(
+        1
+        for quest in active_quests
+        for question in quest.questions
+        if question.is_answered
+    )
+    first = min((quest.started_at for quest in active_quests), default=None)
+    seconds = sum(quest.seconds or 0 for quest in active_quests)
+    items = db.session.execute(
+        select(func.count(OwnedItem.id)).where(OwnedItem.child_id == child.id)
     ).scalar_one()
-
-    seconds = db.session.execute(
-        select(func.coalesce(func.sum(DailyActivity.seconds), 0)).where(
-            DailyActivity.child_id == child.id
-        )
-    ).scalar_one()
-
-    first = db.session.execute(
-        select(func.min(Quest.started_at)).where(Quest.child_id == child.id)
-    ).scalar_one()
+    days = {
+        (question.answered_at or quest.started_at).date()
+        for quest in active_quests
+        for question in quest.questions
+        if question.is_answered
+    }
 
     return {
-        "quests": count(Quest),
-        "questions": int(answered or 0),
-        "skills": count(SkillProgress),
-        "badges": count(BadgeAward),
-        "days": count(DailyActivity),
-        "items": count(OwnedItem),
-        "minutes": round(int(seconds or 0) / 60),
+        "quests": len(active_quests),
+        "questions": answered,
+        "skills": sum(1 for row in progress_rows if row.skill_id in active_ids),
+        "badges": len(rewards.visible_badge_awards(child)),
+        "days": len(days),
+        "items": int(items or 0),
+        "minutes": round(seconds / 60),
         "xp": child.xp,
         "coins": child.coins,
         "first_activity": first,
@@ -237,37 +266,46 @@ def stored_summary(child: Child) -> dict:
 
 
 def subject_summary(child: Child) -> list[dict]:
-    """Per-subject counts, so a parent can see what a subject reset would clear."""
+    """Counts only subjects available on the learner's active pathway."""
+    from . import pathways
+
+    allowed = pathways.subject_ids(child.settings)
     rows = db.session.execute(
         select(QuestQuestion.skill_id, func.count(QuestQuestion.id))
         .join(Quest, Quest.id == QuestQuestion.quest_id)
-        .where(Quest.child_id == child.id, QuestQuestion.is_correct.is_not(None))
+        .where(
+            Quest.child_id == child.id,
+            or_(
+                QuestQuestion.is_correct.is_not(None),
+                QuestQuestion.response_status != "unanswered",
+            ),
+        )
         .group_by(QuestQuestion.skill_id)
     ).all()
 
-    tally: dict[str, int] = dict.fromkeys(SUBJECTS, 0)
+    tally: dict[str, int] = dict.fromkeys(allowed, 0)
     for skill_id, number in rows:
         skill = get_skill(skill_id)
-        if skill:
-            tally[skill.subject] = tally.get(skill.subject, 0) + int(number)
+        if skill and skill.subject in tally:
+            tally[skill.subject] += int(number)
 
     progress_rows = db.session.execute(
         select(SkillProgress).where(SkillProgress.child_id == child.id)
     ).scalars().all()
-    skills_touched: dict[str, int] = dict.fromkeys(SUBJECTS, 0)
+    skills_touched: dict[str, int] = dict.fromkeys(allowed, 0)
     for row in progress_rows:
         skill = get_skill(row.skill_id)
-        if skill:
-            skills_touched[skill.subject] = skills_touched.get(skill.subject, 0) + 1
+        if skill and skill.subject in skills_touched:
+            skills_touched[skill.subject] += 1
 
     return [
         {
             "id": key,
             "subject": SUBJECTS[key],
-            "questions": tally.get(key, 0),
-            "skills": skills_touched.get(key, 0),
+            "questions": tally[key],
+            "skills": skills_touched[key],
         }
-        for key in SUBJECTS
+        for key in allowed
     ]
 
 
@@ -277,16 +315,9 @@ def subject_summary(child: Child) -> list[dict]:
 
 
 def rebuild_derived(child: Child) -> dict:
-    """Recompute everything that is derived from the surviving answers.
-
-    Safe to call at any time; calling it without deleting anything should leave
-    the figures exactly as they were.
-    """
+    """Recompute derived data from surviving answers on the active pathway."""
     # 1. Re-derive each quest's own totals, and drop any left with no questions.
-    quests = db.session.execute(
-        select(Quest).where(Quest.child_id == child.id).order_by(Quest.started_at)
-    ).scalars().all()
-
+    quests = _child_quests(child)
     removed_quests = 0
     for quest in quests:
         questions = list(quest.questions)
@@ -294,7 +325,7 @@ def rebuild_derived(child: Child) -> dict:
             db.session.delete(quest)
             removed_quests += 1
             continue
-        answered = [q for q in questions if q.is_correct is not None]
+        answered = [q for q in questions if q.is_answered]
         quest.target_count = len(questions)
         quest.answered_count = len(answered)
         quest.correct_count = sum(1 for q in answered if q.is_correct)
@@ -313,6 +344,9 @@ def rebuild_derived(child: Child) -> dict:
             )
     db.session.flush()
 
+    active_quests = [quest for quest in quests if _quest_is_active(child, quest)]
+    active_quest_ids = {quest.id for quest in active_quests}
+
     # 2. Clear the derived tables.
     for model in (SkillProgress, DailyActivity, BadgeAward):
         for row in db.session.execute(
@@ -326,13 +360,20 @@ def rebuild_derived(child: Child) -> dict:
     child.last_active_on = None
     db.session.flush()
 
-    # 3. Replay every surviving answer in the order it happened.
+    # 3. Replay only answers belonging to the active pathway.
     answers = db.session.execute(
         select(QuestQuestion)
         .join(Quest, Quest.id == QuestQuestion.quest_id)
-        .where(Quest.child_id == child.id, QuestQuestion.is_correct.is_not(None))
+        .where(
+            Quest.child_id == child.id,
+            or_(
+                QuestQuestion.is_correct.is_not(None),
+                QuestQuestion.response_status != "unanswered",
+            ),
+        )
         .order_by(QuestQuestion.answered_at, QuestQuestion.id)
     ).scalars().all()
+    answers = [answer for answer in answers if answer.quest_id in active_quest_ids]
 
     progress: dict[str, SkillProgress] = {}
     activity: dict[object, DailyActivity] = {}
@@ -350,16 +391,21 @@ def rebuild_derived(child: Child) -> dict:
         when = answer.answered_at or datetime.now()
         day = when.date()
 
-        row = progress.get(answer.skill_id)
-        if row is None:
-            row = SkillProgress(child_id=child.id, skill_id=answer.skill_id, due_on=day)
-            db.session.add(row)
-            db.session.flush()
-            progress[answer.skill_id] = row
-        row.register(bool(answer.is_correct), answer.seconds or 0, on=day, at=when)
+        # Pending open-ended responses count as activity, but cannot affect
+        # mastery or answer rewards until a parent has reviewed them.
+        xp = 0
+        if answer.is_correct is not None:
+            row = progress.get(answer.skill_id)
+            if row is None:
+                row = SkillProgress(child_id=child.id, skill_id=answer.skill_id, due_on=day)
+                db.session.add(row)
+                db.session.flush()
+                progress[answer.skill_id] = row
+            row.register(bool(answer.is_correct), answer.seconds or 0, on=day, at=when)
+            if not assessments.is_manual(answer.kind):
+                xp = rewards.xp_for_answer(bool(answer.is_correct), answer.tries or 1)
 
         today_row = activity_for(day)
-        xp = rewards.xp_for_answer(bool(answer.is_correct), answer.tries or 1)
         today_row.questions += 1
         today_row.correct += 1 if answer.is_correct else 0
         today_row.seconds += answer.seconds or 0
@@ -367,10 +413,10 @@ def rebuild_derived(child: Child) -> dict:
         child.xp += xp
         child.coins += rewards.COINS_PER_CORRECT if answer.is_correct else 0
 
-    # 4. Quest completion bonuses.
-    for quest in db.session.execute(
-        select(Quest).where(Quest.child_id == child.id, Quest.finished_at.is_not(None))
-    ).scalars().all():
+    # 4. Quest completion bonuses from active-path quests only.
+    for quest in active_quests:
+        if quest.finished_at is None:
+            continue
         child.xp += quest.xp_earned or 0
         child.coins += quest.coins_earned or 0
         row = activity_for(quest.finished_at.date())
@@ -419,11 +465,15 @@ def rebuild_derived(child: Child) -> dict:
 
 
 def delete_quests(child: Child, quest_ids: list[int]) -> dict:
-    """Remove specific quests, then rebuild. For undoing one bad session."""
+    """Remove active-path quests, then rebuild derived data."""
     wanted = set(quest_ids)
-    quests = db.session.execute(
-        select(Quest).where(Quest.child_id == child.id, Quest.id.in_(wanted))
-    ).scalars().all()
+    quests = [
+        quest
+        for quest in db.session.execute(
+            select(Quest).where(Quest.child_id == child.id, Quest.id.in_(wanted))
+        ).scalars().all()
+        if _quest_is_active(child, quest)
+    ]
     if not quests:
         return {"removed": 0}
 
@@ -439,9 +489,11 @@ def delete_quests(child: Child, quest_ids: list[int]) -> dict:
 
 
 def reset_subject(child: Child, subject: str) -> dict:
-    """Forget everything for one subject, keeping the other subjects intact."""
-    if subject not in SUBJECTS:
-        return {"removed": 0}
+    """Forget one active-path subject, keeping other subjects intact."""
+    from . import pathways
+
+    if subject not in pathways.subject_ids(child.settings):
+        return {"error": "inactive_subject", "removed": 0}
 
     rows = db.session.execute(
         select(QuestQuestion)
@@ -457,16 +509,25 @@ def reset_subject(child: Child, subject: str) -> dict:
 
     if not doomed:
         # Nothing answered, but there may still be stale skill rows to clear.
-        cleared = 0
+        stale = []
         for row in db.session.execute(
             select(SkillProgress).where(SkillProgress.child_id == child.id)
         ).scalars().all():
             skill = get_skill(row.skill_id)
             if skill and skill.subject == subject:
-                db.session.delete(row)
-                cleared += 1
+                stale.append(row)
+        if not stale:
+            return {"removed": 0, "skills_cleared": 0}
+        backup = backup_database(f"before resetting {subject}")
+        for row in stale:
+            db.session.delete(row)
         db.session.commit()
-        return {"removed": 0, "skills_cleared": cleared}
+        return {
+            "removed": 0,
+            "skills_cleared": len(stale),
+            "subject": subject,
+            "backup": backup,
+        }
 
     backup = backup_database(f"before resetting {subject}")
     for row in doomed:

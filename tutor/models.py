@@ -14,6 +14,7 @@ Design notes
 
 from __future__ import annotations
 
+import secrets
 from datetime import date, datetime, timedelta
 
 from sqlalchemy import (
@@ -41,6 +42,10 @@ def now() -> datetime:
 
 def today() -> date:
     return date.today()
+
+
+def _new_auth_nonce() -> str:
+    return secrets.token_urlsafe(32)
 
 
 # ---------------------------------------------------------------------------
@@ -72,6 +77,12 @@ class Child(db.Model):
 
     settings: Mapped[Settings] = relationship(
         back_populates="child", uselist=False, cascade="all, delete-orphan"
+    )
+    learner_account: Mapped[LearnerAccount | None] = relationship(
+        back_populates="child", uselist=False, cascade="all, delete-orphan"
+    )
+    parent_links: Mapped[list[ParentChild]] = relationship(
+        back_populates="child", cascade="all, delete-orphan"
     )
     progress: Mapped[list[SkillProgress]] = relationship(
         back_populates="child", cascade="all, delete-orphan"
@@ -140,16 +151,28 @@ class Child(db.Model):
 
 
 class ParentAccount(db.Model):
-    """Single row (id=1) holding the PIN that guards the parent area."""
+    """A parent sign-in account that manages linked learner profiles."""
 
     __tablename__ = "parent_account"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    login_name: Mapped[str] = mapped_column(
+        String(80), default="parent", nullable=False, unique=True, index=True
+    )
     pin_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    auth_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    setup_complete: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    bootstrap_token_hash: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    bootstrap_token_consumed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
+
+    parent_links: Mapped[list[ParentChild]] = relationship(
+        back_populates="parent", cascade="all, delete-orphan"
+    )
 
     def set_pin(self, pin: str) -> None:
         self.pin_hash = generate_password_hash(str(pin))
+        self.auth_version = (self.auth_version or 1) + 1
 
     def check_pin(self, pin: str) -> bool:
         return check_password_hash(self.pin_hash, str(pin))
@@ -157,6 +180,70 @@ class ParentAccount(db.Model):
     @classmethod
     def get(cls) -> ParentAccount | None:
         return db.session.get(cls, 1)
+
+
+class LearnerAccount(db.Model):
+    """Credentials for one learner profile.
+
+    Progress remains on ``Child``. This table only decides which learner may
+    open that profile, so account changes never move or duplicate history.
+    """
+
+    __tablename__ = "learner_account"
+    __table_args__ = {"sqlite_autoincrement": True}
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    child_id: Mapped[int] = mapped_column(
+        ForeignKey("child.id", ondelete="CASCADE"), unique=True, nullable=False
+    )
+    login_name: Mapped[str] = mapped_column(
+        String(80), unique=True, nullable=False, index=True
+    )
+    pin_hash: Mapped[str] = mapped_column(String(255), nullable=False)
+    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    needs_activation: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    auth_version: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
+    auth_nonce: Mapped[str] = mapped_column(
+        String(64), default=_new_auth_nonce, nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
+
+    child: Mapped[Child] = relationship(back_populates="learner_account")
+
+    def set_pin(self, pin: str) -> None:
+        self.pin_hash = generate_password_hash(str(pin))
+        self.needs_activation = False
+        self.auth_version += 1
+
+    def check_pin(self, pin: str) -> bool:
+        return (
+            self.active
+            and not self.needs_activation
+            and bool(self.pin_hash)
+            and check_password_hash(self.pin_hash, str(pin))
+        )
+
+
+class ParentChild(db.Model):
+    """A parent account's permission to manage one learner profile."""
+
+    __tablename__ = "parent_child"
+    __table_args__ = (
+        UniqueConstraint("parent_id", "child_id", name="uq_parent_child"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    parent_id: Mapped[int] = mapped_column(
+        ForeignKey("parent_account.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    child_id: Mapped[int] = mapped_column(
+        ForeignKey("child.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=now)
+
+    parent: Mapped[ParentAccount] = relationship(back_populates="parent_links")
+    child: Mapped[Child] = relationship(back_populates="parent_links")
 
 
 class Settings(db.Model):
@@ -180,18 +267,27 @@ class Settings(db.Model):
     subjects_enabled: Mapped[list] = mapped_column(
         JSON, default=lambda: ["maths", "english", "science"]
     )
-    years_enabled: Mapped[list] = mapped_column(JSON, default=lambda: [1, 2, 3])
-    # Weighting between revision (Y1/Y2) and getting ahead (Y3).
+    years_enabled: Mapped[list] = mapped_column(JSON, default=lambda: list(range(1, 7)))
+    # Weighting between earlier revision and new work for the enabled years.
     year_mix: Mapped[dict] = mapped_column(
         JSON, default=lambda: {"1": 15, "2": 35, "3": 50}
     )
     difficulty_mode: Mapped[str] = mapped_column(String(20), default="adaptive")
     focus_skills: Mapped[list] = mapped_column(JSON, default=list)
+    # Explicit pathway selector. "off" keeps existing primary-only behaviour;
+    # Foundation and Higher are independent of adaptive/gentle/challenge difficulty.
+    gcse_tier: Mapped[str] = mapped_column(String(20), default="off", nullable=False)
+    # Exam-board presentation only. Skill ids and tier authorization remain
+    # board-neutral so changing this never duplicates or widens mastery.
+    gcse_board: Mapped[str] = mapped_column(String(20), default="generic", nullable=False)
 
     # -- Help and feedback -------------------------------------------------
     allow_hints: Mapped[bool] = mapped_column(Boolean, default=True)
     second_chance: Mapped[bool] = mapped_column(Boolean, default=True)
     show_explanations: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Evidence-based GREAT mode asks for stage responses which a parent can
+    # review. It is off by default because it makes a quest longer.
+    great_diagnostic: Mapped[bool] = mapped_column(Boolean, default=False)
 
     # -- Comfort and accessibility -----------------------------------------
     sound_enabled: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -221,7 +317,7 @@ class Settings(db.Model):
     # -- Helpers -----------------------------------------------------------
     def year_weights(self) -> dict[int, int]:
         """Normalised {year: weight} limited to the years a parent enabled."""
-        enabled = {int(y) for y in (self.years_enabled or [1, 2, 3])}
+        enabled = {int(y) for y in (self.years_enabled or range(1, 7))}
         raw = self.year_mix or {}
         out: dict[int, int] = {}
         for year in sorted(enabled):
@@ -438,21 +534,42 @@ class QuestQuestion(db.Model):
 
     position: Mapped[int] = mapped_column(Integer, nullable=False)
     skill_id: Mapped[str] = mapped_column(String(80), nullable=False, index=True)
-    kind: Mapped[str] = mapped_column(String(20), default="choice")
+    kind: Mapped[str] = mapped_column(String(40), default="choice")
     difficulty_level: Mapped[int] = mapped_column(Integer, default=1, nullable=False)
 
-    # Everything shown to the child (prompt, choices, hint, visual...).
+    # Everything shown to the child (prompt, choices, visual, response spec).
     payload: Mapped[dict] = mapped_column(JSON, default=dict)
-    # The correct answer plus its explanation. Never sent to the browser
-    # before the child has answered.
+    # The correct answer, private rubric and explanations. Never sent to the
+    # browser before a child has answered; manual rubrics stay private until a
+    # parent opens the review page.
     solution: Mapped[dict] = mapped_column(JSON, default=dict)
 
     given_answer: Mapped[str | None] = mapped_column(Text, nullable=True)
     is_correct: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    response_json: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    response_status: Mapped[str] = mapped_column(
+        String(20), default="unanswered", nullable=False
+    )
+    score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    max_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    assessment_json: Mapped[dict] = mapped_column(JSON, default=dict)
     tries: Mapped[int] = mapped_column(Integer, default=0)
     used_hint: Mapped[bool] = mapped_column(Boolean, default=False)
     seconds: Mapped[int] = mapped_column(Integer, default=0)
     answered_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    @property
+    def is_answered(self) -> bool:
+        """Whether a legacy answer or a rich response has been submitted."""
+        return self.is_correct is not None or self.response_status != "unanswered"
+
+    @property
+    def is_pending(self) -> bool:
+        return self.response_status == "submitted" and self.is_correct is None
+
+    @property
+    def is_scored(self) -> bool:
+        return self.is_correct is not None
 
     def public(self) -> dict:
         """The safe-to-send view of this question.
@@ -468,12 +585,32 @@ class QuestQuestion(db.Model):
                 "position": self.position,
                 "skill_id": self.skill_id,
                 "kind": self.kind,
-                "answered": self.is_correct is not None,
+                "answered": self.is_answered,
+                "status": self.response_status,
+                "pending": self.is_pending,
                 "correct": self.is_correct,
+                "score": self.score,
+                "max_score": self.max_score,
+                # GREAT lives in the server-only solution JSON; expose only
+                # whether a reflection exists so a resumed player can know it
+                # has already been recorded.
+                "great_assessed": bool(
+                    isinstance((self.solution or {}).get("great"), dict)
+                    and isinstance((self.solution or {}).get("great", {}).get("scores"), dict)
+                ),
+                "great_diagnostic_submitted": bool(
+                    isinstance((self.solution or {}).get("great_diagnostic"), dict)
+                    and isinstance(
+                        (self.solution or {}).get("great_diagnostic", {}).get("responses"), dict
+                    )
+                ),
             }
         )
         data.pop("answer", None)
         data.pop("accept", None)
+        data.pop("explain", None)
+        data.pop("great_rubric", None)
+        data.pop("response_answer", None)
         return data
 
 

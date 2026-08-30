@@ -1,0 +1,67 @@
+{
+  "gcse.maths.number.fdp": [
+    {"kind": "choice", "prompt": "What is 0.35 as a percentage?", "choices": ["3.5%", "35%", "350%", "0.35%"], "answer": "35%", "hint": "Multiply a decimal by 100 to turn it into a percentage.", "explain": "0.35 × 100 = 35, so 0.35 is 35%."},
+    {"kind": "choice", "prompt": "What is 3/5 as a decimal?", "choices": ["0.3", "0.5", "0.6", "1.5"], "answer": "0.6", "hint": "Divide the numerator by the denominator.", "explain": "3 ÷ 5 = 0.6."},
+    {"kind": "choice", "prompt": "What is 25% of 80?", "choices": ["15", "20", "25", "40"], "answer": "20", "hint": "25% is one quarter.", "explain": "80 ÷ 4 = 20, so 25% of 80 is 20."}
+  ],
+  "gcse.maths.number.ratio": [
+    {"kind": "choice", "prompt": "£30 is shared in the ratio 2:3. What is the smaller share?", "choices": ["£6", "£10", "£12", "£18"], "answer": "£12", "hint": "There are 5 equal parts altogether.", "explain": "£30 ÷ 5 = £6 per part, and 2 parts make £12."},
+    {"kind": "choice", "prompt": "A recipe uses flour and sugar in the ratio 3:1. How much flour is needed with 200 g of sugar?", "choices": ["67 g", "200 g", "400 g", "600 g"], "answer": "600 g", "hint": "Flour is three times the sugar.", "explain": "3 × 200 g = 600 g."},
+    {"kind": "choice", "prompt": "Simplify the ratio 8:12.", "choices": ["1:2", "2:3", "3:4", "4:6"], "answer": "2:3", "hint": "Divide both parts by their highest common factor.", "explain": "The highest common factor of 8 and 12 is 4, giving 2:3."}
+  ],
+  "gcse.maths.algebra.linear-equations": [
+    {"kind": "choice", "prompt": "Solve 3x + 5 = 20.", "choices": ["x = 3", "x = 5", "x = 7", "x = 15"], "answer": "x = 5", "hint": "Subtract 5, then divide by 3.", "explain": "3x = 15, so x = 5."},
+    {"kind": "choice", "prompt": "Solve 2(x + 4) = 18.", "choices": ["x = 5", "x = 7", "x = 9", "x = 13"], "answer": "x = 5", "hint": "Divide by 2 before subtracting 4.", "explain": "x + 4 = 9, so x = 5."},
+    {"kind": "choice", "prompt": "Solve x − 7 = 11.", "choices": ["x = 4", "x = 11", "x = 18", "x = 77"], "answer": "x = 18", "hint": "Add 7 to both sides.", "explain": "x = 11 + 7 = 18."}
+  ],
+  "gcse.maths.algebra.sequences": [
+    {"kind": "choice", "prompt": "What is the next term in 4, 7, 10, 13, ...?", "choices": ["14", "16", "17", "19"], "answer": "16", "hint": "Look at the constant difference.", "explain": "The sequence increases by 3 each time, so the next term is 16."},
+    {"kind": "choice", "prompt": "The nth term is 3n + 1. What is the fifth term?", "choices": ["13", "15", "16", "18"], "answer": "16", "hint": "Substitute n = 5.", "explain": "3 × 5 + 1 = 16."},
+    {"kind": "choice", "prompt": "What is the common difference in 12, 8, 4, 0, ...?", "choices": ["−4", "−3", "4", "8"], "answer": "−4", "hint": "Each term is smaller than the previous one.", "explain": "Subtracting 4 each time gives a common difference of −4."}
+  ],
+  "gcse.maths.geometry.angles": [
+    {"kind": "choice", "prompt": "A triangle has angles 50° and 60°. What is its third angle?", "choices": ["60°", "70°", "80°", "110°"], "answer": "70°", "hint": "Angles in a triangle total 180°.", "explain": "180° − 50° − 60° = 70°.", "visual": {"type": "triangle", "mode": "general", "labels": {"left": "50°", "right": "60°", "top": "?"}, "aria_label": "a triangle with two angles labelled 50 degrees and 60 degrees"}},
+    {"kind": "choice", "prompt": "What is the sum of the interior angles of a quadrilateral?", "choices": ["180°", "270°", "360°", "540°"], "answer": "360°", "hint": "Split the quadrilateral into two triangles.", "explain": "Two triangles give 2 × 180° = 360°.", "visual": {"type": "shape2d", "name": "rectangle"}},
+    {"kind": "choice", "prompt": "Which statement about alternate angles in parallel lines is true?", "choices": ["They are equal", "They add to 90°", "They add to 180°", "They are always double"], "answer": "They are equal", "hint": "Think of the Z shape.", "explain": "Alternate angles in parallel lines are equal.", "visual": {"type": "lines", "kind": "parallel"}}
+  ],
+  "gcse.maths.geometry.pythagoras": [
+    {"kind": "choice", "prompt": "A right-angled triangle has shorter sides 3 cm and 4 cm. What is its hypotenuse?", "choices": ["5 cm", "6 cm", "7 cm", "12 cm"], "answer": "5 cm", "hint": "Use a² + b² = c².", "explain": "3² + 4² = 9 + 16 = 25, so the hypotenuse is 5 cm.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "3 cm", "height": "4 cm", "hypotenuse": "?"}, "aria_label": "a right triangle with shorter sides 3 centimetres and 4 centimetres"}},
+    {"kind": "choice", "prompt": "A right-angled triangle has shorter sides 5 cm and 12 cm. What is its hypotenuse?", "choices": ["10 cm", "12 cm", "13 cm", "17 cm"], "answer": "13 cm", "hint": "5² + 12² = 169.", "explain": "The square root of 169 is 13, so the hypotenuse is 13 cm.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "5 cm", "height": "12 cm", "hypotenuse": "?"}, "aria_label": "a right triangle with shorter sides 5 centimetres and 12 centimetres"}},
+    {"kind": "choice", "prompt": "The hypotenuse is 10 cm and one shorter side is 6 cm. What is the other shorter side?", "choices": ["4 cm", "6 cm", "8 cm", "16 cm"], "answer": "8 cm", "hint": "Subtract the square of 6 from the square of 10.", "explain": "10² − 6² = 64, and √64 = 8 cm.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "6 cm", "height": "?", "hypotenuse": "10 cm"}, "aria_label": "a right triangle with a 6 centimetre side and a 10 centimetre hypotenuse"}}
+  ],
+  "gcse.maths.statistics.averages": [
+    {"kind": "choice", "prompt": "What is the mean of 4, 6, 8 and 10?", "choices": ["6", "7", "8", "28"], "answer": "7", "hint": "Add the values, then divide by how many there are.", "explain": "(4 + 6 + 8 + 10) ÷ 4 = 28 ÷ 4 = 7."},
+    {"kind": "choice", "prompt": "What is the median of 3, 5, 8, 9 and 12?", "choices": ["5", "8", "9", "12"], "answer": "8", "hint": "The median is the middle value when ordered.", "explain": "There are two values on each side of 8, so the median is 8."},
+    {"kind": "choice", "prompt": "What is the range of 6, 11, 4, 15 and 9?", "choices": ["9", "11", "15", "19"], "answer": "11", "hint": "Subtract the smallest value from the largest.", "explain": "15 − 4 = 11."}
+  ],
+  "gcse.maths.statistics.probability": [
+    {"kind": "choice", "prompt": "What is the probability of rolling an even number on a fair six-sided die?", "choices": ["1/6", "1/3", "1/2", "2/3"], "answer": "1/2", "hint": "There are three even results out of six.", "explain": "The even results are 2, 4 and 6: 3/6 = 1/2."},
+    {"kind": "choice", "prompt": "A bag has 3 red counters and 7 blue counters. What is P(red)?", "choices": ["3/7", "3/10", "7/10", "1/3"], "answer": "3/10", "hint": "Favourable outcomes over all outcomes.", "explain": "There are 3 red counters out of 10, so P(red) = 3/10."},
+    {"kind": "choice", "prompt": "If P(rain) = 0.3, what is P(no rain)?", "choices": ["0.3", "0.6", "0.7", "1.3"], "answer": "0.7", "hint": "All probabilities together total 1.", "explain": "1 − 0.3 = 0.7."}
+  ],
+  "gcse.maths.graphs.linear": [
+    {"kind": "choice", "prompt": "For y = 2x + 3, what is y when x = 4?", "choices": ["8", "9", "11", "14"], "answer": "11", "hint": "Substitute x = 4.", "explain": "y = 2 × 4 + 3 = 11.", "visual": {"type": "coordinate_grid", "x_min": -3, "x_max": 5, "y_min": -5, "y_max": 15, "grid_step": 1, "lines": [{"gradient": 2, "intercept": 3, "color": "berry"}], "aria_label": "a coordinate grid showing the line y equals 2x plus 3"}},
+    {"kind": "choice", "prompt": "What is the y-intercept of y = 3x + 5?", "choices": ["3", "5", "−3", "−5"], "answer": "5", "hint": "The y-intercept is the constant term.", "explain": "When x = 0, y = 5, so the y-intercept is 5.", "visual": {"type": "coordinate_grid", "x_min": -3, "x_max": 4, "y_min": -5, "y_max": 15, "grid_step": 1, "lines": [{"gradient": 3, "intercept": 5, "color": "ocean"}], "aria_label": "a coordinate grid showing a straight line"}},
+    {"kind": "choice", "prompt": "Which point lies on the line y = 3x?", "choices": ["(1, 2)", "(2, 5)", "(2, 6)", "(3, 8)"], "answer": "(2, 6)", "hint": "Check whether y is three times x.", "explain": "For x = 2, y = 3 × 2 = 6.", "visual": {"type": "coordinate_grid", "x_min": -1, "x_max": 4, "y_min": -2, "y_max": 10, "grid_step": 1, "lines": [{"gradient": 3, "intercept": 0, "color": "grape"}], "aria_label": "a coordinate grid showing the line y equals 3x"}}
+  ],
+  "gcse.maths.number.standard-form": [
+    {"kind": "choice", "prompt": "Which is 320 000 in standard form?", "choices": ["3.2 × 10⁴", "3.2 × 10⁵", "32 × 10⁴", "0.32 × 10⁶"], "answer": "3.2 × 10⁵", "hint": "The number between 1 and 10 is 3.2.", "explain": "Move the decimal point five places: 320 000 = 3.2 × 10⁵."},
+    {"kind": "choice", "prompt": "Which is 0.00045 in standard form?", "choices": ["4.5 × 10⁻³", "4.5 × 10⁻⁴", "45 × 10⁻⁵", "0.45 × 10⁻³"], "answer": "4.5 × 10⁻⁴", "hint": "The exponent is negative because the number is less than 1.", "explain": "0.00045 = 4.5 × 10⁻⁴."},
+    {"kind": "choice", "prompt": "What is (6 × 10⁴) ÷ (2 × 10²)?", "choices": ["3 × 10²", "3 × 10⁶", "12 × 10²", "3 × 10⁸"], "answer": "3 × 10²", "hint": "Divide the numbers and subtract the powers.", "explain": "6 ÷ 2 = 3 and 10⁴ ÷ 10² = 10²."}
+  ],
+  "gcse.maths.algebra.quadratics": [
+    {"kind": "choice", "prompt": "Expand (x + 3)(x + 2).", "choices": ["x² + 5x + 6", "x² + 6x + 5", "x² + 5", "x² + 6"], "answer": "x² + 5x + 6", "hint": "Multiply every term in the first bracket by every term in the second.", "explain": "x² + 2x + 3x + 6 = x² + 5x + 6."},
+    {"kind": "choice", "prompt": "Factorise x² + 7x + 12.", "choices": ["(x + 2)(x + 6)", "(x + 3)(x + 4)", "(x + 1)(x + 12)", "(x − 3)(x − 4)"], "answer": "(x + 3)(x + 4)", "hint": "Find two numbers that multiply to 12 and add to 7.", "explain": "3 × 4 = 12 and 3 + 4 = 7."},
+    {"kind": "choice", "prompt": "What are the solutions of x² = 49?", "choices": ["x = 7 only", "x = −7 only", "x = 7 or x = −7", "x = 49"], "answer": "x = 7 or x = −7", "hint": "Both 7² and (−7)² equal 49.", "explain": "Taking the square root gives x = ±7."}
+  ],
+  "gcse.maths.algebra.simultaneous": [
+    {"kind": "choice", "prompt": "Solve x + y = 10 and x − y = 2. What is x?", "choices": ["2", "4", "6", "8"], "answer": "6", "hint": "Add the two equations to eliminate y.", "explain": "2x = 12, so x = 6."},
+    {"kind": "choice", "prompt": "Solve 2x + y = 9 and x + y = 6. What is x?", "choices": ["2", "3", "4", "5"], "answer": "3", "hint": "Subtract the second equation from the first.", "explain": "x = 9 − 6 = 3."},
+    {"kind": "choice", "prompt": "Solve x + y = 7 and 2x + y = 10. What is y?", "choices": ["1", "3", "4", "6"], "answer": "4", "hint": "First find x by subtracting the equations.", "explain": "x = 3, then y = 7 − 3 = 4."}
+  ],
+  "gcse.maths.geometry.trigonometry": [
+    {"kind": "choice", "prompt": "In a right-angled triangle, opposite = 3 and hypotenuse = 5. What is sin θ?", "choices": ["0.3", "0.5", "0.6", "0.8"], "answer": "0.6", "hint": "Sine is opposite divided by hypotenuse.", "explain": "sin θ = 3 ÷ 5 = 0.6.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "adjacent", "height": "3", "hypotenuse": "5", "angle": "θ"}, "aria_label": "a right triangle with opposite side 3 and hypotenuse 5"}},
+    {"kind": "choice", "prompt": "In a right-angled triangle, opposite = 4 and adjacent = 3. What is tan θ?", "choices": ["0.75", "1", "1.33", "7"], "answer": "1.33", "hint": "Tangent is opposite divided by adjacent.", "explain": "tan θ = 4 ÷ 3 = 1.33 to 2 decimal places.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "3", "height": "4", "hypotenuse": "?", "angle": "θ"}, "aria_label": "a right triangle with opposite side 4 and adjacent side 3"}},
+    {"kind": "choice", "prompt": "In a right-angled triangle, adjacent = 8 and hypotenuse = 10. What is cos θ?", "choices": ["0.2", "0.6", "0.8", "1.25"], "answer": "0.8", "hint": "Cosine is adjacent divided by hypotenuse.", "explain": "cos θ = 8 ÷ 10 = 0.8.", "visual": {"type": "triangle", "mode": "right", "labels": {"base": "8", "height": "?", "hypotenuse": "10", "angle": "θ"}, "aria_label": "a right triangle with adjacent side 8 and hypotenuse 10"}}
+  ]
+}

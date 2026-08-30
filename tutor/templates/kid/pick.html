@@ -1,35 +1,18 @@
 {% extends "base.html" %}
-{% block title %}Who is learning?{% endblock %}
+{% block title %}Learner sign in{% endblock %}
 {% block chrome %}{% endblock %}
 {% block nav %}{% endblock %}
 
 {% block content %}
-<div class="stack-lg center" style="max-width:560px;margin:0 auto">
+<div class="stack-lg center" style="max-width:520px;margin:0 auto">
   <div class="art-holder bob" style="width:110px;height:110px;margin:10px auto 0">
     {{ icon('pip-happy') }}
   </div>
-  <h1>Who is learning today?</h1>
-
-  <div class="stack">
-    {% for candidate in children %}
-      {% set candidate_char = character_id(candidate.avatar_emoji) %}
-      <form method="post" action="{{ url_for('kid.choose', child_id=candidate.id) }}">
-        <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-        <button type="submit" class="row link"
-                style="width:100%;cursor:pointer;text-align:left;min-height:84px">
-          <span class="avatar theme-{{ candidate.avatar_colour }}">
-            {{ icon('char-' ~ candidate_char) }}
-          </span>
-          <span class="grow">
-            <b style="font-size:1.2rem">{{ candidate.name }}</b>
-            <small class="nums">Level {{ candidate.level }} ·
-              {{ candidate.streak_days }} day streak</small>
-          </span>
-        </button>
-      </form>
-    {% endfor %}
-  </div>
-
-  <a class="parent-link" href="{{ url_for('parent.dashboard') }}">Parents</a>
+  <h1>Sign in as yourself</h1>
+  <p class="muted" style="font-weight:700">
+    Learner profiles are private. Use your own sign-in name and PIN instead of
+    choosing someone else's profile.
+  </p>
+  <a class="btn big leaf" href="{{ url_for('kid.login') }}">Go to learner sign in</a>
 </div>
 {% endblock %}

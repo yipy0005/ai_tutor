@@ -43,9 +43,18 @@ def start():
     elif subject not in SUBJECTS:
         return jsonify({"error": "Unknown subject."}), 400
 
-    enabled = child.settings.subjects_enabled or list(SUBJECTS)
-    if subject and subject not in enabled:
-        return jsonify({"error": "That subject is switched off in settings."}), 403
+    try:
+        subject = quests.subject_for_path(child, subject)
+    except ValueError as exc:
+        return jsonify({"error": str(exc)}), 403
+
+    if subject == "gcse_maths":
+        if child.settings.gcse_tier not in {"foundation", "higher"}:
+            return jsonify({"error": "GCSE Maths is switched off in settings."}), 403
+    elif subject:
+        enabled = child.settings.subjects_enabled or ["maths", "english", "science"]
+        if subject not in enabled:
+            return jsonify({"error": "That subject is switched off in settings."}), 403
 
     mode = data.get("mode") or "mixed"
     if mode not in VALID_MODES:
@@ -92,9 +101,48 @@ def answer(quest_id: int):
         quest,
         question_id,
         given=str(data.get("answer", "")),
+        response=data.get("response"),
         seconds=int(data.get("seconds") or 0),
         used_hint=bool(data.get("used_hint")),
     )
+    status = 400 if result.get("error") else 200
+    return jsonify(result), status
+
+
+@bp.post("/quest/<int:quest_id>/great")
+def great_reflection(quest_id: int):
+    if (problem := _need_child()) is not None:
+        return problem
+    quest = quests.get_quest(g.child, quest_id)
+    if quest is None:
+        return jsonify({"error": "Quest not found."}), 404
+
+    data = _body()
+    question_id = data.get("question_id")
+    if not isinstance(question_id, int):
+        return jsonify({"error": "Missing question id."}), 400
+
+    result = quests.record_great(quest, question_id, data.get("scores"))
+    status = 400 if result.get("error") else 200
+    return jsonify(result), status
+
+
+@bp.post("/quest/<int:quest_id>/great-diagnostic")
+def great_diagnostic(quest_id: int):
+    if (problem := _need_child()) is not None:
+        return problem
+    quest = quests.get_quest(g.child, quest_id)
+    if quest is None:
+        return jsonify({"error": "Quest not found."}), 404
+    if not g.child.settings.great_diagnostic:
+        return jsonify({"error": "Evidence-based GREAT is not enabled."}), 403
+
+    data = _body()
+    question_id = data.get("question_id")
+    if not isinstance(question_id, int):
+        return jsonify({"error": "Missing question id."}), 400
+
+    result = quests.record_great_diagnostic(quest, question_id, data.get("responses"))
     status = 400 if result.get("error") else 200
     return jsonify(result), status
 

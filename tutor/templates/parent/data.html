@@ -120,10 +120,10 @@
     <div class="p-card-head"><h2>Start a subject again</h2></div>
     <p class="p-muted p-tiny" style="margin-top:-6px">
       Clears every answer and all mastery for one subject, so the app teaches it from the
-      beginning again. The other two subjects keep their progress.
+      beginning again. Other active subjects keep their progress.
     </p>
 
-    <div class="p-grid three">
+    <div class="p-grid">
       {% for row in subjects %}
         <form method="post"
               action="{{ url_for('parent.reset_subject', subject=row.id) }}"

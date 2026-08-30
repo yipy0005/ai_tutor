@@ -14,9 +14,16 @@ from flask import (
 )
 
 from .. import art
-from ..content import SUBJECT_ORDER, SUBJECTS, skills_for, topic_tree
+from ..content import (
+    GCSE_TIERS,
+    PRIMARY_YEARS,
+    SUBJECTS,
+    gcse_skills_for,
+    skills_for,
+    topic_tree,
+)
 from ..extensions import db
-from ..services import profiles, quests, rewards, scheduler
+from ..services import auth, pathways, profiles, quests, rewards, scheduler
 
 bp = Blueprint("kid", __name__)
 
@@ -29,24 +36,78 @@ bp = Blueprint("kid", __name__)
 @bp.before_app_request
 def load_child() -> None:
     g.child = None
-    child_id = session.get("child_id")
-    if child_id:
-        child = profiles.get_child(child_id)
-        if child is not None:
-            if child.settings is None:  # a profile created outside the app
-                from ..models import Settings
+    g.learner_account = None
+    # The legacy child_id key represented a selectable profile, not an
+    # authenticated identity. Ignore and clear it so old cookies cannot select
+    # another learner after the account boundary is enabled.
+    session.pop("child_id", None)
+    account_id = session.get(auth.LEARNER_ACCOUNT_KEY)
+    account = profiles.get_learner_account(account_id)
+    if account is None or not account.active or account.needs_activation:
+        if account_id:
+            auth.learner_logout()
+        return
+    if (
+        session.get(auth.LEARNER_AUTH_VERSION_KEY) != account.auth_version
+        or session.get(auth.LEARNER_AUTH_NONCE_KEY) != account.auth_nonce
+    ):
+        auth.learner_logout()
+        return
 
-                db.session.add(Settings(child_id=child.id))
-                db.session.commit()
-            g.child = child
-        else:
-            session.pop("child_id", None)
+    child = account.child
+    if child is None:
+        auth.learner_logout()
+        return
+    if child.settings is None:  # a profile created outside the app
+        from ..models import Settings
+
+        db.session.add(Settings(child_id=child.id))
+        db.session.commit()
+    g.learner_account = account
+    g.child = child
 
 
 def _require_child():
     if g.child is None:
-        return redirect(url_for("kid.pick"))
+        return redirect(url_for("kid.login", next=request.full_path))
     return None
+
+
+@bp.route("/")
+def index():
+    if g.child is not None:
+        return redirect(url_for("kid.home"))
+    if not profiles.all_children():
+        if profiles.parent_setup_required():
+            return redirect(url_for("parent.setup"))
+        return redirect(url_for("kid.welcome"))
+    return redirect(url_for("kid.login"))
+
+
+@bp.route("/login", methods=["GET", "POST"])
+def login():
+    if g.child is not None:
+        return redirect(url_for("kid.home"))
+
+    next_url = request.args.get("next") or request.form.get("next") or ""
+    if request.method == "POST":
+        login_name = profiles.normalize_login(request.form.get("login_name"))
+        pin = (request.form.get("pin") or "").strip()
+        account = profiles.find_learner_account(login_name)
+        if account is not None and account.check_pin(pin):
+            auth.learner_login(account)
+            target = next_url if next_url.startswith("/") and not next_url.startswith("//") else ""
+            return redirect(target or url_for("kid.home"))
+        flash("That learner sign-in name or PIN was not recognised.", "error")
+
+    return render_template("kid/login.html", next_url=next_url)
+
+
+@bp.post("/logout")
+def logout():
+    auth.learner_logout()
+    flash("You are signed out. Sign in again when you are ready to learn.", "info")
+    return redirect(url_for("kid.login"))
 
 
 # ---------------------------------------------------------------------------
@@ -54,87 +115,96 @@ def _require_child():
 # ---------------------------------------------------------------------------
 
 
-@bp.route("/")
-def index():
-    children = profiles.all_children()
-    if not children:
-        return redirect(url_for("kid.welcome"))
-    if g.child is None:
-        if len(children) == 1:
-            session["child_id"] = children[0].id
-            session.permanent = True
-            return redirect(url_for("kid.home"))
-        return redirect(url_for("kid.pick"))
-    return redirect(url_for("kid.home"))
-
-
 @bp.route("/welcome", methods=["GET", "POST"])
 def welcome():
-    """First run: create the first learner and set the parent PIN."""
-    if profiles.all_children() and request.method == "GET":
+    """First run: create the first learner after adult parent setup."""
+    if profiles.all_children():
         return redirect(url_for("kid.index"))
+    if profiles.parent_setup_required():
+        return redirect(url_for("parent.setup"))
 
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
+        learner_login = request.form.get("learner_login")
+        learner_pin = (request.form.get("learner_pin") or "").strip()
         year = request.form.get("year_group") or "3"
+        gcse_tier = (request.form.get("gcse_tier") or "off").strip().lower()
+        if gcse_tier not in profiles.GCSE_TIER_OPTIONS:
+            gcse_tier = "off"
         emoji = request.form.get("avatar_character") or art.CHARACTERS[0].id
         colour = request.form.get("avatar_colour") or "sunshine"
-        pin = (request.form.get("pin") or "").strip()
+
+        try:
+            year_number = max(1, min(6, int(year)))
+        except (TypeError, ValueError):
+            year_number = 3
+        if gcse_tier != "off":
+            year_number = 6
 
         errors = []
         if not name:
             errors.append("Please enter a name.")
-        if pin and (not pin.isdigit() or not 4 <= len(pin) <= 8):
-            errors.append("The parent PIN needs to be 4 to 8 digits.")
+        if not profiles.normalize_login(learner_login):
+            errors.append("Please choose a learner sign-in name.")
+        if not learner_pin:
+            errors.append("Please choose a learner PIN.")
+        elif not learner_pin.isdigit() or not 4 <= len(learner_pin) <= 8:
+            errors.append("The learner PIN needs to be 4 to 8 digits.")
 
         if errors:
             for message in errors:
                 flash(message, "error")
         else:
-            child = profiles.create_child(name, int(year), emoji, colour)
-            # `pixi run setup` may already have created the parent account with
-            # the default PIN, so set it explicitly rather than relying on the
-            # create-if-missing path. Otherwise the PIN typed here is ignored.
-            account = profiles.ensure_parent_account()
-            if pin:
-                account.set_pin(pin)
-            db.session.commit()
-            session["child_id"] = child.id
-            session.permanent = True
-            flash(f"Welcome, {child.name}! Let's get started.", "success")
-            return redirect(url_for("kid.home"))
+            try:
+                child = profiles.create_child(
+                    name,
+                    year_number,
+                    emoji,
+                    colour,
+                    gcse_tier=gcse_tier,
+                    learner_login=learner_login,
+                    learner_pin=learner_pin,
+                )
+                parent = profiles.ensure_parent_account()
+                profiles.link_parent_child(parent.id, child.id)
+                auth.learner_login(child.learner_account)
+                db.session.commit()
+            except ValueError as exc:
+                db.session.rollback()
+                flash(str(exc), "error")
+            else:
+                flash(f"Welcome, {child.name}! Let's get started.", "success")
+                return redirect(url_for("kid.home"))
 
     return render_template(
         "kid/welcome.html",
         characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
-        default_pin_hint=True,
+        gcse_tier_options=profiles.GCSE_TIER_OPTIONS,
+        primary_years=PRIMARY_YEARS,
     )
 
 
 @bp.route("/pick")
 def pick():
-    children = profiles.all_children()
-    if not children:
-        return redirect(url_for("kid.welcome"))
-    return render_template("kid/pick.html", children=children)
+    """Compatibility endpoint: learner identity must come from sign-in."""
+    return redirect(url_for("kid.login"))
 
 
 @bp.post("/pick/<int:child_id>")
 def choose(child_id: int):
-    child = profiles.get_child(child_id)
-    if child is None:
-        flash("That profile no longer exists.", "error")
-        return redirect(url_for("kid.pick"))
-    session["child_id"] = child.id
-    session.permanent = True
-    return redirect(url_for("kid.home"))
+    """Never select a learner from a posted profile id."""
+    _ = child_id
+    auth.learner_logout()
+    flash("Sign in with your own learner name and PIN.", "info")
+    return redirect(url_for("kid.login"))
 
 
 @bp.post("/switch")
 def switch():
-    session.pop("child_id", None)
-    return redirect(url_for("kid.pick"))
+    """Legacy compatibility endpoint: sign out instead of switching profiles."""
+    auth.learner_logout()
+    return redirect(url_for("kid.login"))
 
 
 # ---------------------------------------------------------------------------
@@ -152,12 +222,18 @@ def home():
     state = quests.allowance(child)
     blocked = quests.blocked_reason(child)
 
-    enabled = [s for s in SUBJECT_ORDER if s in (settings.subjects_enabled or SUBJECT_ORDER)]
+    enabled = pathways.subject_ids(settings)
+    is_gcse = pathways.is_gcse(settings)
+    primary_years = pathways.year_ids(settings)
+    latest_year = max(primary_years)
     subject_cards = []
     for subject_id in enabled:
         subject = SUBJECTS[subject_id]
         progress = scheduler.progress_map(child.id)
-        skills = skills_for(subject_id, settings.years_enabled or [1, 2, 3])
+        if subject_id == "gcse_maths":
+            skills = gcse_skills_for(settings.gcse_tier)
+        else:
+            skills = skills_for(subject_id, primary_years)
         touched = sum(1 for s in skills if (p := progress.get(s.id)) and p.attempts)
         mastered = sum(
             1
@@ -171,6 +247,7 @@ def home():
                 "touched": touched,
                 "mastered": mastered,
                 "pct": round(mastered / len(skills) * 100) if skills else 0,
+                "tier": settings.gcse_tier if subject_id == "gcse_maths" else None,
             }
         )
 
@@ -184,11 +261,13 @@ def home():
         totals=quests.lifetime_totals(child.id),
         due=scheduler.due_count(child.id),
         weak=scheduler.weak_skills(child.id, 3),
+        pathway_is_gcse=is_gcse,
+        latest_year=latest_year,
         flame=rewards.streak_flame(child.streak_days),
         hat=rewards.equipped_art(child, "hat"),
         pet=rewards.equipped_art(child, "pet"),
         scene=rewards.equipped_art(child, "scene"),
-        badge_count=len(child.badges),
+        badge_count=len(rewards.visible_badge_awards(child)),
     )
 
 
@@ -214,31 +293,55 @@ def learn(subject: str):
 
     child = g.child
     settings = child.settings
-    years = [int(y) for y in (settings.years_enabled or [1, 2, 3])]
+    if pathways.is_gcse(settings) and subject != "gcse_maths":
+        return redirect(url_for("kid.home"))
+    if not pathways.is_gcse(settings) and subject == "gcse_maths":
+        return redirect(url_for("kid.home"))
     progress = scheduler.progress_map(child.id)
-
     groups = []
-    for year, topic, skills in topic_tree(subject):
-        if year not in years:
-            continue
-        entries = []
-        for skill in skills:
-            row = progress.get(skill.id)
-            entries.append(
-                {
-                    "skill": skill,
-                    "mastery": row.mastery_pct if row else 0,
-                    "attempts": row.attempts if row else 0,
-                    "stage": row.stage if row else "not started",
-                    "due": bool(row and row.is_due and row.attempts),
-                }
-            )
-        groups.append({"year": year, "topic": topic, "entries": entries})
+    if subject == "gcse_maths":
+        if settings.gcse_tier not in GCSE_TIERS:
+            return redirect(url_for("kid.home"))
+        topic_groups = topic_tree(subject, settings.gcse_tier)
+        for year, topic, skills in topic_groups:
+            entries = []
+            for skill in skills:
+                row = progress.get(skill.id)
+                entries.append(
+                    {
+                        "skill": skill,
+                        "mastery": row.mastery_pct if row else 0,
+                        "attempts": row.attempts if row else 0,
+                        "stage": row.stage if row else "not started",
+                        "due": bool(row and row.is_due and row.attempts),
+                    }
+                )
+            groups.append({"year": year, "topic": topic, "entries": entries})
+    else:
+        years = pathways.year_ids(settings)
+        for year, topic, skills in topic_tree(subject):
+            if year not in years:
+                continue
+            entries = []
+            for skill in skills:
+                row = progress.get(skill.id)
+                entries.append(
+                    {
+                        "skill": skill,
+                        "mastery": row.mastery_pct if row else 0,
+                        "attempts": row.attempts if row else 0,
+                        "stage": row.stage if row else "not started",
+                        "due": bool(row and row.is_due and row.attempts),
+                    }
+                )
+            groups.append({"year": year, "topic": topic, "entries": entries})
 
     return render_template(
         "kid/learn.html",
         subject=SUBJECTS[subject],
         groups=groups,
+        tier=settings.gcse_tier if subject == "gcse_maths" else None,
+        latest_year=max(pathways.year_ids(settings)),
         blocked=quests.blocked_reason(child),
         state=quests.allowance(child),
     )
@@ -287,9 +390,11 @@ def done(quest_id: int):
 def badges():
     if (response := _require_child()) is not None:
         return response
-    owned = {b.badge_id: b for b in g.child.badges}
+    owned = {b.badge_id: b for b in rewards.visible_badge_awards(g.child)}
+    badges = rewards.visible_badges(g.child)
+    visible_ids = {badge.id for badge in badges}
     groups: dict[str, list] = {}
-    for badge in rewards.BADGES:
+    for badge in badges:
         groups.setdefault(badge.group, []).append(
             {"badge": badge, "award": owned.get(badge.id)}
         )
@@ -299,15 +404,15 @@ def badges():
         "skill": "Sharp thinking",
         "mastery": "Mastering skills",
         "subject": "Every subject",
-        "ahead": "Year 3 ready",
+        "ahead": "Ahead",
         "fun": "Just for fun",
     }
     return render_template(
         "kid/badges.html",
         groups=groups,
         group_names=group_names,
-        earned=len(owned),
-        total=len(rewards.BADGES),
+        earned=len(set(owned) & visible_ids),
+        total=len(badges),
     )
 
 
