@@ -18,7 +18,7 @@ Use a dedicated hostname such as `tutor.example.com`, not a path below another a
 
 ## 1. Prepare the origin
 
-1. Complete the one-time parent setup locally before publishing the hostname. This consumes the bootstrap token and lets the app run without exposing first-run setup to the Internet.
+1. Complete the one-time parent setup locally on `http://127.0.0.1:5001` before publishing the hostname. Direct loopback setup does not need a token; it consumes the setup capability when the first learner is created. If setup must happen through the public hostname, configure Cloudflare Access first and use the token-gated path described below.
 2. Make sure `instance/tutor.sqlite3`, its backups, and the generated `instance/secret_key` live on durable storage. Do not copy `instance/` into the repository or serve it as static content.
 3. Install `cloudflared` on the same Mac as the app. Cloudflare's current macOS install path is documented in [Downloads](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/):
 
@@ -34,7 +34,7 @@ Use a dedicated hostname such as `tutor.example.com`, not a path below another a
 
    This sets `HOST=127.0.0.1`, `PORT=5001`, and `SESSION_COOKIE_SECURE=1`. The browser-facing Cloudflare URL is HTTPS; the Tunnel's local hop remains HTTP. Do not use the normal `pixi run serve` binding of `0.0.0.0` for this setup, and do not port-forward port 5001.
 
-If this is a new database and setup must happen through the public hostname, configure Cloudflare Access first and set `PARENT_BOOTSTRAP_TOKEN` through a secret manager before the first app start. Never place the token in this file, the Tunnel config, a URL, or a normal log. The local `pixi run bootstrap-token` command is intended for local setup only.
+If this is a new database and setup must happen through the public hostname, configure Cloudflare Access first, set `PARENT_SETUP_REQUIRE_TOKEN=1`, and set `PARENT_BOOTSTRAP_TOKEN` through a secret manager before the first app start. Never place the token in this file, the Tunnel config, a URL, or a normal log. The normal `pixi run cloudflare-origin` task already enables the forced token gate; local loopback setup is the tokenless alternative.
 
 For an existing database already marked as set up, `PARENT_BOOTSTRAP_TOKEN` is not needed for normal startup.
 
@@ -78,6 +78,7 @@ Set these through the host's secret manager or process environment, not in a com
 
 - `SECRET_KEY`: persistent, high-entropy value. Changing it logs out every browser session.
 - `SESSION_COOKIE_SECURE=1`: required for the public HTTPS hostname.
+- `PARENT_SETUP_REQUIRE_TOKEN=1`: force the bootstrap-token gate even for a loopback origin; required by the included Cloudflare origin task.
 - `PARENT_BOOTSTRAP_TOKEN`: only while an unconfigured database needs first-run setup; at least 32 characters.
 - `DATABASE_URL`: normally leave unset so the app uses the persistent `instance/tutor.sqlite3` SQLite file for this household deployment.
 

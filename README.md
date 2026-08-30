@@ -18,13 +18,12 @@ Python, Flask or anything else yourself.
 
 ```bash
 pixi run setup             # create the database (once)
-pixi run bootstrap-token   # print the one-time setup token; keep it private
 pixi run serve
 ```
 
-Then open **http://127.0.0.1:5001**. The first screen is an adult-only parent setup page. Enter the token from `pixi run bootstrap-token`, choose the parent PIN, then create the first learner's private sign-in name and PIN. The token is consumed after successful setup; use `pixi run bootstrap-token -- --rotate` before setup if it is lost.
+Then open **http://127.0.0.1:5001**. The first screen is an adult-only parent setup page. When you open it directly on the app computer, choose the parent PIN without entering a setup token, then create the first learner's private sign-in name and PIN. This tokenless path is limited to a direct loopback connection; it does not apply to a phone, tablet, LAN address, hosted hostname, or proxied request.
 
-For hosted deployments, set `PARENT_BOOTSTRAP_TOKEN` through the deployment secret manager instead of using a local token file. Never put that value in a URL, source file or normal server log. Keep first-run setup on `127.0.0.1`; if setup must be reached remotely, use HTTPS because the token is a bearer secret.
+For LAN or hosted first-run setup, keep the app behind HTTPS and use a bootstrap token. Run `pixi run bootstrap-token` on the server for a local token, or set `PARENT_BOOTSTRAP_TOKEN` through the deployment secret manager. Set `PARENT_SETUP_REQUIRE_TOKEN=1` for deployments that must always use the token gate. Never put the token in a URL, source file or normal server log. The token is consumed after successful setup; use `pixi run bootstrap-token -- --rotate` before setup if a local token is lost.
 
 The learner uses their own credentials on every sign-in; learner profiles cannot be selected or switched from the learner app.
 

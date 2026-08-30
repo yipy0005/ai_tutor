@@ -123,6 +123,12 @@ def welcome():
     if profiles.parent_setup_required():
         return redirect(url_for("parent.setup"))
 
+    parent = profiles.get_parent_account(session.get(auth.PARENT_ACCOUNT_KEY))
+    if not auth.first_learner_capability_valid(parent):
+        auth.clear_first_learner_capability()
+        session["parent_next"] = request.full_path
+        return redirect(url_for("parent.login"))
+
     if request.method == "POST":
         name = (request.form.get("name") or "").strip()
         learner_login = request.form.get("learner_login")
@@ -165,10 +171,10 @@ def welcome():
                     learner_login=learner_login,
                     learner_pin=learner_pin,
                 )
-                parent = profiles.ensure_parent_account()
                 profiles.link_parent_child(parent.id, child.id)
                 auth.learner_login(child.learner_account)
                 db.session.commit()
+                auth.consume_first_learner_capability(parent)
             except ValueError as exc:
                 db.session.rollback()
                 flash(str(exc), "error")

@@ -36,6 +36,16 @@ def _secret_key() -> str:
     return key
 
 
+def _env_flag(name: str, default: bool = False) -> bool:
+    fallback = "1" if default else "0"
+    return os.environ.get(name, fallback).strip().lower() in {
+        "1",
+        "true",
+        "yes",
+        "on",
+    }
+
+
 class Config:
     SECRET_KEY = _secret_key()
 
@@ -66,9 +76,14 @@ class Config:
     # choose a PIN before the first learner is created.
     DEFAULT_PARENT_PIN = os.environ.get("DEFAULT_PARENT_PIN", "1234")
 
-    # Bootstrap token for first-run adult setup. Local installations store
-    # the plaintext token in this 0600 file; hosted deployments should set
-    # PARENT_BOOTSTRAP_TOKEN through a secret manager instead.
+    # Bootstrap token for first-run adult setup. Direct setup on the host's
+    # loopback address does not need one; LAN and hosted setup remain gated.
+    # Set PARENT_SETUP_REQUIRE_TOKEN=1 for any deployment that must always use
+    # an operator-provided token. PARENT_BOOTSTRAP_TOKEN also enables the gate.
+    PARENT_SETUP_REQUIRE_TOKEN = _env_flag(
+        "PARENT_SETUP_REQUIRE_TOKEN",
+        bool(os.environ.get("PARENT_BOOTSTRAP_TOKEN", "").strip()),
+    )
     BOOTSTRAP_TOKEN_FILE = Path(
         os.environ.get("BOOTSTRAP_TOKEN_FILE", str(INSTANCE_DIR / "bootstrap_token"))
     )

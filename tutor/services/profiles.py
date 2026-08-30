@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import ipaddress
 import os
 import re
 import secrets
 from datetime import datetime
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from flask import current_app
 from sqlalchemy import select, update
@@ -75,6 +77,49 @@ def validate_pin(value: str | None, *, required: bool = False, label: str = "lea
     if not pin.isdigit() or not 4 <= len(pin) <= 8:
         raise ValueError(f"The {label} PIN needs to be 4 to 8 digits.")
     return pin
+
+
+def _is_loopback_address(value: str | None) -> bool:
+    try:
+        return bool(value) and ipaddress.ip_address(str(value)).is_loopback
+    except ValueError:
+        return False
+
+
+def _is_local_setup_host(value: str | None) -> bool:
+    try:
+        hostname = urlsplit(f"//{value or ''}").hostname
+    except ValueError:
+        return False
+    if not hostname:
+        return False
+    hostname = hostname.rstrip(".").lower()
+    if hostname == "localhost":
+        return True
+    return _is_loopback_address(hostname)
+
+
+def parent_setup_token_required(
+    remote_addr: str | None,
+    host: str | None,
+) -> bool:
+    """Require a bootstrap token unless setup is a direct local request.
+
+    Forwarded headers are intentionally ignored. A reverse proxy must retain
+    the public Host value, and deployments can force the gate with the config
+    flag even when the origin itself receives loopback traffic.
+    """
+    if _configured_bootstrap_token() is not None:
+        return True
+    try:
+        forced = bool(current_app.config.get("PARENT_SETUP_REQUIRE_TOKEN", False))
+    except RuntimeError:
+        forced = bool(Config.PARENT_SETUP_REQUIRE_TOKEN)
+    if forced:
+        return True
+    return not (
+        _is_loopback_address(remote_addr) and _is_local_setup_host(host)
+    )
 
 
 MIN_BOOTSTRAP_TOKEN_LENGTH = 32
@@ -490,27 +535,34 @@ def parent_setup_required() -> bool:
     return not bool(account.setup_complete)
 
 
-def complete_parent_setup(token: str, pin: str) -> ParentAccount:
-    """Validate and atomically consume the canonical first-run token."""
+def complete_parent_setup(
+    token: str | None,
+    pin: str,
+    *,
+    require_token: bool = True,
+) -> ParentAccount:
+    """Complete first-run setup, optionally consuming the bootstrap token."""
     account = ensure_parent_account()
     if account.setup_complete or all_children():
         raise ValueError("Parent setup is no longer available.")
 
-    ensure_bootstrap_token(account)
     pin_value = validate_pin(pin, required=True, label="parent")
-    token_value = str(token or "").strip()
     token_hash = account.bootstrap_token_hash
-    if not token_hash or not check_password_hash(token_hash, token_value):
-        raise ValueError("The setup token or parent PIN was not valid.")
+    if require_token:
+        ensure_bootstrap_token(account)
+        token_hash = account.bootstrap_token_hash
+        token_value = str(token or "").strip()
+        if not token_hash or not check_password_hash(token_hash, token_value):
+            raise ValueError("The setup token or parent PIN was not valid.")
 
+    statement = update(ParentAccount).where(
+        ParentAccount.id == account.id,
+        ParentAccount.setup_complete.is_(False),
+    )
+    if require_token:
+        statement = statement.where(ParentAccount.bootstrap_token_hash == token_hash)
     result = db.session.execute(
-        update(ParentAccount)
-        .where(
-            ParentAccount.id == account.id,
-            ParentAccount.setup_complete.is_(False),
-            ParentAccount.bootstrap_token_hash == token_hash,
-        )
-        .values(
+        statement.values(
             pin_hash=generate_password_hash(pin_value),
             auth_version=ParentAccount.auth_version + 1,
             setup_complete=True,

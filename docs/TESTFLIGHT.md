@@ -7,6 +7,7 @@ The iOS target is a native SwiftUI shell around the existing responsive Flask le
 - [ ] Deploy the Flask app behind a production WSGI server and HTTPS reverse proxy.
 - [ ] Use a stable public hostname. TestFlight users and Apple reviewers cannot reach a developer Mac at `127.0.0.1` or a private home IP.
 - [ ] Set a strong, persistent `SECRET_KEY` in the deployment environment.
+- [ ] For an unconfigured remote deployment, set `PARENT_SETUP_REQUIRE_TOKEN=1` and provide `PARENT_BOOTSTRAP_TOKEN` through the deployment secret manager before exposing the setup route. Direct loopback setup is tokenless only for the initial local operator setup.
 - [ ] Set `SESSION_COOKIE_SECURE=1` in the deployment environment after HTTPS is working. Keep `SESSION_COOKIE_HTTPONLY=1` and SameSite protection enabled.
 - [ ] Use a production database and a tested backup/restore process before accepting family data. The default SQLite file is appropriate for one household, not a multi-family hosted service.
 - [ ] Confirm the deployment does not expose debug mode, the parent PIN default, database files, backups, or instance secrets.

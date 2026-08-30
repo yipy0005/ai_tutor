@@ -13,14 +13,31 @@
       </p>
     </div>
 
+    {% if token_required %}
+      <div class="p-field" role="note" style="margin-bottom:16px">
+        <div class="help">
+          This setup request is not a direct connection from the app computer, so an initial setup token is required.
+          Keep setup behind HTTPS and retrieve the token from the server operator or deployment secret manager.
+        </div>
+      </div>
+    {% else %}
+      <div class="p-field" role="status" style="margin-bottom:16px">
+        <div class="help">
+          You are connected directly from the app computer, so no setup token is needed. Remote and hosted setup remains token-protected.
+        </div>
+      </div>
+    {% endif %}
+
     <form method="post">
       <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
-      <div class="p-field">
-        <label for="bootstrap_token">Initial setup token</label>
-        <input class="p-pin" type="password" id="bootstrap_token" name="bootstrap_token"
-               autocomplete="off" required aria-describedby="bootstrap-token-help">
-        <div class="help" id="bootstrap-token-help">Run <code>pixi run bootstrap-token</code> on the server, or use the token supplied by your deployment secret manager.</div>
-      </div>
+      {% if token_required %}
+        <div class="p-field">
+          <label for="bootstrap_token">Initial setup token</label>
+          <input class="p-pin" type="password" id="bootstrap_token" name="bootstrap_token"
+                 autocomplete="off" required aria-describedby="bootstrap-token-help">
+          <div class="help" id="bootstrap-token-help">Run <code>pixi run bootstrap-token</code> on the server, or use the token supplied by your deployment secret manager.</div>
+        </div>
+      {% endif %}
       <div class="p-field">
         <label for="pin">Parent PIN (4 to 8 digits)</label>
         <input class="p-pin" type="password" id="pin" name="pin" inputmode="numeric"

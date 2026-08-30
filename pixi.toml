@@ -42,7 +42,7 @@ description = "Create the database then seed it. Run this first."
 depends-on = ["init-db", "seed"]
 
 [tasks.bootstrap-token]
-description = "Print or rotate the one-time token for initial parent setup."
+description = "Print or rotate the setup token for token-gated initial parent setup."
 cmd = "python -m scripts.bootstrap_token"
 
 [tasks.dev]
@@ -54,8 +54,8 @@ description = "Run the app for everyday family use (reachable on your home netwo
 cmd = "python -m scripts.serve"
 
 [tasks.cloudflare-origin]
-description = "Run the app on loopback for a Cloudflare Tunnel origin."
-cmd = "HOST=127.0.0.1 PORT=5001 SESSION_COOKIE_SECURE=1 python -m scripts.serve"
+description = "Run a loopback origin with mandatory token-gated parent setup for Cloudflare Tunnel."
+cmd = "HOST=127.0.0.1 PORT=5001 SESSION_COOKIE_SECURE=1 PARENT_SETUP_REQUIRE_TOKEN=1 python -m scripts.serve"
 
 [tasks.reset-db]
 description = "Delete the database and rebuild it from scratch. Destroys all progress."

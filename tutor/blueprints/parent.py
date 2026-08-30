@@ -128,6 +128,10 @@ def setup():
     if account.setup_complete:
         return redirect(url_for("kid.welcome"))
 
+    token_required = profiles.parent_setup_token_required(
+        request.remote_addr,
+        request.host,
+    )
     if request.method == "POST":
         token = (request.form.get("bootstrap_token") or "").strip()
         pin = (request.form.get("pin") or "").strip()
@@ -136,17 +140,26 @@ def setup():
             flash("The two parent PINs did not match.", "error")
         else:
             try:
-                profiles.complete_parent_setup(token, pin)
+                account = profiles.complete_parent_setup(
+                    token,
+                    pin,
+                    require_token=token_required,
+                )
                 db.session.commit()
             except ValueError as exc:
                 db.session.rollback()
                 flash(str(exc), "error")
             else:
                 profiles.remove_bootstrap_token_file()
+                auth.parent_login(account)
+                auth.grant_first_learner_capability(account)
                 flash("Parent access is ready. Now create the first learner.", "success")
                 return redirect(url_for("kid.welcome"))
 
-    return render_template("parent/setup.html")
+    return render_template(
+        "parent/setup.html",
+        token_required=token_required,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -169,8 +182,14 @@ def login():
         account = profiles.find_parent_account(login_name)
         if account is not None and account.setup_complete and account.check_pin(pin):
             auth.parent_login(account)
+            has_children = bool(profiles.all_children())
+            if not has_children:
+                auth.grant_first_learner_capability(account)
             target = session.pop("parent_next", None)
-            return redirect(target or url_for("parent.dashboard"))
+            return redirect(
+                target
+                or (url_for("kid.welcome") if not has_children else url_for("parent.dashboard"))
+            )
 
         fails = session.get("pin_fails", 0) + 1
         session["pin_fails"] = fails

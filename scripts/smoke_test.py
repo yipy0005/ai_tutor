@@ -31,8 +31,9 @@ def check(label: str, condition: bool, detail: str = "") -> None:
         FAILURES.append(f"{label} {detail}".strip())
 
 
-def get_csrf(client) -> str:
-    with client.session_transaction() as session:
+def get_csrf(client, base_url: str | None = None) -> str:
+    session_args = {"base_url": base_url} if base_url else {}
+    with client.session_transaction(**session_args) as session:
         return session.get("_csrf", "")
 
 
@@ -163,6 +164,218 @@ def legacy_schema_check() -> None:
         )
 
 
+def local_first_run_check(create_app, db, config_class) -> None:
+    """Exercise tokenless loopback setup and the first-learner capability."""
+    from tutor.models import Child
+    from tutor.services import auth
+
+    root = Path(tempfile.mkdtemp(prefix="tutor-local-setup-"))
+    database = root / "local.sqlite3"
+    token_file = root / "bootstrap_token"
+    previous_token = os.environ.pop("PARENT_BOOTSTRAP_TOKEN", None)
+    try:
+        local_config = type(
+            "LocalSetupConfig",
+            (config_class,),
+            {
+                "SQLALCHEMY_DATABASE_URI": f"sqlite:///{database}",
+                "INSTANCE_DIR": root,
+                "DB_PATH": database,
+                "BOOTSTRAP_TOKEN_FILE": token_file,
+                "SECRET_KEY": "local-setup-smoke-secret",
+                "PARENT_SETUP_REQUIRE_TOKEN": False,
+            },
+        )
+        local_app = create_app(local_config)
+        local_app.config.update(TESTING=True)
+
+        def open_request(
+            client,
+            path: str,
+            method: str = "GET",
+            *,
+            remote_addr: str,
+            base_url: str,
+            **kwargs,
+        ):
+            environ_overrides = {"REMOTE_ADDR": remote_addr}
+            environ_overrides.update(kwargs.pop("environ_overrides", {}))
+            return client.open(
+                path,
+                method=method,
+                base_url=base_url,
+                environ_overrides=environ_overrides,
+                **kwargs,
+            )
+
+        remote = local_app.test_client()
+        response = open_request(
+            remote,
+            "/parent/setup",
+            remote_addr="192.168.1.44",
+            base_url="http://192.168.1.44:5001",
+        )
+        check(
+            "LAN setup still requires a bootstrap token",
+            response.status_code == 200 and b'name="bootstrap_token"' in response.data,
+            response.status_code,
+        )
+        response = open_request(
+            remote,
+            "/parent/setup",
+            "POST",
+            remote_addr="192.168.1.44",
+            base_url="http://192.168.1.44:5001",
+            data={
+                "_csrf": get_csrf(remote, "http://192.168.1.44:5001"),
+                "pin": "4321",
+                "confirm_pin": "4321",
+            },
+            follow_redirects=False,
+        )
+        check(
+            "LAN setup without a token is refused",
+            response.status_code == 200 and b"setup token" in response.data.lower(),
+            response.status_code,
+        )
+
+        spoof = local_app.test_client()
+        response = open_request(
+            spoof,
+            "/parent/setup",
+            remote_addr="192.168.1.45",
+            base_url="http://127.0.0.1:5001",
+            environ_overrides={"HTTP_X_FORWARDED_FOR": "127.0.0.1"},
+        )
+        check(
+            "forwarded loopback spoof does not unlock setup",
+            response.status_code == 200 and b'name="bootstrap_token"' in response.data,
+            response.status_code,
+        )
+
+        local = local_app.test_client()
+        response = open_request(
+            local,
+            "/parent/setup",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+        )
+        check(
+            "direct loopback setup does not ask for a token",
+            response.status_code == 200
+            and b'name="bootstrap_token"' not in response.data
+            and b"no setup token is needed" in response.data.lower(),
+            response.status_code,
+        )
+        response = open_request(
+            local,
+            "/parent/setup",
+            "POST",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+            data={
+                "_csrf": get_csrf(local, "http://127.0.0.1:5001"),
+                "pin": "4321",
+                "confirm_pin": "4321",
+            },
+            follow_redirects=False,
+        )
+        check(
+            "direct loopback setup accepts no token",
+            response.status_code == 302
+            and response.headers.get("Location", "").endswith("/welcome"),
+            response.status_code,
+        )
+        with local.session_transaction(base_url="http://127.0.0.1:5001") as browser_session:
+            capability = browser_session.get(auth.FIRST_LEARNER_CAPABILITY_KEY)
+            check(
+                "setup grants a scoped first-learner capability",
+                capability is not None
+                and capability.get("parent_id") == 1
+                and capability.get("auth_version") == browser_session.get(auth.PARENT_AUTH_VERSION_KEY),
+            )
+
+        anonymous = local_app.test_client()
+        anonymous.get("/parent/login", base_url="http://127.0.0.1:5001")
+        response = open_request(
+            anonymous,
+            "/welcome",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+            follow_redirects=False,
+        )
+        check(
+            "anonymous first-learner claim is rejected",
+            response.status_code == 302
+            and "/parent/login" in response.headers.get("Location", ""),
+            response.status_code,
+        )
+
+        response = open_request(
+            local,
+            "/welcome",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+        )
+        check("authorized first-learner form renders", response.status_code == 200)
+        first_learner_data = {
+            "_csrf": get_csrf(local, "http://127.0.0.1:5001"),
+            "name": "Local Smoke",
+            "year_group": "2",
+            "avatar_character": "fox",
+            "avatar_colour": "sunshine",
+            "learner_login": "local-smoke",
+            "learner_pin": "2468",
+        }
+        response = open_request(
+            local,
+            "/welcome",
+            "POST",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+            data=first_learner_data,
+            follow_redirects=False,
+        )
+        check(
+            "authorized first learner is created",
+            response.status_code == 302
+            and response.headers.get("Location", "").endswith("/home"),
+            response.status_code,
+        )
+        with local.session_transaction(base_url="http://127.0.0.1:5001") as browser_session:
+            check(
+                "first-learner capability is consumed",
+                auth.FIRST_LEARNER_CAPABILITY_KEY not in browser_session,
+            )
+        with local_app.app_context():
+            child_count = db.session.query(Child).count()
+        replay = open_request(
+            local,
+            "/welcome",
+            "POST",
+            remote_addr="127.0.0.1",
+            base_url="http://127.0.0.1:5001",
+            data=first_learner_data,
+            follow_redirects=False,
+        )
+        with local_app.app_context():
+            replay_count = db.session.query(Child).count()
+        check(
+            "first-learner form cannot be replayed",
+            replay.status_code == 302
+            and replay.headers.get("Location", "").endswith("/")
+            and replay_count == child_count == 1,
+            replay.status_code,
+        )
+        with local_app.app_context():
+            db.session.remove()
+    finally:
+        if previous_token is None:
+            os.environ.pop("PARENT_BOOTSTRAP_TOKEN", None)
+        else:
+            os.environ["PARENT_BOOTSTRAP_TOKEN"] = previous_token
+
+
 def main() -> int:
     tmp = Path(tempfile.mkdtemp(prefix="tutor-smoke-"))
     bootstrap_token = "smoke-bootstrap-token-0123456789abcdef0123456789abcdef"
@@ -176,12 +389,15 @@ def main() -> int:
     from werkzeug.security import check_password_hash
 
     from tutor import create_app, db
+    from tutor.config import Config
     from tutor.content import SKILLS_BY_ID
     from tutor.models import Child, Quest, QuestQuestion, SkillProgress
     from tutor.services import profiles
 
     print("\nLegacy schema compatibility")
     legacy_schema_check()
+    print("\nLocal setup gate and first learner authorization")
+    local_first_run_check(create_app, db, Config)
 
     app = create_app()
     app.config.update(TESTING=True)
@@ -790,7 +1006,11 @@ def main() -> int:
     print("\nParent area")
     # ------------------------------------------------------------------
     response = client.get("/parent/", follow_redirects=True)
-    check("parent area asks for a PIN", b"PIN" in response.data, response.status_code)
+    check(
+        "parent area is unlocked after setup",
+        response.status_code == 200 and b"Overview" in response.data,
+        response.status_code,
+    )
 
     response = client.post(
         "/parent/login", data={"_csrf": get_csrf(client), "login_name": "parent", "pin": "0000"}, follow_redirects=True
