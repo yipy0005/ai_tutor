@@ -1,8 +1,8 @@
-"""Board-style metadata for GCSE Maths practice.
+"""Board-style metadata for board-neutral GCSE practice.
 
-The curriculum and skill ids stay board-neutral.  A selected board profile only
+The curriculum and skill ids stay board-neutral. A selected board profile only
 changes the exam-facing snapshot attached to a question: paper, calculator
-status, command wording and response format.  It never changes tier
+status, command wording and response format. It never changes tier
 eligibility or the underlying skill identity.
 """
 
@@ -75,11 +75,21 @@ def apply_exam_style(
     topic: str,
     rng: random.Random,
     level: int = 1,
+    subject: str = "gcse_maths",
 ) -> dict:
     """Attach a safe exam snapshot and adapt board-style response format."""
     board = normalise_board(board)
     profile = GCSE_BOARD_PROFILES[board]
-    paper, paper_label, calculator = rng.choice(profile["papers"])
+    if subject == "gcse_physics" and board != "generic":
+        # Physics exam papers permit calculators; the board profiles remain
+        # presentation styles rather than separate Physics syllabuses.
+        papers = (
+            ("1", "Paper 1 · calculator", True),
+            ("2", "Paper 2 · calculator", True),
+        )
+    else:
+        papers = profile["papers"]
+    paper, paper_label, calculator = rng.choice(papers)
     command = rng.choice(profile["commands"])
     marks = max(1, min(4, 1 + int(level or 0)))
     objective = "AO1" if level <= 1 else "AO2"

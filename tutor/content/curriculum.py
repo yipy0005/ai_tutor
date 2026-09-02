@@ -1,8 +1,9 @@
-"""Curriculum map for England Primary Years 1–6 and board-neutral GCSE Maths.
+"""Curriculum map for England Primary Years 1–6 and board-neutral GCSE.
 
 The app keeps Primary skills (Maths, English and Science) separate from the
-exclusive GCSE Maths pathway. Skill ids are stable strings; progress in the
-database is keyed on them, so renaming an id resets that skill's history.
+exclusive GCSE Maths and GCSE Physics pathways. Skill ids are stable strings;
+progress in the database is keyed on them, so renaming an id resets that
+skill's history.
 
 Maths and the declarative expansion skills are generated procedurally, while
 English and Science starter skills remain backed by curated JSON banks. The
@@ -42,11 +43,14 @@ SUBJECTS: dict[str, Subject] = {
     "gcse_maths": Subject(
         "gcse_maths", "GCSE Maths", "📐", "grape", "Foundation or Higher UK GCSE practice"
     ),
+    "gcse_physics": Subject(
+        "gcse_physics", "GCSE Physics", "⚛️", "ocean", "Foundation or Higher UK GCSE practice"
+    ),
 }
 
 # Keep this list primary-only: years, mixes, and existing reports depend on it.
 SUBJECT_ORDER = ["maths", "english", "science"]
-PATHWAY_SUBJECT_ORDER = ["gcse_maths"]
+PATHWAY_SUBJECT_ORDER = ["gcse_maths", "gcse_physics"]
 GCSE_TIERS = ("foundation", "higher")
 GCSE_TIER_LABELS = {"foundation": "Foundation", "higher": "Higher"}
 
@@ -60,9 +64,13 @@ YEAR_BLURBS = {
     5: "Building confidence with Year 5 work",
     6: "Getting ready for secondary school",
 }
-PATHWAY_LABELS = {"gcse_maths": "GCSE Maths"}
+PATHWAY_LABELS = {
+    "gcse_maths": "GCSE Maths",
+    "gcse_physics": "GCSE Physics",
+}
 PATHWAY_BLURBS = {
     "gcse_maths": "Board-neutral UK GCSE Maths practice",
+    "gcse_physics": "Board-neutral UK GCSE Physics practice",
 }
 
 
@@ -91,7 +99,12 @@ class Skill:
 
     @property
     def is_gcse(self) -> bool:
-        return self.pathway == "gcse_maths"
+        return self.pathway in PATHWAY_SUBJECT_ORDER
+
+    @property
+    def is_phonics(self) -> bool:
+        """Whether this Primary English skill belongs to Phonics Coach."""
+        return "phonics" in self.tags
 
     @property
     def year_label(self) -> str:
@@ -529,18 +542,19 @@ def _gcse(
     topic: str,
     tiers: tuple[str, ...],
     nc: str,
+    subject: str = "gcse_maths",
 ) -> Skill:
     return Skill(
         sid,
         name,
-        "gcse_maths",
+        subject,
         topic,
         0,
         "bank",
         None,
         nc,
         tiers,
-        "gcse_maths",
+        subject,
         tiers,
     )
 
@@ -640,7 +654,10 @@ GCSE_MATHS_SKILLS: list[Skill] = [
 ]
 
 
-# Full England coverage is kept in a separate declarative module so the
+GCSE_PHYSICS_SKILLS: list[Skill] = []
+
+
+# Full England coverage is kept in separate declarative modules so the
 # original starter catalogue remains readable and existing IDs remain stable.
 from .full_coverage import (  # noqa: E402
     GCSE_MATHS_EXTRA,
@@ -648,10 +665,13 @@ from .full_coverage import (  # noqa: E402
     PRIMARY_MATHS_EXTRA,
     PRIMARY_SCIENCE_EXTRA,
 )
+from .phonics_coverage import PRIMARY_PHONICS_EXTRA  # noqa: E402
+from .physics_coverage import GCSE_PHYSICS_EXTRA  # noqa: E402
 from .rich_assessments import PRIMARY_ASSESSMENT_EXTRA  # noqa: E402
 
 MATHS_SKILLS.extend(PRIMARY_MATHS_EXTRA)
 ENGLISH_SKILLS.extend(PRIMARY_ENGLISH_EXTRA)
+ENGLISH_SKILLS.extend(PRIMARY_PHONICS_EXTRA)
 SCIENCE_SKILLS.extend(PRIMARY_SCIENCE_EXTRA)
 ENGLISH_SKILLS.extend(
     skill for skill in PRIMARY_ASSESSMENT_EXTRA if skill.subject == "english"
@@ -660,10 +680,17 @@ SCIENCE_SKILLS.extend(
     skill for skill in PRIMARY_ASSESSMENT_EXTRA if skill.subject == "science"
 )
 GCSE_MATHS_SKILLS.extend(GCSE_MATHS_EXTRA)
+GCSE_PHYSICS_SKILLS.extend(GCSE_PHYSICS_EXTRA)
 
 PRIMARY_SKILLS: list[Skill] = MATHS_SKILLS + ENGLISH_SKILLS + SCIENCE_SKILLS
 ALL_SKILLS: list[Skill] = PRIMARY_SKILLS
-ALL_CONTENT_SKILLS: list[Skill] = PRIMARY_SKILLS + GCSE_MATHS_SKILLS
+ALL_CONTENT_SKILLS: list[Skill] = (
+    PRIMARY_SKILLS + GCSE_MATHS_SKILLS + GCSE_PHYSICS_SKILLS
+)
+GCSE_SKILLS_BY_SUBJECT: dict[str, list[Skill]] = {
+    "gcse_maths": GCSE_MATHS_SKILLS,
+    "gcse_physics": GCSE_PHYSICS_SKILLS,
+}
 SKILLS_BY_ID: dict[str, Skill] = {s.id: s for s in ALL_CONTENT_SKILLS}
 
 
@@ -692,8 +719,8 @@ def skills_for(
     The default registry remains primary-only so existing year-based callers and
     denominators cannot accidentally absorb GCSE content.
     """
-    if subject == "gcse_maths":
-        out = gcse_skills_for(tier)
+    if subject in PATHWAY_SUBJECT_ORDER:
+        out = gcse_skills_for(subject, tier)
     else:
         out = ALL_SKILLS
         if subject:
@@ -706,16 +733,30 @@ def skills_for(
     return list(out)
 
 
-def gcse_skills_for(tier: str | None = None) -> list[Skill]:
-    if tier not in GCSE_TIERS:
+def gcse_skills_for(
+    subject: str = "gcse_maths", tier: str | None = None
+) -> list[Skill]:
+    """Return tier-eligible skills for one GCSE subject.
+
+    ``gcse_skills_for("foundation")`` remains a supported Maths shorthand for
+    callers written before GCSE Physics was added.
+    """
+    if subject in GCSE_TIERS and tier is None:
+        tier = subject
+        subject = "gcse_maths"
+    if subject not in PATHWAY_SUBJECT_ORDER or tier not in GCSE_TIERS:
         return []
-    return [skill for skill in GCSE_MATHS_SKILLS if skill.eligible_for_tier(tier)]
+    return [
+        skill
+        for skill in GCSE_SKILLS_BY_SUBJECT[subject]
+        if skill.eligible_for_tier(tier)
+    ]
 
 
 @cache
 def topics_for(subject: str, year: int) -> list[str]:
     seen: list[str] = []
-    source = GCSE_MATHS_SKILLS if subject == "gcse_maths" else ALL_SKILLS
+    source = GCSE_SKILLS_BY_SUBJECT.get(subject, ALL_SKILLS)
     for skill in source:
         if skill.subject == subject and skill.year == year and skill.topic not in seen:
             seen.append(skill.topic)
@@ -723,11 +764,17 @@ def topics_for(subject: str, year: int) -> list[str]:
 
 
 @cache
-def gcse_topic_tree(tier: str) -> tuple[tuple[int, str, tuple[Skill, ...]], ...]:
-    """[(0, topic, skills)] for a selected GCSE tier."""
+def gcse_topic_tree(
+    subject: str = "gcse_maths", tier: str | None = None
+) -> tuple[tuple[int, str, tuple[Skill, ...]], ...]:
+    """Return ``(0, topic, skills)`` groups for one GCSE tier."""
+    if subject in GCSE_TIERS and tier is None:
+        tier = subject
+        subject = "gcse_maths"
+    selected = gcse_skills_for(subject, tier)
     groups: list[tuple[int, str, tuple[Skill, ...]]] = []
     seen: list[str] = []
-    for skill in gcse_skills_for(tier):
+    for skill in selected:
         if skill.topic in seen:
             continue
         seen.append(skill.topic)
@@ -735,7 +782,7 @@ def gcse_topic_tree(tier: str) -> tuple[tuple[int, str, tuple[Skill, ...]], ...]
             (
                 0,
                 skill.topic,
-                tuple(s for s in gcse_skills_for(tier) if s.topic == skill.topic),
+                tuple(s for s in selected if s.topic == skill.topic),
             )
         )
     return tuple(groups)
@@ -745,13 +792,13 @@ def gcse_topic_tree(tier: str) -> tuple[tuple[int, str, tuple[Skill, ...]], ...]
 def topic_tree(
     subject: str, tier: str | None = None
 ) -> list[tuple[int, str, tuple[Skill, ...]]]:
-    """[(year, topic, skills)] ordered by curriculum order.
+    """Return topic groups ordered by curriculum order.
 
     Primary callers retain the original Years 1–3 contract. GCSE uses year 0
     internally and should display ``skill.year_label`` (GCSE), never ``Year 0``.
     """
-    if subject == "gcse_maths":
-        return list(gcse_topic_tree(tier or ""))
+    if subject in PATHWAY_SUBJECT_ORDER:
+        return list(gcse_topic_tree(subject, tier))
     out: list[tuple[int, str, tuple[Skill, ...]]] = []
     for year in PRIMARY_YEARS:
         for topic in topics_for(subject, year):

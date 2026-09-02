@@ -1,28 +1,38 @@
 {% extends "parent/_base.html" %}
-{% block title %}{{ subject.name }} progress{% endblock %}
+{% block title %}{{ 'Phonics Coach progress' if phonics_mode else subject.name ~ ' progress' }}{% endblock %}
 
 {% block content %}
 <div class="p-stack">
 
   <div>
-    <h1 style="margin-bottom:2px">{{ subject.emoji }} {{ subject.name }}</h1>
+    <h1 style="margin-bottom:2px">{{ '🔤 Phonics Coach' if phonics_mode else (subject.emoji ~ ' ' ~ subject.name) }}</h1>
     <p class="p-muted p-tiny" style="margin:0">
-      Skill-by-skill mastery for {{ view_child.name }}, grouped the way the National
-      Curriculum groups it.
+      {% if phonics_mode %}
+        Grapheme-by-grapheme progress for {{ view_child.name }} across the cumulative Phonics Coach stages.
+      {% else %}
+        Skill-by-skill mastery for {{ view_child.name }}, grouped the way the National
+        Curriculum groups it.
+      {% endif %}
     </p>
   </div>
 
   <div class="p-nav" style="background:var(--p-card);padding:6px;border-radius:11px;border:1px solid var(--p-line)">
     {% if view_child.settings.gcse_tier not in ['foundation', 'higher'] %}
     {% for key in SUBJECT_ORDER %}
-      <a href="{{ url_for('parent.progress', subject=key) }}" class="{{ 'on' if key == subject_id }}">
+      <a href="{{ url_for('parent.progress', subject=key) }}" class="{{ 'on' if key == subject_id and not phonics_mode }}">
         {{ SUBJECTS[key].emoji }} {{ SUBJECTS[key].name }}
       </a>
     {% endfor %}
+    {% if 'english' in (view_child.settings.subjects_enabled or []) %}
+      <a href="{{ url_for('parent.progress', subject='english', mode='phonics') }}" class="{{ 'on' if phonics_mode }}">
+        🔤 Phonics
+      </a>
+    {% endif %}
     {% endif %}
     {% if view_child.settings.gcse_tier in ['foundation', 'higher'] %}
-      <a href="{{ url_for('parent.progress', subject='gcse_maths') }}" class="{{ 'on' if subject_id == 'gcse_maths' }}">
-        {{ SUBJECTS['gcse_maths'].emoji }} GCSE Maths
+      {% set gcse_subject = SUBJECTS.get(view_child.settings.gcse_subject, SUBJECTS['gcse_maths']) %}
+      <a href="{{ url_for('parent.progress', subject=gcse_subject.id) }}" class="{{ 'on' if subject_id == gcse_subject.id }}">
+        {{ gcse_subject.emoji }} {{ gcse_subject.name }}
       </a>
     {% endif %}
   </div>
@@ -41,8 +51,11 @@
     {% if group.year != ns.year %}
       {% set ns.year = group.year %}
       <h2 style="margin-top:14px">
-        {% if subject_id == 'gcse_maths' %}
-          <span class="p-tag gcse">GCSE Maths</span>
+        {% if phonics_mode %}
+          <span class="p-tag y1">{{ group.topic }}</span>
+          <span class="p-faint p-tiny" style="font-weight:500">Cumulative phonics stage</span>
+        {% elif subject_id in PATHWAY_SUBJECT_ORDER %}
+          <span class="p-tag gcse">{{ subject.name }}</span>
           <span class="p-faint p-tiny" style="font-weight:500">{{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier · board-neutral starter content</span>
         {% else %}
           <span class="p-tag y{{ group.year }}">{{ group.year_label }}</span>

@@ -139,6 +139,27 @@
     </div>
   </section>
 
+  {% if phonics_card %}
+  <!-- ============ Phonics Coach ============ -->
+  <section class="card phonics-coach" aria-labelledby="phonics-heading">
+    <div class="card-head">
+      <div class="art-holder" style="width:48px;height:48px">{{ icon('icon-english') }}</div>
+      <div class="grow">
+        <h3 id="phonics-heading" style="margin-bottom:2px">Phonics Coach</h3>
+        <p class="muted tiny" style="margin:0">Listen, blend, segment and read words that match your stage.</p>
+      </div>
+      <span class="pill y1">{{ phonics_card.stage }}</span>
+    </div>
+    <div class="meter english" aria-hidden="true">
+      <span style="width: {{ phonics_card.pct }}%"></span>
+    </div>
+    <div class="card-head" style="margin-top:8px">
+      <span class="muted tiny nums">{{ phonics_card.mastered }} of {{ phonics_card.skills }} targets secure</span>
+      <a class="btn small leaf" href="{{ url_for('kid.learn', subject='english', mode='phonics') }}">Open Coach</a>
+    </div>
+  </section>
+  {% endif %}
+
   <!-- ============ Tricky bits ============ -->
   {% if weak and not blocked %}
   <section class="card" aria-labelledby="weak-heading">

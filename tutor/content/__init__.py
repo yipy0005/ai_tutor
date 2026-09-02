@@ -2,12 +2,14 @@
 
 Two kinds of skill:
 
-* ``generated`` maths skills call a function in :mod:`generators`, so a child
-  never runs out of practice.
+* ``generated`` skills call a function in :mod:`generators`, so a child never
+  runs out of practice.
 * ``bank`` English and Science skills draw from the hand-written JSON files in
   ``content/banks``.
 
-Marking lives here too, so the browser is never trusted with an answer.
+GCSE Maths and GCSE Physics use generated or bank-backed skills, with their
+Foundation/Higher authorization enforced here too. Marking lives here, so the
+browser is never trusted with an answer.
 """
 
 from __future__ import annotations
@@ -24,6 +26,7 @@ from .curriculum import (
     ALL_CONTENT_SKILLS,
     ALL_SKILLS,
     GCSE_MATHS_SKILLS,
+    GCSE_PHYSICS_SKILLS,
     GCSE_TIER_LABELS,
     GCSE_TIERS,
     PATHWAY_BLURBS,
@@ -46,11 +49,13 @@ from .curriculum import (
     topics_for,
 )
 from .exam import GCSE_BOARD_OPTIONS, GCSE_BOARD_PROFILES, apply_exam_style
+from .phonics_coverage import PHONICS_META, phonics_candidates, phonics_stage_summary
 
 __all__ = [
     "ALL_CONTENT_SKILLS",
     "ALL_SKILLS",
     "GCSE_MATHS_SKILLS",
+    "GCSE_PHYSICS_SKILLS",
     "GCSE_BOARD_OPTIONS",
     "GCSE_BOARD_PROFILES",
     "GCSE_TIER_LABELS",
@@ -58,6 +63,7 @@ __all__ = [
     "PATHWAY_BLURBS",
     "PATHWAY_LABELS",
     "PATHWAY_SUBJECT_ORDER",
+    "PHONICS_META",
     "PRIMARY_YEARS",
     "SKILLS_BY_ID",
     "SUBJECTS",
@@ -78,6 +84,8 @@ __all__ = [
     "topic_tree",
     "topics_for",
     "validate_content",
+    "phonics_candidates",
+    "phonics_stage_summary",
 ]
 
 BANKS_DIR = Path(__file__).parent / "banks"
@@ -296,6 +304,7 @@ def draw_question(
             topic=skill.topic,
             rng=rng,
             level=level,
+            subject=skill.subject,
         )
     _apply_great_variant(question, level)
     return question
@@ -923,7 +932,10 @@ def validate_content(samples: int = 40) -> list[str]:
             continue
 
         if skill.is_gcse:
-            if skill.subject != "gcse_maths" or skill.pathway != "gcse_maths":
+            if (
+                skill.subject not in PATHWAY_SUBJECT_ORDER
+                or skill.pathway != skill.subject
+            ):
                 problems.append(f"{skill.id}: invalid GCSE subject/pathway")
             if skill.year != 0:
                 problems.append(f"{skill.id}: GCSE skill must use internal year 0")
@@ -1041,9 +1053,10 @@ def validate_content(samples: int = 40) -> list[str]:
             if not group:
                 problems.append(f"no Primary skills for {subject} Year {year}")
 
-    for tier in GCSE_TIERS:
-        if not gcse_skills_for(tier):
-            problems.append(f"no GCSE skills for {tier} tier")
+    for subject in PATHWAY_SUBJECT_ORDER:
+        for tier in GCSE_TIERS:
+            if not gcse_skills_for(subject, tier):
+                problems.append(f"no GCSE skills for {subject} {tier} tier")
 
     return problems
 
@@ -1071,6 +1084,14 @@ def content_summary() -> dict:
         "gcse_bank_skills": len(gcse_banked),
         "gcse_foundation_skills": len(gcse_skills_for("foundation")),
         "gcse_higher_skills": len(gcse_skills_for("higher")),
+        "gcse_maths_skills": len(gcse_skills_for("gcse_maths", "higher")),
+        "gcse_physics_skills": len(gcse_skills_for("gcse_physics", "higher")),
+        "gcse_physics_foundation_skills": len(
+            gcse_skills_for("gcse_physics", "foundation")
+        ),
+        "gcse_physics_higher_skills": len(
+            gcse_skills_for("gcse_physics", "higher")
+        ),
         "generators": len(generators.GENERATORS),
         "bank_questions": sum(len(v) for v in banks.values()),
         "gcse_bank_questions": sum(

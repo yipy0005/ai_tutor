@@ -276,6 +276,9 @@ class Settings(db.Model):
     focus_skills: Mapped[list] = mapped_column(JSON, default=list)
     # Explicit pathway selector. "off" keeps existing primary-only behaviour;
     # Foundation and Higher are independent of adaptive/gentle/challenge difficulty.
+    gcse_subject: Mapped[str] = mapped_column(
+        String(30), default="gcse_maths", nullable=False
+    )
     gcse_tier: Mapped[str] = mapped_column(String(20), default="off", nullable=False)
     # Exam-board presentation only. Skill ids and tier authorization remain
     # board-neutral so changing this never duplicates or widens mastery.

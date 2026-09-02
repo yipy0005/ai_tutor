@@ -1,9 +1,10 @@
 # Learning Quest
 
 A small Flask web app for a child in the English school system from Year 1 to
-Year 6, or taking board-neutral GCSE Maths at Foundation or Higher tier. It
-keeps practice inside the learner's active pathway: Primary learners see
-Maths, English and Science; GCSE learners see GCSE Maths only.
+Year 6, or taking board-neutral GCSE Maths or GCSE Physics at Foundation or
+Higher tier. It keeps practice inside the learner's active pathway: Primary
+learners see Maths, English and Science, with a cumulative Phonics Coach inside
+English; GCSE learners see their selected GCSE subject only.
 
 The app runs on one computer in your house. Learners and parents have local
 accounts, with no cloud, tracking or network access — progress lives in a
@@ -163,8 +164,8 @@ only lists learners linked to it.
 
 **Clear data** — see below.
 
-**Curriculum** — the full map of the app's 391 Primary skills and 82 GCSE
-Maths skills, with the question source for each objective.
+**Curriculum** — the full map of the supported Primary skills and the active
+GCSE Maths or GCSE Physics skills, with the question source for each objective.
 
 ### Settings a parent controls
 
@@ -178,7 +179,7 @@ Suggested defaults are in brackets.
 | Daily and weekly quest goals | *(3 per day, 18 per week)* |
 | Hours the app is available | *(off — any time)* |
 | Subjects | Maths, English, Science *(all on)* |
-| Year groups | Primary Years 1–6 *(all on)*; GCSE uses Foundation/Higher instead |
+| Year groups | Primary Years 1–6 *(all on)*; GCSE uses the selected subject and Foundation/Higher tier instead |
 | Revision vs getting ahead | Weights per enabled Primary year |
 | Difficulty | Gentle · Adaptive · Challenge *(Adaptive)* |
 | Focus skills | Reserved a slot in every quest |
@@ -281,30 +282,38 @@ hard produces easier numbers than one they have nailed.
 
 ## What it covers
 
-The app's supported Primary curriculum covers 391 objective-level skills across
-Maths, English and Science in Years 1–6. GCSE Maths adds 82 board-neutral
-objective-level skills: 57 Foundation-eligible and 82 Higher-eligible, with
-Higher including 25 extension skills. Every declared skill has a playable,
-validated question source.
+The app's supported Primary curriculum covers 467 objective-level skills across
+Maths, English and Science in Years 1–6. Primary English includes a 52-skill,
+cumulative Phonics Coach covering oral blending and segmenting, grapheme–phoneme
+correspondences, digraphs, decodable sentences, pseudo-words, and alternative
+spellings. GCSE Maths adds 82 board-neutral objective-level skills; GCSE Physics
+adds 97 board-neutral objective-level skills across Foundation and Higher, with
+88 Foundation-eligible and 97 Higher-eligible skills. Every declared skill has a
+playable, validated question source.
 
 | Subject | Year 1 | Year 2 | Year 3 | Year 4 | Year 5 | Year 6 | Total |
 |---|---:|---:|---:|---:|---:|---:|---:|
 | **Maths** | 24 | 32 | 41 | 25 | 27 | 30 | 179 |
-| **English** | 19 | 26 | 27 | 17 | 16 | 17 | 122 |
-| **Science** | 12 | 13 | 22 | 14 | 16 | 13 | 90 |
+| **English** | 57 | 46 | 30 | 20 | 19 | 20 | 192 |
+| **Science** | 13 | 14 | 23 | 15 | 17 | 14 | 96 |
 
-| GCSE pathway | Skills | Question source |
-|---|---:|---|
-| **Foundation** | 57 | Generated and curated questions |
-| **Higher** | 82 | Foundation content plus Higher extensions |
+| GCSE pathway | Skills | Foundation | Higher | Question source |
+|---|---:|---:|---:|---|
+| **GCSE Maths** | 82 | 57 | 82 | Generated and curated questions |
+| **GCSE Physics** | 97 | 88 | 97 | Generated questions |
 
 Maths skills are procedural or declarative generated questions, so practice
 continues beyond a fixed worksheet. English and Science include grammar,
 spelling, reading, writing knowledge, scientific concepts and working
-scientifically. GCSE Maths covers the common DfE domains—Number, Algebra,
-Ratio and proportion, Geometry and measures, Probability and Statistics—with
-Higher extensions such as surds, quadratic methods, circle theorems, vectors,
-histograms and cumulative frequency.
+scientifically. English also includes the cumulative Phonics Coach, whose
+lowest unfinished stage controls dedicated phonics quests while ordinary
+English practice remains available. GCSE Maths covers the common DfE
+domains—Number, Algebra, Ratio and proportion, Geometry and measures,
+Probability and Statistics—with Higher extensions such as surds, quadratic
+methods, circle theorems, vectors, histograms and cumulative frequency. GCSE
+Physics covers Energy, Electricity, the Particle model of matter, Atomic
+structure, Forces, Waves, Magnetism and electromagnetism, and Space physics,
+with explicit Foundation/Higher eligibility for each objective.
 
 This is the complete objective map currently implemented for the app's supported
 subjects. The wider England Primary National Curriculum also includes subjects
@@ -354,7 +363,7 @@ and each question's own answer passing the marker.
 | `pixi run serve` | Start the app for everyday use. |
 | `pixi run dev` | Development server with auto-reload. |
 | `pixi run seed -- --demo` | Add a Demo profile with six weeks of history. |
-| `pixi run add-child --name Emma --year 2 --learner-login emma --learner-pin 2468` | Add a learner with sign-in credentials from the terminal. |
+| `pixi run add-child --name Emma --year 2 --learner-login emma --learner-pin 2468` | Add a learner with sign-in credentials from the terminal. Add `--gcse-tier higher --gcse-subject gcse_physics` for GCSE Physics. |
 | `pixi run content-check` | Validate every question. |
 | `pixi run smoke` | End-to-end check of every page and the quest flow. |
 | `pixi run backups` | List the database backups. |
@@ -370,8 +379,10 @@ and each question's own answer passing the marker.
 ```
 tutor/
   content/          the curriculum: what to teach and how to ask it
-    curriculum.py     391 Primary + 82 GCSE skills and topic trees
+    curriculum.py     467 Primary + GCSE Maths/Physics skills and topic trees
     full_coverage.py   declarative England objective map and question factories
+    phonics_coverage.py cumulative Primary Phonics Coach stages and generators
+    physics_coverage.py GCSE Physics objective map and question factories
     generators.py      generated question helpers and registry
     banks/*.json      English and Science questions, and reading passages
     __init__.py       drawing questions, and marking answers

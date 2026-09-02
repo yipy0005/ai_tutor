@@ -8,7 +8,7 @@
     <h1 style="margin-bottom:2px">What the app covers</h1>
     <p class="p-muted p-tiny" style="margin:0">
       {% if pathway_is_gcse %}
-        {{ total_skills }} board-neutral GCSE Maths skills for the {{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier.
+        {{ total_skills }} board-neutral {{ SUBJECTS.get(view_child.settings.gcse_subject, SUBJECTS['gcse_maths']).name }} skills for the {{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier.
       {% else %}
         {{ total_skills }} Primary skills mapped across Years 1–6.
       {% endif %}
@@ -19,12 +19,16 @@
     <span class="em">📘</span>
     <div>
       {% if pathway_is_gcse %}
-        GCSE Maths skills are board-neutral starter content, split by the selected
+        {{ SUBJECTS.get(view_child.settings.gcse_subject, SUBJECTS['gcse_maths']).name }} skills are board-neutral starter content, split by the selected
         <b>{{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }}</b> tier.
       {% else %}
         Maths skills are marked <b>generated</b>, which means a fresh question is invented every
-        time — practice never repeats and never runs out. English and Science skills draw from a
-        hand-written question bank; the number shown is how many questions exist for that skill.
+        time — practice never repeats and never runs out. English and Science starter skills draw from a
+        hand-written question bank; the Phonics Coach and extended objective sets use generated
+        questions as well. The number shown is how many bank questions exist for that skill.
+        {% if 'english' in (view_child.settings.subjects_enabled or []) %}
+          <br><a href="{{ url_for('parent.progress', subject='english', mode='phonics') }}">View Phonics Coach progress →</a>
+        {% endif %}
       {% endif %}
     </div>
   </div>

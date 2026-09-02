@@ -142,9 +142,21 @@
           {% endfor %}
         </select>
         <div class="help">
-          GCSE Maths is its own pathway. Foundation and Higher learners see GCSE Maths practice only; Primary learners use the Year 1–6 controls below when GCSE is Off.
+          GCSE is its own pathway. Foundation and Higher learners see the selected GCSE subject only; Primary learners use the Year 1–6 controls below when GCSE is Off.
         </div>
       </div>
+
+      {% if pathway_is_gcse %}
+      <div class="p-field">
+        <label for="gcse_subject">GCSE subject</label>
+        <select id="gcse_subject" name="gcse_subject">
+          {% for key, label in gcse_subject_options.items() %}
+            <option value="{{ key }}" {{ 'selected' if key == s.gcse_subject }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="help">The subject controls the syllabus, topics and generated question pool for this GCSE learner.</div>
+      </div>
+      {% endif %}
 
       {% if pathway_is_gcse %}
       <div class="p-field">
@@ -283,9 +295,10 @@
         {% endfor %}
         {% endif %}
         {% if pathway_is_gcse %}
-          <h3 style="margin-top:14px">{{ SUBJECTS['gcse_maths'].emoji }} {{ SUBJECTS['gcse_maths'].name }} · {{ GCSE_TIER_LABELS[s.gcse_tier] }}</h3>
+          {% set gcse_subject = SUBJECTS.get(s.gcse_subject, SUBJECTS['gcse_maths']) %}
+          <h3 style="margin-top:14px">{{ gcse_subject.emoji }} {{ gcse_subject.name }} · {{ GCSE_TIER_LABELS[s.gcse_tier] }}</h3>
           <div class="p-checks two">
-            {% for skill in all_skills if skill.subject == 'gcse_maths' and skill.id not in suggested_ids %}
+            {% for skill in all_skills if skill.subject == gcse_subject.id and skill.id not in suggested_ids %}
               <label class="p-check">
                 <input type="checkbox" name="focus_skills" value="{{ skill.id }}"
                        {{ 'checked' if skill.id in focus_skills }}>

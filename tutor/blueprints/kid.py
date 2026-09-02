@@ -16,9 +16,11 @@ from flask import (
 from .. import art
 from ..content import (
     GCSE_TIERS,
+    PATHWAY_SUBJECT_ORDER,
     PRIMARY_YEARS,
     SUBJECTS,
     gcse_skills_for,
+    phonics_stage_summary,
     skills_for,
     topic_tree,
 )
@@ -135,8 +137,11 @@ def welcome():
         learner_pin = (request.form.get("learner_pin") or "").strip()
         year = request.form.get("year_group") or "3"
         gcse_tier = (request.form.get("gcse_tier") or "off").strip().lower()
+        gcse_subject = (request.form.get("gcse_subject") or "gcse_maths").strip().lower()
         if gcse_tier not in profiles.GCSE_TIER_OPTIONS:
             gcse_tier = "off"
+        if gcse_subject not in profiles.GCSE_SUBJECT_OPTIONS:
+            gcse_subject = "gcse_maths"
         emoji = request.form.get("avatar_character") or art.CHARACTERS[0].id
         colour = request.form.get("avatar_colour") or "sunshine"
 
@@ -168,6 +173,7 @@ def welcome():
                     emoji,
                     colour,
                     gcse_tier=gcse_tier,
+                    gcse_subject=gcse_subject,
                     learner_login=learner_login,
                     learner_pin=learner_pin,
                 )
@@ -187,6 +193,7 @@ def welcome():
         characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
         gcse_tier_options=profiles.GCSE_TIER_OPTIONS,
+        gcse_subject_options=profiles.GCSE_SUBJECT_OPTIONS,
         primary_years=PRIMARY_YEARS,
     )
 
@@ -236,8 +243,8 @@ def home():
     for subject_id in enabled:
         subject = SUBJECTS[subject_id]
         progress = scheduler.progress_map(child.id)
-        if subject_id == "gcse_maths":
-            skills = gcse_skills_for(settings.gcse_tier)
+        if subject_id in PATHWAY_SUBJECT_ORDER:
+            skills = gcse_skills_for(subject_id, settings.gcse_tier)
         else:
             skills = skills_for(subject_id, primary_years)
         touched = sum(1 for s in skills if (p := progress.get(s.id)) and p.attempts)
@@ -253,15 +260,41 @@ def home():
                 "touched": touched,
                 "mastered": mastered,
                 "pct": round(mastered / len(skills) * 100) if skills else 0,
-                "tier": settings.gcse_tier if subject_id == "gcse_maths" else None,
+                "tier": settings.gcse_tier if subject_id in PATHWAY_SUBJECT_ORDER else None,
             }
         )
+
+    phonics_card = None
+    if not is_gcse and "english" in enabled:
+        phonics_progress = scheduler.progress_map(child.id)
+        phonics_skills = [
+            skill
+            for skill in skills_for("english", primary_years)
+            if skill.is_phonics
+        ]
+        phonics_mastered = sum(
+            1
+            for skill in phonics_skills
+            if (row := phonics_progress.get(skill.id))
+            and row.mastery >= 0.85
+            and row.attempts >= 4
+        )
+        stage = phonics_stage_summary(phonics_progress)
+        phonics_card = {
+            "skills": len(phonics_skills),
+            "mastered": phonics_mastered,
+            "pct": round(phonics_mastered / len(phonics_skills) * 100)
+            if phonics_skills
+            else 0,
+            "stage": stage["label"],
+        }
 
     return render_template(
         "kid/home.html",
         state=state,
         blocked=blocked,
         subject_cards=subject_cards,
+        phonics_card=phonics_card,
         open_quest=quests.open_quest(child),
         recent=quests.recent_quests(child.id, 4),
         totals=quests.lifetime_totals(child.id),
@@ -299,13 +332,17 @@ def learn(subject: str):
 
     child = g.child
     settings = child.settings
-    if pathways.is_gcse(settings) and subject != "gcse_maths":
+    phonics_mode = request.args.get("mode") == "phonics"
+    if phonics_mode and (subject != "english" or pathways.is_gcse(settings)):
         return redirect(url_for("kid.home"))
-    if not pathways.is_gcse(settings) and subject == "gcse_maths":
+    if pathways.is_gcse(settings):
+        if subject != pathways.gcse_subject(settings):
+            return redirect(url_for("kid.home"))
+    elif subject in PATHWAY_SUBJECT_ORDER:
         return redirect(url_for("kid.home"))
     progress = scheduler.progress_map(child.id)
     groups = []
-    if subject == "gcse_maths":
+    if subject in PATHWAY_SUBJECT_ORDER:
         if settings.gcse_tier not in GCSE_TIERS:
             return redirect(url_for("kid.home"))
         topic_groups = topic_tree(subject, settings.gcse_tier)
@@ -328,6 +365,10 @@ def learn(subject: str):
         for year, topic, skills in topic_tree(subject):
             if year not in years:
                 continue
+            if phonics_mode:
+                skills = tuple(skill for skill in skills if skill.is_phonics)
+                if not skills:
+                    continue
             entries = []
             for skill in skills:
                 row = progress.get(skill.id)
@@ -346,7 +387,8 @@ def learn(subject: str):
         "kid/learn.html",
         subject=SUBJECTS[subject],
         groups=groups,
-        tier=settings.gcse_tier if subject == "gcse_maths" else None,
+        phonics_mode=phonics_mode,
+        tier=settings.gcse_tier if subject in PATHWAY_SUBJECT_ORDER else None,
         latest_year=max(pathways.year_ids(settings)),
         blocked=quests.blocked_reason(child),
         state=quests.allowance(child),

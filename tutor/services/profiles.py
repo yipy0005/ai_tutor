@@ -20,9 +20,11 @@ from ..content import (
     GCSE_BOARD_OPTIONS,
     GCSE_TIER_LABELS,
     GCSE_TIERS,
+    PATHWAY_SUBJECT_ORDER,
     PRIMARY_YEARS,
     SKILLS_BY_ID,
     SUBJECT_ORDER,
+    SUBJECTS,
 )
 from ..extensions import db
 from ..models import (
@@ -43,6 +45,9 @@ GCSE_TIER_OPTIONS = {
     "off": "Primary — Years 1–6",
     "foundation": "Foundation",
     "higher": "Higher",
+}
+GCSE_SUBJECT_OPTIONS = {
+    subject: SUBJECTS[subject].name for subject in PATHWAY_SUBJECT_ORDER
 }
 
 
@@ -446,6 +451,7 @@ def create_child(
     avatar_emoji: str = "fox",
     avatar_colour: str = "sunshine",
     gcse_tier: str = "off",
+    gcse_subject: str = "gcse_maths",
     learner_login: str | None = None,
     learner_pin: str | None = None,
 ) -> Child:
@@ -459,7 +465,14 @@ def create_child(
     db.session.flush()
 
     selected_tier = gcse_tier if gcse_tier in GCSE_TIER_OPTIONS else "off"
-    settings = Settings(child_id=child.id, gcse_tier=selected_tier)
+    selected_subject = (
+        gcse_subject if gcse_subject in GCSE_SUBJECT_OPTIONS else "gcse_maths"
+    )
+    settings = Settings(
+        child_id=child.id,
+        gcse_subject=selected_subject,
+        gcse_tier=selected_tier,
+    )
     # Keep the original Year 1–3 defaults for existing primary behaviour, but
     # make a learner entering Years 4–6 eligible for all earlier primary years.
     if selected_tier == "off":
@@ -653,6 +666,9 @@ def apply_settings(settings: Settings, form) -> list[str]:
     if mode in DIFFICULTY_MODES:
         settings.difficulty_mode = mode
 
+    subject = (form.get("gcse_subject") or "").strip().lower()
+    if subject in GCSE_SUBJECT_OPTIONS:
+        settings.gcse_subject = subject
     tier = (form.get("gcse_tier") or "").strip().lower()
     if tier in GCSE_TIER_OPTIONS:
         settings.gcse_tier = tier
@@ -735,8 +751,11 @@ def settings_summary(settings: Settings) -> list[tuple[str, str]]:
         ),
     ]
     if settings.gcse_tier in GCSE_TIERS:
+        subject_name = SUBJECTS.get(
+            pathways.gcse_subject(settings), SUBJECTS["gcse_maths"]
+        ).name
         return base[:4] + [
-            ("Pathway", f"GCSE Maths · {GCSE_TIER_LABELS[settings.gcse_tier]}"),
+            ("Pathway", f"{subject_name} · {GCSE_TIER_LABELS[settings.gcse_tier]}"),
             ("Exam style", GCSE_BOARD_OPTIONS.get(settings.gcse_board, "Board-neutral practice")),
         ] + base[4:]
 

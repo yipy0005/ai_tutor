@@ -552,6 +552,38 @@
   // -----------------------------------------------------------------------
   // Rendering a question
   // -----------------------------------------------------------------------
+  function phonicsMarkup(question) {
+    var type = question.phonics_type || "";
+    var body = "";
+    if (type === "gpc") {
+      body = '<div class="phonics-sound" aria-label="Target sound">' +
+        '<span class="phonics-symbol">' + esc(question.phoneme || "") + '</span>' +
+        '<span class="phonics-helper">Find the letter or letters that make this sound.</span></div>';
+    } else if (type === "blend") {
+      var blendTiles = (question.graphemes || []).map(function (grapheme) {
+        return '<span class="phonics-tile">' + esc(grapheme) + '</span>';
+      }).join('<span class="phonics-dot" aria-hidden="true">·</span>');
+      body = '<div class="phonics-strip" aria-label="Sounds to blend">' + blendTiles + '</div>' +
+        '<span class="phonics-helper">Say each sound, then push them together.</span>';
+    } else if (type === "segment") {
+      body = '<div class="phonics-word" aria-label="Word to segment">' + esc(question.phonics_word || "") + '</div>' +
+        '<span class="phonics-helper">Type the graphemes in order, with a dash between each sound.</span>';
+    } else if (type === "decodable") {
+      body = '<div class="decodable-text"><span class="phonics-helper">Read this sentence:</span><p>' +
+        esc(question.decodable_text || "") + '</p></div>';
+    } else if (type === "tricky") {
+      body = '<div class="phonics-word" aria-label="Common exception word">Look carefully</div>' +
+        '<span class="phonics-helper">Some words have a part that does not follow the usual sound pattern.</span>';
+    }
+    if (!body) return "";
+    var spoken = question.speak_text || question.sound_text || "";
+    var hear = spoken
+      ? '<button type="button" class="tool phonics-hear" id="phonics-sound">' +
+        '🔊 Hear it</button>'
+      : "";
+    return '<div class="phonics-panel phonics-' + esc(type) + '">' + body + hear + '</div>';
+  }
+
   function renderQuestion() {
     var question = current();
     if (!question) { finish(); return; }
@@ -564,7 +596,7 @@
     paintDots();
 
     var label = question.year_label || (question.year ? "Year " + question.year : "");
-    var pillClass = question.pathway === "gcse_maths" ? "gcse" : (question.year ? "y" + question.year : "");
+    var pillClass = question.pathway ? "gcse" : (question.year ? "y" + question.year : "");
     var yearPill = label ? '<span class="pill ' + pillClass + '">' + esc(label) + "</span>" : "";
     var parts = [];
 
@@ -592,6 +624,7 @@
     if (question.prompt_sub) {
       parts.push('<div class="qsub">' + esc(question.prompt_sub) + "</div>");
     }
+    if (question.phonics_type) parts.push(phonicsMarkup(question));
 
     if (question.visual) {
       var markup = isInteractiveKind(question.kind) && Visuals.renderInteractive
@@ -666,6 +699,11 @@
 
   function readAloud(question) {
     var text = question.prompt;
+    if (question.phonics_type === "decodable" && question.decodable_text) {
+      text = question.decodable_text + ". " + text;
+    } else if (question.sound_text) {
+      text = "The sound is " + question.sound_text + ". " + text;
+    }
     if (question.kind === "choice" && question.choices) {
       text += ". Your choices are: " + question.choices.join(", ");
     }
@@ -771,6 +809,11 @@
       if (recordAudioButton) { startAudio(); return; }
       var stopAudioButton = event.target.closest("#stop-audio");
       if (stopAudioButton) { stopAudio(); return; }
+      var phonicsSound = event.target.closest("#phonics-sound");
+      if (phonicsSound) {
+        if (question) App.Speech.speak(question.speak_text || question.sound_text || question.prompt);
+        return;
+      }
       var say = event.target.closest("#say");
       if (say) { if (question) readAloud(question); return; }
       var replay = event.target.closest("#replay");

@@ -448,7 +448,15 @@ def subject_symbols() -> str:
   <circle cx="60" cy="88" r="6" fill="#ffd166" stroke="{INK}" stroke-width="3"/>
   <path d="M32 101 h56" stroke="{INK}" stroke-width="4" stroke-linecap="round"/>
 </symbol>"""
-    return maths + english + science + gcse_maths
+    gcse_physics = f"""<symbol id="icon-gcse_physics" viewBox="0 0 120 120">
+  <circle cx="60" cy="60" r="12" fill="#ffd166" stroke="{INK}" stroke-width="3.5"/>
+  <ellipse cx="60" cy="60" rx="43" ry="18" fill="none" stroke="#2481cc" stroke-width="3.5" transform="rotate(25 60 60)"/>
+  <ellipse cx="60" cy="60" rx="43" ry="18" fill="none" stroke="#69d2b0" stroke-width="3.5" transform="rotate(-25 60 60)"/>
+  <circle cx="22" cy="78" r="5" fill="#8ecae6" stroke="{INK}" stroke-width="2.5"/>
+  <circle cx="98" cy="42" r="5" fill="#ff8fab" stroke="{INK}" stroke-width="2.5"/>
+  <path d="M60 20 v-8 M60 108 v-8 M20 60 h-8 M108 60 h-8" stroke="{INK}" stroke-width="3" stroke-linecap="round"/>
+</symbol>"""
+    return maths + english + science + gcse_maths + gcse_physics
 
 
 # ---------------------------------------------------------------------------
