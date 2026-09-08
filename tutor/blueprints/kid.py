@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from urllib.parse import urlsplit, urlunsplit
+
 from flask import (
     Blueprint,
     flash,
@@ -74,6 +76,18 @@ def _require_child():
     if g.child is None:
         return redirect(url_for("kid.login", next=request.full_path))
     return None
+
+
+def _safe_return_path(value: str | None) -> str | None:
+    """Accept only an internal absolute path for post-quest navigation."""
+    if not value or "\\" in value:
+        return None
+    parsed = urlsplit(value)
+    if parsed.scheme or parsed.netloc or not parsed.path.startswith("/"):
+        return None
+    if parsed.path.startswith("//"):
+        return None
+    return urlunsplit(("", "", parsed.path, parsed.query, parsed.fragment))
 
 
 @bp.route("/")
@@ -562,10 +576,13 @@ def play(quest_id: int):
         return redirect(url_for("kid.home"))
     if quest.is_finished:
         return redirect(url_for("kid.done", quest_id=quest.id))
+    payload = quests.quest_payload(quest, g.child)
+    if return_to := _safe_return_path(request.args.get("return_to")):
+        payload["return_to"] = return_to
     return render_template(
         "kid/play.html",
         quest=quest,
-        payload=quests.quest_payload(quest, g.child),
+        payload=payload,
         hat=rewards.equipped_art(g.child, "hat"),
     )
 

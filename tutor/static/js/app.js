@@ -290,6 +290,7 @@
     } catch (err) {
       relatedSkillIds = [];
     }
+    var returnTo = trigger.dataset.returnUrl || "";
     api
       .post("/api/quest/start", {
         subject: trigger.dataset.subject || null,
@@ -302,7 +303,12 @@
       })
       .then(function (data) {
         if (data.url) {
-          global.location.href = data.url;
+          var destination = data.url;
+          if (returnTo) {
+            destination += (destination.indexOf("?") === -1 ? "?" : "&") +
+              "return_to=" + encodeURIComponent(returnTo);
+          }
+          global.location.href = destination;
           return;
         }
         busy(trigger, false);

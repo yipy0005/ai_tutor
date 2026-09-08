@@ -52,6 +52,8 @@
 
   function current() { return data.questions[state.index]; }
 
+  function returnPath() { return data.return_to || "/home"; }
+
   function firstUnanswered() {
     for (var i = 0; i < data.questions.length; i++) {
       if (!data.questions[i].answered) return i;
@@ -1408,7 +1410,8 @@
       "Stand up, stretch tall, and have a drink of water.</p>" +
       '<div class="stack" style="margin-top:16px">' +
       '<button type="button" class="btn block leaf" id="break-back">I am ready — keep going</button>' +
-      '<a class="btn block ghost" href="/home">Stop for now</a>' +
+      '<a class="btn block ghost" href="' + esc(returnPath()) + '">' +
+      (data.return_to ? "Back to lesson" : "Stop for now") + "</a>" +
       "</div></div></div>";
     document.body.insertAdjacentHTML("beforeend", html);
     App.Sound.play("star");
@@ -1427,7 +1430,8 @@
       '<div class="pip-big art-holder bob-slow">' + art("pip-sleep") + "</div>" +
       "<h1>That is your time for today</h1>" +
       "<p>Brilliant effort. Your practice is all saved — come back tomorrow!</p>" +
-      '<a class="btn big block leaf" href="/home" style="margin-top:16px">Back home</a>' +
+      '<a class="btn big block leaf" href="' + esc(returnPath()) + '" style="margin-top:16px">' +
+      (data.return_to ? "Back to lesson" : "Back home") + "</a>" +
       "</div></div>";
     document.body.insertAdjacentHTML("beforeend", html);
   }
@@ -1442,7 +1446,7 @@
       if (!global.confirm(message)) return;
       App.Speech.stop();
       App.api.post("/api/quest/" + data.id + "/abandon", {}).then(function () {
-        global.location.href = "/home";
+        global.location.href = returnPath();
       });
     });
   }

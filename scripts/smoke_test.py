@@ -745,6 +745,11 @@ def main() -> int:
         markup = response.get_data(as_text=True)
         check(f"GET {stage_url} renders", response.status_code == 200, response.status_code)
         check(f"{stage_slug} stage identifies its position", f"Stage {stage_number} of 7" in markup)
+        if stage_slug == "think-practise":
+            check(
+                "textbook practice buttons remember their stage",
+                'data-return-url="/textbook/year-3/maths/compare-order-1000/think-practise"' in markup,
+            )
 
     response = client.get("/pick", follow_redirects=False)
     check(
@@ -821,6 +826,12 @@ def main() -> int:
     check("player page renders", response.status_code == 200, response.status_code)
     check("player page omits learner topbar", 'class="topbar"' not in play_markup)
     check("player page omits learner tabbar", 'class="tabbar"' not in play_markup)
+
+    return_path = "/textbook/year-3/maths/compare-order-1000/think-practise"
+    return_markup = client.get(f"/play/{quest_id}?return_to={return_path}").get_data(as_text=True)
+    check("player carries the textbook return path", return_path in return_markup)
+    unsafe_markup = client.get(f"/play/{quest_id}?return_to=https://example.com").get_data(as_text=True)
+    check("player rejects external return paths", "https://example.com" not in unsafe_markup)
 
     # Static mobile presentation contracts are checked against the stable
     # learner responses captured before the quest state changed.

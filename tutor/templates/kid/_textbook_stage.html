@@ -84,6 +84,7 @@
                   data-start-quest data-subject="maths" data-mode="skill"
                   data-practice-profile="{{ drill.profile }}"
                   data-related-skills='{{ step.related_skill_ids | tojson }}'
+                  data-return-url="{{ request.path }}"
                   data-skill="{{ step.skill_id }}" data-count="{{ drill.count }}"
                   aria-label="{{ drill.label }}: practise {{ step.title }}">
             <span>{{ drill.label }}</span><small>{{ drill.detail }} · {{ drill.count }}</small>
