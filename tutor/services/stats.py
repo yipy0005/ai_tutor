@@ -15,6 +15,7 @@ from sqlalchemy import func, select
 
 from ..content import (
     GCSE_TIER_LABELS,
+    PATHWAY_LABELS,
     SUBJECT_ORDER,
     SUBJECTS,
     YEAR_LABELS,
@@ -178,9 +179,10 @@ def overview(child: Child) -> dict:
         "coins": child.coins,
         "badges": len(rewards.visible_badge_awards(child)),
         "lifetime": totals,
-        "pathway": "gcse_maths" if active_gcse else "primary",
+        "pathway": pathways.gcse_subject(settings) if active_gcse else "primary",
         "pathway_label": (
-            f"GCSE Maths · {GCSE_TIER_LABELS.get(settings.gcse_tier, settings.gcse_tier)}"
+            f"{PATHWAY_LABELS.get(pathways.gcse_subject(settings), 'GCSE')} · "
+            f"{GCSE_TIER_LABELS.get(settings.gcse_tier, settings.gcse_tier)}"
             if active_gcse
             else "Primary Years 1–6"
         ),
@@ -372,7 +374,8 @@ def subject_breakdown(child_id: int) -> list[dict]:
                 "minutes": round(sum(row.total_seconds for row in rows) / 60),
                 "tier": (
                     GCSE_TIER_LABELS.get(child.settings.gcse_tier)
-                    if subject_id == "gcse_maths" and child
+                    if subject_id in pathways.PATHWAY_SUBJECT_ORDER
+                    and child
                     else None
                 ),
             }
@@ -416,7 +419,10 @@ def year_breakdown(child_id: int) -> list[dict]:
 
 
 def skill_matrix(
-    child_id: int, subject: str, tier: str | None = None
+    child_id: int,
+    subject: str,
+    tier: str | None = None,
+    phonics_only: bool = False,
 ) -> list[dict]:
     """Topic grid scoped to a primary subject or selected GCSE tier."""
     child = db.session.get(Child, child_id)
@@ -425,8 +431,12 @@ def skill_matrix(
     progress = _progress_index(child_id)
     groups = []
     for year, topic, skills in topic_tree(subject, tier):
-        if subject != "gcse_maths" and year not in pathways.year_ids(child.settings):
+        if subject not in pathways.PATHWAY_SUBJECT_ORDER and year not in pathways.year_ids(child.settings):
             continue
+        if phonics_only:
+            skills = tuple(skill for skill in skills if skill.is_phonics)
+            if not skills:
+                continue
         entries = []
         for skill in skills:
             row = progress.get(skill.id)

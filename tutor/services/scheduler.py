@@ -23,10 +23,12 @@ from sqlalchemy import select
 
 from ..content import (
     ALL_SKILLS,
+    PATHWAY_SUBJECT_ORDER,
     Skill,
     bank_size,
     gcse_skills_for,
     get_skill,
+    phonics_candidates,
 )
 from ..extensions import db
 from ..models import Child, Settings, SkillProgress
@@ -38,6 +40,7 @@ MODES = {
     "ahead": "New work",
     "focus": "Tricky bits",
     "skill": "One skill",
+    "phonics": "Phonics Coach",
 }
 
 PRACTICE_PROFILES = {
@@ -68,8 +71,8 @@ def available_skills(
     years: list[int] | tuple[int, ...] | None = None,
     tier: str | None = None,
 ) -> list[Skill]:
-    if subject == "gcse_maths":
-        source = gcse_skills_for(tier)
+    if subject in PATHWAY_SUBJECT_ORDER:
+        source = gcse_skills_for(subject, tier)
     else:
         source = ALL_SKILLS
     wanted_years = {int(y) for y in years} if years else None
@@ -91,14 +94,15 @@ def skill_is_eligible(
     """Authorize a skill against the learner's active pathway and settings."""
     settings = child.settings
     if pathways.is_gcse(settings):
+        selected = pathways.gcse_subject(settings)
         return (
             skill.is_gcse
-            and skill.subject == "gcse_maths"
-            and subject in (None, "gcse_maths")
+            and skill.subject == selected
+            and subject in (None, selected)
             and skill.eligible_for_tier(settings.gcse_tier)
             and is_playable(skill)
         )
-    if skill.is_gcse or subject == "gcse_maths":
+    if skill.is_gcse or subject in PATHWAY_SUBJECT_ORDER:
         return False
     return (
         skill.id in pathways.active_skill_ids(settings)
@@ -254,27 +258,41 @@ def pick_skills(
 
     learner_is_gcse = pathways.is_gcse(settings)
     if learner_is_gcse:
-        if subject not in (None, "gcse_maths"):
+        if mode == "phonics":
             return []
-        candidates = available_skills("gcse_maths", tier=settings.gcse_tier)
+        selected = pathways.gcse_subject(settings)
+        if subject not in (None, selected):
+            return []
+        candidates = available_skills(selected, tier=settings.gcse_tier)
         year_weights = {0: 1}
     else:
-        if subject == "gcse_maths":
+        if subject in PATHWAY_SUBJECT_ORDER:
             return []
-        years = years_for_mode(mode, settings)
         enabled_subjects = set(pathways.subject_ids(settings))
         if subject and subject not in enabled_subjects:
             return []
-        candidates = available_skills(subject, years)
-        if subject is None:
-            candidates = [skill for skill in candidates if skill.subject in enabled_subjects]
-        # Never fall back to a different Primary year. A missing Year 4–6
-        # content set must fail clearly rather than silently serving Year 1–3.
-        if not candidates:
-            return []
-        year_weights = settings.year_weights()
+        years = pathways.year_ids(settings) if mode == "phonics" else years_for_mode(mode, settings)
+        if mode == "phonics":
+            if subject not in (None, "english") or "english" not in enabled_subjects:
+                return []
+            candidates = available_skills("english", years)
+            year_weights = dict.fromkeys(years, 1)
+        else:
+            candidates = available_skills(subject, years)
+            if subject is None:
+                candidates = [skill for skill in candidates if skill.subject in enabled_subjects]
+            # Never fall back to a different Primary year. A missing Year 4–6
+            # content set must fail clearly rather than silently serving Year 1–3.
+            if not candidates:
+                return []
+            year_weights = settings.year_weights()
 
     progress = progress_map(child.id)
+
+    if mode == "phonics":
+        candidates = phonics_candidates(candidates, progress)
+        if not candidates:
+            return []
 
     if mode == "focus":
         weak = [

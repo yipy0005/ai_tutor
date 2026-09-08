@@ -49,12 +49,21 @@
       <label for="gcse_tier">Learning pathway</label>
       <select id="gcse_tier" name="gcse_tier">
         <option value="off" selected>Primary — Year 1–6</option>
-        <option value="foundation">GCSE Maths — Foundation</option>
-        <option value="higher">GCSE Maths — Higher</option>
+        <option value="foundation">GCSE — Foundation</option>
+        <option value="higher">GCSE — Higher</option>
       </select>
       <div class="muted tiny" style="margin-top:6px">
-        GCSE learners see GCSE Maths only. Primary learners use the selected year group.
+        GCSE learners see one selected GCSE subject only. Primary learners use the selected year group.
       </div>
+    </div>
+
+    <div class="field" id="welcome-gcse-subject-field" hidden>
+      <label for="gcse_subject">GCSE subject</label>
+      <select id="gcse_subject" name="gcse_subject">
+        {% for key, label in gcse_subject_options.items() %}
+          <option value="{{ key }}">{{ label }}</option>
+        {% endfor %}
+      </select>
     </div>
 
     <div class="field" id="welcome-year-field">
@@ -107,12 +116,17 @@
   (function () {
     "use strict";
     var pathway = document.getElementById("gcse_tier");
+    var subjectField = document.getElementById("welcome-gcse-subject-field");
+    var subjectSelect = document.getElementById("gcse_subject");
     var yearField = document.getElementById("welcome-year-field");
     var yearSelect = document.getElementById("year_group");
-    if (!pathway || !yearField || !yearSelect) return;
+    if (!pathway || !subjectField || !subjectSelect || !yearField || !yearSelect) return;
 
     function syncPathwayFields() {
       var isGcse = pathway.value === "foundation" || pathway.value === "higher";
+      subjectField.hidden = !isGcse;
+      subjectSelect.disabled = !isGcse;
+      subjectSelect.setAttribute("aria-disabled", isGcse ? "false" : "true");
       yearField.hidden = isGcse;
       yearField.setAttribute("aria-hidden", isGcse ? "true" : "false");
       yearSelect.disabled = isGcse;

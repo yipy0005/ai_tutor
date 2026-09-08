@@ -24,6 +24,7 @@ from flask import (
 from .. import art
 from ..config import Config
 from ..content import (
+    PATHWAY_SUBJECT_ORDER,
     SUBJECT_ORDER,
     SUBJECTS,
     subject_counts,
@@ -294,10 +295,12 @@ def progress(subject: str | None = None):
     if child is None:
         return redirect(url_for("parent.children_page"))
     subject = subject if subject in SUBJECTS else SUBJECT_ORDER[0]
+    phonics_mode = request.args.get("mode") == "phonics" and subject == "english"
     if pathways.is_gcse(child.settings):
-        if subject != "gcse_maths":
-            return redirect(url_for("parent.progress", subject="gcse_maths"))
-    elif subject == "gcse_maths":
+        selected = pathways.gcse_subject(child.settings)
+        if subject != selected:
+            return redirect(url_for("parent.progress", subject=selected))
+    elif subject in PATHWAY_SUBJECT_ORDER:
         subject = SUBJECT_ORDER[0]
 
     return render_template(
@@ -307,10 +310,14 @@ def progress(subject: str | None = None):
         subject=SUBJECTS[subject],
         subject_id=subject,
         groups=stats.skill_matrix(
-            child.id, subject, tier=child.settings.gcse_tier
+            child.id,
+            subject,
+            tier=child.settings.gcse_tier,
+            phonics_only=phonics_mode,
         ),
         counts=subject_counts().get(subject, {}),
         focus_skills=set(child.settings.focus_skills or []),
+        phonics_mode=phonics_mode,
     )
 
 
@@ -459,6 +466,7 @@ def settings_page():
         children=children,
         modes=profiles.DIFFICULTY_MODES,
         gcse_tier_options=profiles.GCSE_TIER_OPTIONS,
+        gcse_subject_options=profiles.GCSE_SUBJECT_OPTIONS,
         gcse_board_options=profiles.GCSE_BOARD_OPTIONS,
         summary=profiles.settings_summary(child.settings),
         suggested_focus=weak,
@@ -504,10 +512,13 @@ def children_page():
         emoji = request.form.get("avatar_character") or "fox"
         colour = request.form.get("avatar_colour") or "sunshine"
         gcse_tier = (request.form.get("gcse_tier") or "off").strip().lower()
+        gcse_subject = (request.form.get("gcse_subject") or "gcse_maths").strip().lower()
         login_name = request.form.get("login_name")
         learner_pin = (request.form.get("learner_pin") or "").strip()
         if gcse_tier not in profiles.GCSE_TIER_OPTIONS:
             gcse_tier = "off"
+        if gcse_subject not in profiles.GCSE_SUBJECT_OPTIONS:
+            gcse_subject = "gcse_maths"
         try:
             year_number = int(year)
         except (TypeError, ValueError):
@@ -526,6 +537,7 @@ def children_page():
                     emoji,
                     colour,
                     gcse_tier=gcse_tier,
+                    gcse_subject=gcse_subject,
                     learner_login=login_name,
                     learner_pin=profiles.validate_pin(
                         learner_pin, required=True, label="learner"
@@ -557,6 +569,7 @@ def children_page():
         rows=rows,
         characters=art.CHARACTERS,
         colours=rewards.AVATAR_COLOURS,
+        gcse_subject_options=profiles.GCSE_SUBJECT_OPTIONS,
     )
 
 
@@ -592,6 +605,11 @@ def update_child(child_id: int):
         tier = tier.strip().lower()
         if tier in profiles.GCSE_TIER_OPTIONS:
             child.settings.gcse_tier = tier
+    subject = request.form.get("gcse_subject")
+    if subject is not None:
+        subject = subject.strip().lower()
+        if subject in profiles.GCSE_SUBJECT_OPTIONS:
+            child.settings.gcse_subject = subject
     year = request.form.get("year_group")
     if child.settings.gcse_tier in profiles.GCSE_TIER_OPTIONS and child.settings.gcse_tier != "off":
         child.year_group = 6
@@ -794,9 +812,9 @@ def curriculum():
     sections = []
     for subject_id in active_subjects:
         groups = []
-        tier = child.settings.gcse_tier if subject_id == "gcse_maths" else None
+        tier = child.settings.gcse_tier if subject_id in PATHWAY_SUBJECT_ORDER else None
         for year, topic, skills in topic_tree(subject_id, tier):
-            if subject_id != "gcse_maths" and year not in active_years:
+            if subject_id not in PATHWAY_SUBJECT_ORDER and year not in active_years:
                 continue
             groups.append(
                 {

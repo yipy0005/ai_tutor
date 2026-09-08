@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from flask import Blueprint, g, jsonify, request
 
-from ..content import SUBJECTS
+from ..content import PATHWAY_SUBJECT_ORDER, SUBJECTS
 from ..services import quests, scheduler
 
 bp = Blueprint("api", __name__, url_prefix="/api")
@@ -48,9 +48,11 @@ def start():
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 403
 
-    if subject == "gcse_maths":
+    if subject in PATHWAY_SUBJECT_ORDER:
         if child.settings.gcse_tier not in {"foundation", "higher"}:
-            return jsonify({"error": "GCSE Maths is switched off in settings."}), 403
+            return jsonify(
+                {"error": f"{SUBJECTS[subject].name} is switched off in settings."}
+            ), 403
     elif subject:
         enabled = child.settings.subjects_enabled or ["maths", "english", "science"]
         if subject not in enabled:

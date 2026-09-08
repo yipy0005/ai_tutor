@@ -23,6 +23,18 @@ def main() -> int:
     parser.add_argument("--colour", default="ocean")
     parser.add_argument("--learner-login", default=None, help="Learner sign-in name")
     parser.add_argument("--learner-pin", default=None, help="Learner PIN (4 to 8 digits)")
+    parser.add_argument(
+        "--gcse-subject",
+        choices=tuple(profiles.GCSE_SUBJECT_OPTIONS),
+        default="gcse_maths",
+        help="GCSE subject when used with --gcse-tier",
+    )
+    parser.add_argument(
+        "--gcse-tier",
+        choices=tuple(profiles.GCSE_TIER_OPTIONS),
+        default="off",
+        help="Primary, Foundation, or Higher pathway",
+    )
     args = parser.parse_args()
 
     if args.learner_pin and not args.learner_login:
@@ -40,6 +52,8 @@ def main() -> int:
             args.year,
             args.emoji,
             args.colour,
+            gcse_tier=args.gcse_tier,
+            gcse_subject=args.gcse_subject,
             learner_login=args.learner_login,
             learner_pin=args.learner_pin,
         )

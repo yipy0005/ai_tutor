@@ -21,6 +21,8 @@ from sqlalchemy import select
 
 from ..content import (
     GCSE_TIER_LABELS,
+    PATHWAY_LABELS,
+    PATHWAY_SUBJECT_ORDER,
     SUBJECTS,
     check_answer,
     draw_question,
@@ -131,6 +133,7 @@ TITLES = {
     ("english", "revision"): "English Recap",
     ("english", "ahead"): "English Challenge",
     ("english", "focus"): "Tricky English",
+    ("english", "phonics"): "Phonics Coach",
     ("science", "mixed"): "Science Mix",
     ("science", "revision"): "Science Recap",
     ("science", "ahead"): "Science Challenge",
@@ -139,7 +142,10 @@ TITLES = {
     ("gcse_maths", "revision"): "GCSE Maths Practice",
     ("gcse_maths", "ahead"): "GCSE Maths Challenge",
     ("gcse_maths", "focus"): "GCSE Maths Focus",
-}
+    ("gcse_physics", "mixed"): "GCSE Physics",
+    ("gcse_physics", "revision"): "GCSE Physics Practice",
+    ("gcse_physics", "ahead"): "GCSE Physics Challenge",
+    ("gcse_physics", "focus"): "GCSE Physics Focus",}
 
 
 def quest_title(
@@ -167,11 +173,16 @@ def quest_title(
 def subject_for_path(child: Child, subject: str | None) -> str | None:
     """Normalize a request to the learner's active curriculum path."""
     if pathways.is_gcse(child.settings):
-        if subject not in (None, "gcse_maths"):
-            raise ValueError("This learner can only practise GCSE Maths.")
-        return "gcse_maths"
-    if subject == "gcse_maths":
-        raise ValueError("GCSE Maths is only available on a GCSE learner profile.")
+        selected = pathways.gcse_subject(child.settings)
+        if subject not in (None, selected):
+            raise ValueError(
+                f"This learner can only practise {SUBJECTS[selected].name}."
+            )
+        return selected
+    if subject in PATHWAY_SUBJECT_ORDER:
+        raise ValueError(
+            f"{SUBJECTS[subject].name} is only available on a GCSE learner profile."
+        )
     return subject
 
 
@@ -323,11 +334,13 @@ def quest_payload(quest: Quest, child: Child) -> dict:
             "break_after_minutes": settings.break_after_minutes,
         },
     }
-    if quest.subject == "gcse_maths":
+    if quest.subject in PATHWAY_SUBJECT_ORDER:
         payload.update(
             {
-                "pathway": "gcse_maths",
-                "pathway_label": "GCSE Maths",
+                "pathway": quest.subject,
+                "pathway_label": PATHWAY_LABELS.get(
+                    quest.subject, SUBJECTS[quest.subject].name
+                ),
                 "tier": GCSE_TIER_LABELS.get(settings.gcse_tier, settings.gcse_tier),
                 "exam_board": settings.gcse_board,
             }

@@ -450,6 +450,7 @@ b, strong { font-weight: 800; }
 .subject-english { --subject-wash: linear-gradient(160deg, #dcecff, #f2f8ff); }
 .subject-science { --subject-wash: linear-gradient(160deg, #daf6ea, #f0fdf7); }
 .subject-gcse_maths { --subject-wash: linear-gradient(160deg, #eee4ff, #faf7ff); }
+.subject-gcse_physics { --subject-wash: linear-gradient(160deg, #dff2ff, #f4fbff); }
 
 .meter {
   height: 13px;
@@ -470,7 +471,73 @@ b, strong { font-weight: 800; }
 .meter.english > span { background: linear-gradient(90deg, #8ecae6, var(--ocean)); }
 .meter.science > span { background: linear-gradient(90deg, #8fe36a, var(--leaf)); }
 .meter.gcse_maths > span { background: linear-gradient(90deg, #c4a3ff, #7c4dd8); }
+.meter.gcse_physics > span { background: linear-gradient(90deg, #8ecae6, #2481cc); }
 .meter.sun > span { background: linear-gradient(90deg, #ffd166, var(--sun)); }
+
+.phonics-coach {
+  border: 2px solid #b9dff3;
+  background: linear-gradient(145deg, #f3fbff, #fff);
+}
+.phonics-panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  margin: 12px auto 4px;
+  padding: 15px;
+  border: 2px solid #c9e7f5;
+  border-radius: var(--r-lg);
+  background: #f4fbff;
+  text-align: center;
+}
+.phonics-sound, .decodable-text {
+  display: grid;
+  gap: 5px;
+  flex: 1 1 100%;
+}
+.phonics-symbol, .phonics-word {
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: clamp(2rem, 8vw, 3.4rem);
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+.phonics-word { letter-spacing: 0.08em; }
+.phonics-helper {
+  color: var(--ink-faint);
+  font-size: 0.88rem;
+  font-weight: 700;
+}
+.phonics-strip {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  flex: 1 1 100%;
+}
+.phonics-tile {
+  min-width: 44px;
+  padding: 9px 12px;
+  border: 2px solid #a6d4eb;
+  border-radius: 12px;
+  background: #fff;
+  color: var(--ocean);
+  font-family: var(--display);
+  font-size: 1.45rem;
+  font-weight: 900;
+}
+.phonics-dot { color: #77a9c2; font-size: 1.3rem; font-weight: 900; }
+.decodable-text p {
+  margin: 4px 0 0;
+  color: var(--ink);
+  font-family: var(--display);
+  font-size: clamp(1.25rem, 4vw, 1.8rem);
+  font-weight: 800;
+  line-height: 1.45;
+}
+.phonics-hear { margin: 0; }
 
 /* ---------- Bottom navigation ------------------------------------------ */
 .tabbar {

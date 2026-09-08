@@ -1,6 +1,6 @@
 {% extends "base.html" %}
 
-{% block title %}{{ subject.name }}{% endblock %}
+{% block title %}{{ 'Phonics Coach' if phonics_mode else subject.name }}{% endblock %}
 
 {% block content %}
 <div class="stack-lg">
@@ -16,8 +16,14 @@
         {{ icon('icon-' ~ subject.id) }}
       </div>
       <div class="grow">
-        <h1 style="margin:0">{{ subject.name }}</h1>
-        <div class="muted tiny">{{ subject.blurb }}</div>
+        <h1 style="margin:0">{{ 'Phonics Coach' if phonics_mode else subject.name }}</h1>
+        <div class="muted tiny">
+          {% if phonics_mode %}
+            Short, cumulative practice with sounds, blending, segmenting and decodable reading.
+          {% else %}
+            {{ subject.blurb }}
+          {% endif %}
+        </div>
       </div>
     </div>
 
@@ -25,21 +31,31 @@
       <div class="note warm">{{ icon('scene-lock') }}<div>{{ blocked }}</div></div>
     {% else %}
       <div class="stack">
-        <button type="button" class="btn big block leaf" data-start-quest
-                data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id == 'gcse_maths' else '' }}" data-mode="mixed">
-          {{ subject.name }} quest{% if tier %} · {{ GCSE_TIER_LABELS[tier] }}{% endif %}
-        </button>
-        {% if subject.id == 'gcse_maths' %}
+        {% if phonics_mode %}
+          <button type="button" class="btn big block leaf" data-start-quest
+                  data-subject="english" data-mode="phonics" data-count="6">
+            Hear, blend and read
+          </button>
           <div class="note" style="margin-top:4px">
-            {{ icon('scene-bulb') }}<div>Board-neutral starter practice for the <b>{{ GCSE_TIER_LABELS[tier] }}</b> tier. Exam-board-specific content can be added later.</div>
+            {{ icon('scene-bulb') }}<div>The Coach stays on the earliest unfinished stage so each new sound builds on what you already know.</div>
           </div>
         {% else %}
-          <div class="action-grid">
-            <button type="button" class="btn ghost" data-start-quest
-                    data-subject="{{ subject.id }}" data-mode="revision">Revision</button>
-            <button type="button" class="btn ghost" data-start-quest
-                    data-subject="{{ subject.id }}" data-mode="ahead">New {{ YEAR_LABELS[latest_year] }}</button>
-          </div>
+          <button type="button" class="btn big block leaf" data-start-quest
+                  data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id in PATHWAY_SUBJECT_ORDER else '' }}" data-mode="mixed">
+            {{ subject.name }} quest{% if tier %} · {{ GCSE_TIER_LABELS[tier] }}{% endif %}
+          </button>
+          {% if subject.id in PATHWAY_SUBJECT_ORDER %}
+            <div class="note" style="margin-top:4px">
+              {{ icon('scene-bulb') }}<div>Board-neutral starter practice for the <b>{{ GCSE_TIER_LABELS[tier] }}</b> tier. Exam-board-specific content can be added later.</div>
+            </div>
+          {% else %}
+            <div class="action-grid">
+              <button type="button" class="btn ghost" data-start-quest
+                      data-subject="{{ subject.id }}" data-mode="revision">Revision</button>
+              <button type="button" class="btn ghost" data-start-quest
+                      data-subject="{{ subject.id }}" data-mode="ahead">New {{ YEAR_LABELS[latest_year] }}</button>
+            </div>
+          {% endif %}
         {% endif %}
       </div>
     {% if year3_textbook_available %}
@@ -57,7 +73,10 @@
     {% if group.year != ns.year %}
       {% set ns.year = group.year %}
       <h2 style="margin-top:8px">
-        {% if subject.id == 'gcse_maths' %}
+        {% if phonics_mode %}
+          <span class="pill y1">{{ group.topic }}</span>
+          <span class="muted tiny" style="font-weight:600">Cumulative phonics practice</span>
+        {% elif subject.id in PATHWAY_SUBJECT_ORDER %}
           <span class="pill gcse">GCSE</span>
           <span class="muted tiny" style="font-weight:600">{{ GCSE_TIER_LABELS[tier] }} tier</span>
         {% else %}
@@ -90,7 +109,7 @@
             </div>
             {% if not blocked %}
               <button type="button" class="btn small ghost" data-start-quest
-                      data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id == 'gcse_maths' else '' }}"
+                      data-subject="{{ subject.id }}" data-pathway="{{ subject.id if subject.id in PATHWAY_SUBJECT_ORDER else '' }}"
                       data-mode="skill" data-skill="{{ entry.skill.id }}" data-count="6"
                       aria-label="Practise {{ entry.skill.name }}">
                 Practise

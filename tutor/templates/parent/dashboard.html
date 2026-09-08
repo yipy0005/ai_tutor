@@ -8,7 +8,7 @@
     <h1 style="margin-bottom:2px">{{ view_child.name }}'s progress</h1>
     <p class="p-muted p-tiny" style="margin:0">
       {% if view_child.settings.gcse_tier in ['foundation', 'higher'] %}
-        GCSE Maths · {{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier ·
+        {{ SUBJECTS.get(view_child.settings.gcse_subject, SUBJECTS['gcse_maths']).name }} · {{ GCSE_TIER_LABELS[view_child.settings.gcse_tier] }} tier ·
       {% else %}
         Going into Year {{ view_child.year_group }} ·
       {% endif %}
@@ -309,7 +309,7 @@
         {% else %}
         <div class="p-insight" style="margin:0">
           <span class="em">📐</span>
-          <div>Coverage is measured across the active GCSE Maths tier. Primary Year 1–6 curriculum controls are not used for this learner.</div>
+          <div>Coverage is measured across the active {{ overview.pathway_label }} pathway. Primary Year 1–6 curriculum controls are not used for this learner.</div>
         </div>
         {% endif %}
       </div>
@@ -340,7 +340,7 @@
           <div style="border-top:1px solid var(--p-line);padding-top:12px;margin-top:4px">
             <h3 style="margin-bottom:8px">Where the time goes</h3>
             <div class="p-legend">
-              {% set colours = {'maths': '#e0447a', 'english': '#2481cc', 'science': '#3d9c48', 'gcse_maths': '#7c4dd8', 'mixed': '#7c4dd8'} %}
+              {% set colours = {'maths': '#e0447a', 'english': '#2481cc', 'science': '#3d9c48', 'gcse_maths': '#7c4dd8', 'gcse_physics': '#2481cc', 'mixed': '#7c4dd8'} %}
               {% for slice in time_split %}
                 <div>
                   <i style="background: {{ colours.get(slice.id, '#8b93a5') }}"></i>

@@ -46,6 +46,7 @@ def ensure_compatibility_schema(uri: str) -> None:
     }
     settings_additions = {
         "great_diagnostic": "BOOLEAN NOT NULL DEFAULT 0",
+        "gcse_subject": "VARCHAR(30) NOT NULL DEFAULT 'gcse_maths'",
         "gcse_tier": "VARCHAR(20) NOT NULL DEFAULT 'off'",
         "gcse_board": "VARCHAR(20) NOT NULL DEFAULT 'generic'",
     }

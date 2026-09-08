@@ -19,7 +19,7 @@
         </span>
         <h2 class="p-grow" style="margin:0">{{ row.child.name }}</h2>
         {% if row.child.settings.gcse_tier in ['foundation', 'higher'] %}
-          <span class="p-tag gcse">GCSE Maths · {{ GCSE_TIER_LABELS[row.child.settings.gcse_tier] }}</span>
+          <span class="p-tag gcse">{{ SUBJECTS.get(row.child.settings.gcse_subject, SUBJECTS['gcse_maths']).name }} · {{ GCSE_TIER_LABELS[row.child.settings.gcse_tier] }}</span>
         {% else %}
           <span class="p-tag">Year {{ row.child.year_group }}</span>
         {% endif %}
@@ -70,8 +70,16 @@
             <select id="pathway-{{ row.child.id }}" name="gcse_tier"
                     data-pathway-select data-year-field-id="year-field-{{ row.child.id }}">
               <option value="off" {{ 'selected' if row.child.settings.gcse_tier == 'off' }}>Primary — use year group</option>
-              <option value="foundation" {{ 'selected' if row.child.settings.gcse_tier == 'foundation' }}>GCSE Maths — Foundation</option>
-              <option value="higher" {{ 'selected' if row.child.settings.gcse_tier == 'higher' }}>GCSE Maths — Higher</option>
+              <option value="foundation" {{ 'selected' if row.child.settings.gcse_tier == 'foundation' }}>GCSE — Foundation</option>
+              <option value="higher" {{ 'selected' if row.child.settings.gcse_tier == 'higher' }}>GCSE — Higher</option>
+            </select>
+          </div>
+          <div class="p-field">
+            <label for="subject-{{ row.child.id }}">GCSE subject</label>
+            <select id="subject-{{ row.child.id }}" name="gcse_subject">
+              {% for key, label in gcse_subject_options.items() %}
+                <option value="{{ key }}" {{ 'selected' if key == row.child.settings.gcse_subject }}>{{ label }}</option>
+              {% endfor %}
             </select>
           </div>
           <div class="p-field" id="year-field-{{ row.child.id }}"
@@ -149,10 +157,18 @@
           <select id="new-gcse-tier" name="gcse_tier"
                   data-pathway-select data-year-field-id="new-year-field">
             <option value="off" selected>Primary — use year group</option>
-            <option value="foundation">GCSE Maths — Foundation</option>
-            <option value="higher">GCSE Maths — Higher</option>
+            <option value="foundation">GCSE — Foundation</option>
+            <option value="higher">GCSE — Higher</option>
           </select>
-          <div class="help">Choose GCSE Maths here to remove the primary year-group question.</div>
+          <div class="help">Choose a GCSE tier to remove the primary year-group question.</div>
+        </div>
+        <div class="p-field">
+          <label for="new-gcse-subject">GCSE subject</label>
+          <select id="new-gcse-subject" name="gcse_subject">
+            {% for key, label in gcse_subject_options.items() %}
+              <option value="{{ key }}">{{ label }}</option>
+            {% endfor %}
+          </select>
         </div>
         <div class="p-field" id="new-year-field" data-pathway-year-field>
           <label for="new-year">Primary year group they are entering</label>
