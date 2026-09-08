@@ -489,6 +489,7 @@ class Quest(db.Model):
 
     subject: Mapped[str] = mapped_column(String(30), nullable=False)
     mode: Mapped[str] = mapped_column(String(30), default="mixed")
+    practice_profile: Mapped[str] = mapped_column(String(30), default="standard")
     skill_id: Mapped[str | None] = mapped_column(String(80), nullable=True)
     title: Mapped[str] = mapped_column(String(120), default="Quest")
 

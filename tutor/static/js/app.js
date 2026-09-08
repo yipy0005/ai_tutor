@@ -283,12 +283,21 @@
     Sound.play("tap");
     busy(trigger, true);
     trigger.innerHTML = "Getting ready…";
+    var relatedSkillIds = [];
+    try {
+      relatedSkillIds = JSON.parse(trigger.dataset.relatedSkills || "[]");
+      if (!Array.isArray(relatedSkillIds)) relatedSkillIds = [];
+    } catch (err) {
+      relatedSkillIds = [];
+    }
     api
       .post("/api/quest/start", {
         subject: trigger.dataset.subject || null,
         pathway: trigger.dataset.pathway || null,
         mode: trigger.dataset.mode || "mixed",
         skill_id: trigger.dataset.skill || null,
+        practice_profile: trigger.dataset.practiceProfile || "standard",
+        related_skill_ids: relatedSkillIds,
         count: trigger.dataset.count ? parseInt(trigger.dataset.count, 10) : null
       })
       .then(function (data) {

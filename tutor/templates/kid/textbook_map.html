@@ -1,0 +1,106 @@
+{% extends "base.html" %}
+{% block title %}Year 3 Maths trail map{% endblock %}
+
+{% block content %}
+<div class="stack-lg textbook-page textbook-map-page">
+  {% if blocked %}
+    <div class="note warm">
+      {{ icon('scene-lock') }}
+      <div>
+        <b>{{ blocked }}</b>
+        <div class="tiny" style="margin-top:4px;font-weight:600">Your textbook progress is saved.</div>
+      </div>
+    </div>
+  {% endif %}
+
+  <section class="textbook-hero" aria-labelledby="textbook-title">
+    <div class="textbook-hero-top">
+      <div class="art-holder textbook-badge">{{ icon('icon-maths') }}</div>
+      <div class="grow">
+        <div class="textbook-kicker">Guided Trail · Year 3 Maths</div>
+        <h1 id="textbook-title">Choose your next concept.</h1>
+        <p class="muted">Each concept has its own small lesson: see it, try it, fix a mistake, then practise.</p>
+      </div>
+    </div>
+
+    <div class="textbook-progress-head">
+      <div>
+        <b>{{ trail.ready_steps }} of {{ trail.total_steps }} steps ready to mix</b>
+        <div class="muted tiny">Eight units · 41 concepts · later reviews help it stick</div>
+      </div>
+      <strong class="textbook-progress-number nums">{{ trail.overall_pct }}%</strong>
+    </div>
+    <div class="textbook-progress" role="progressbar" aria-label="Year 3 Maths textbook progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ trail.overall_pct }}">
+      <span style="width:{{ trail.overall_pct }}%"></span>
+    </div>
+
+    {% if not blocked %}
+      <div class="textbook-next">
+        <div>
+          <span class="textbook-next-label">Next on your trail</span>
+          <h2>{{ trail.next_step.title }}</h2>
+          <p class="muted tiny">{{ trail.next_step.summary }}</p>
+        </div>
+        <a class="btn big leaf textbook-start"
+           href="{{ url_for('kid.year3_maths_textbook_step', step_id=trail.next_step.id) }}"
+           aria-label="Start learning {{ trail.next_step.title }}">
+          Start learning
+        </a>
+      </div>
+    {% endif %}
+  </section>
+
+  <div class="note cool textbook-howto">
+    {{ icon('scene-bulb') }}
+    <div><b>Follow the trail:</b> choose a concept to open its lesson page. Use the arrows there to move through the textbook one concept at a time.</div>
+  </div>
+
+  <section class="textbook-units" aria-labelledby="units-heading">
+    <div class="textbook-section-heading">
+      <div>
+        <h2 id="units-heading">Trail map</h2>
+        <p class="muted tiny">Your next concept is highlighted. Open any unit to revisit a method.</p>
+      </div>
+      <span class="pill y3">Year 3</span>
+    </div>
+
+    {% for unit in trail.units %}
+      <details class="textbook-unit unit-{{ unit.colour }}" data-textbook-unit {% if unit.is_current or loop.first and not trail.current_step_id %}open{% endif %}>
+        <summary>
+          <span class="textbook-unit-number">{{ loop.index }}</span>
+          <span class="textbook-unit-copy">
+            <b>{{ unit.title }}</b>
+            <small>{{ unit.blurb }}</small>
+          </span>
+          <span class="textbook-unit-count nums">{{ unit.ready_steps }}/{{ unit.total_steps }}<small>ready</small></span>
+        </summary>
+        <div class="textbook-steps">
+          {% for step in unit.steps %}
+            <article class="textbook-map-step status-{{ step.status }}{% if step.is_current %} is-current{% endif %}">
+              <div class="textbook-step-number">{{ loop.index }}</div>
+              <div class="textbook-map-step-copy">
+                <div class="textbook-step-meta">
+                  <span class="textbook-status status-{{ step.status }}">{{ step.status_label }}</span>
+                  {% if step.attempts %}<span class="muted tiny nums">{{ step.attempts }} attempts · {{ step.mastery }}% mastery</span>{% endif %}
+                  {% if step.spaced_review_days is not none and step.spaced_review_days < 2 and step.attempts %}<span class="textbook-review-note">Needs a later review</span>{% endif %}
+                  {% if step.is_current %}<span class="textbook-now">Next step</span>{% endif %}
+                </div>
+                <h3>{{ step.title }}</h3>
+                <p class="textbook-summary">{{ step.summary }}</p>
+              </div>
+              <a class="btn small ghost textbook-map-open" href="{{ url_for('kid.year3_maths_textbook_step', step_id=step.id) }}">
+                Open lesson<span aria-hidden="true"> →</span>
+              </a>
+            </article>
+          {% endfor %}
+        </div>
+      </details>
+    {% endfor %}
+  </section>
+
+  <div class="textbook-footer-actions">
+    <a class="btn ghost" href="{{ url_for('kid.learn', subject='maths') }}">Back to Maths skills</a>
+    <a class="btn ghost" href="{{ url_for('kid.home') }}">Back home</a>
+  </div>
+</div>
+{% endblock %}

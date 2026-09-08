@@ -8,6 +8,7 @@ from __future__ import annotations
 import sys
 
 from tutor.content import content_summary, validate_content
+from tutor.content.textbook import validate_textbook
 
 
 def main() -> int:
@@ -19,6 +20,7 @@ def main() -> int:
     print()
 
     problems = validate_content()
+    problems.extend(f"textbook: {problem}" for problem in validate_textbook())
     if problems:
         print(f"Found {len(problems)} problem(s):")
         for problem in problems:

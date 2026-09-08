@@ -1,0 +1,95 @@
+<div class="textbook-stage-page-body">
+  {% if stage.slug == "remember" %}
+    <div class="textbook-activation">
+      {{ icon('scene-bulb') }}
+      <div><b>Remember first</b><p>{{ step.activate }}</p></div>
+    </div>
+
+  {% elif stage.slug == "see" %}
+    <div class="textbook-representation">
+      <div class="textbook-panel-head">
+        <b>{{ step.representation.label }}</b>
+        <span>{{ step.representation.purpose }}</span>
+      </div>
+      <div class="textbook-visual" data-textbook-visual='{{ step.representation.visual | tojson }}'
+           role="img" aria-label="{{ step.representation.alt }}"></div>
+    </div>
+
+  {% elif stage.slug == "watch" %}
+    <div class="textbook-method-grid">
+      <div class="textbook-method">
+        <b>How it works</b>
+        <p>{{ step.explanation }}</p>
+        <div class="textbook-model-head"><b>Watch me think</b><span>Action + reason</span></div>
+        <ol class="textbook-worked-steps">
+          {% for worked in step.worked_steps %}
+            <li><span>{{ loop.index }}</span><div><b>{{ worked.label }}</b><p>{{ worked.text }}</p></div></li>
+          {% endfor %}
+        </ol>
+      </div>
+      <div class="textbook-example">
+        <b>See it</b>
+        <pre>{{ step.example }}</pre>
+      </div>
+    </div>
+
+  {% elif stage.slug == "try" %}
+    <section class="textbook-guided">
+      <b>Now you try one step</b>
+      <pre>{{ step.guided_example.problem }}</pre>
+      <p>{{ step.guided_example.prompt }}</p>
+      <div class="textbook-hint"><b>Hint:</b> {{ step.guided_example.hint }}</div>
+    </section>
+
+  {% elif stage.slug == "spot" %}
+    <section class="textbook-error">
+      <b>Spot the mistake</b>
+      <pre>{{ step.error_example.wrong }}</pre>
+      <p>{{ step.error_example.prompt }}</p>
+      <details class="textbook-repair">
+        <summary>See the repair</summary>
+        <p>{{ step.error_example.repair }}</p>
+      </details>
+    </section>
+    <div class="textbook-watch">
+      {{ icon('scene-bulb') }}<span><b>Watch out:</b> {{ step.watch_out }}</span>
+    </div>
+
+  {% elif stage.slug == "choose" %}
+    <div class="textbook-strategy">
+      <b>Choose a method</b>
+      <p>{{ step.strategy_prompt }}</p>
+    </div>
+    <div class="textbook-transfer-grid">
+      <div><b>Same maths, new story</b><p>{{ step.transfer.same_structure }}</p></div>
+      <div><b>Same story, new question</b><p>{{ step.transfer.same_context }}</p></div>
+    </div>
+
+  {% elif stage.slug == "think-practise" %}
+    <div class="textbook-reflection">
+      <b>Think back</b>
+      <p>{{ step.reflection_prompt }}</p>
+    </div>
+
+    {% if blocked %}
+      <div class="textbook-locked">Practice is paused for now. Come back when the app opens again.</div>
+    {% else %}
+      <div class="textbook-practice-head">
+        <b>Practise this step</b>
+        <span class="muted tiny">Fresh questions · answers marked privately</span>
+      </div>
+      <div class="textbook-drills">
+        {% for drill in step.drills %}
+          <button type="button" class="btn small {{ drill.tone }} textbook-drill"
+                  data-start-quest data-subject="maths" data-mode="skill"
+                  data-practice-profile="{{ drill.profile }}"
+                  data-related-skills='{{ step.related_skill_ids | tojson }}'
+                  data-skill="{{ step.skill_id }}" data-count="{{ drill.count }}"
+                  aria-label="{{ drill.label }}: practise {{ step.title }}">
+            <span>{{ drill.label }}</span><small>{{ drill.detail }} · {{ drill.count }}</small>
+          </button>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endif %}
+</div>

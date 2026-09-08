@@ -1,0 +1,20 @@
+<div class="textbook-lesson-guide">
+  <span class="textbook-kicker">Lesson stages</span>
+  <b>One small page at a time.</b>
+  <span>Choose the first card, then follow the arrows.</span>
+</div>
+
+<nav class="textbook-stage-links" aria-label="Lesson stages">
+  {% for lesson_stage in stages %}
+    <a class="textbook-stage-link{% if loop.first %} is-start{% endif %}"
+       href="{{ url_for('kid.year3_maths_textbook_stage', step_id=step.id, stage_slug=lesson_stage.slug) }}">
+      <span class="textbook-stage-number">{{ lesson_stage.number }}</span>
+      <span class="textbook-stage-copy">
+        <b>{{ lesson_stage.title }}</b>
+        <small>{{ lesson_stage.subtitle }}</small>
+        {% if loop.first %}<em>Start here</em>{% endif %}
+      </span>
+      <span class="textbook-stage-link-arrow" aria-hidden="true">→</span>
+    </a>
+  {% endfor %}
+</nav>

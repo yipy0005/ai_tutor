@@ -226,6 +226,7 @@ def draw_question(
     avoid: set[str] | None = None,
     tier: str | None = None,
     board: str | None = None,
+    practice_profile: str = "standard",
 ) -> dict:
     """Return one question for ``skill_id``.
 
@@ -297,6 +298,15 @@ def draw_question(
             rng=rng,
             level=level,
         )
+    if practice_profile != "standard":
+        profile_labels = {
+            "warm_up": "Warm up · one structure",
+            "build": "Build it · a fresh setting",
+            "prove": "Prove it · choose and check",
+            "transfer": "Transfer · use it somewhere new",
+        }
+        question["practice_profile"] = practice_profile
+        question["practice_label"] = profile_labels.get(practice_profile, "Practice")
     _apply_great_variant(question, level)
     return question
 

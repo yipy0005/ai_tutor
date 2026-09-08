@@ -40,6 +40,14 @@ MODES = {
     "skill": "One skill",
 }
 
+PRACTICE_PROFILES = {
+    "standard": {"label": "Practice", "level": None, "mix_related": False},
+    "warm_up": {"label": "Warm up", "level": 0, "mix_related": False},
+    "build": {"label": "Build it", "level": 1, "mix_related": False},
+    "prove": {"label": "Prove it", "level": 2, "mix_related": True},
+    "transfer": {"label": "Transfer", "level": 2, "mix_related": True},
+}
+
 
 # ---------------------------------------------------------------------------
 # Candidates
@@ -204,20 +212,45 @@ def pick_skills(
     mode: str = "mixed",
     count: int = 8,
     skill_id: str | None = None,
+    practice_profile: str = "standard",
+    related_skill_ids: list[str] | tuple[str, ...] | None = None,
     rng: random.Random | None = None,
 ) -> list[Skill]:
     """Choose skills without crossing the primary/GCSE pathway boundary."""
     rng = rng or random.Random()
     settings = child.settings
     today = date.today()
+    profile = PRACTICE_PROFILES.get(practice_profile, PRACTICE_PROFILES["standard"])
 
     if mode == "skill" and skill_id:
         skill = get_skill(skill_id)
-        if skill and skill_is_eligible(child, skill, subject):
-            return [skill] * count
-        # A forged or stale direct skill request must not fall through into a
-        # different curriculum or tier.
-        return []
+        if not skill or not skill_is_eligible(child, skill, subject):
+            # A forged or stale direct skill request must not fall through into a
+            # different curriculum or tier.
+            return []
+        if profile["mix_related"] and related_skill_ids:
+            related: list[Skill] = []
+            seen = {skill.id}
+            for related_id in related_skill_ids:
+                if related_id in seen:
+                    continue
+                candidate = get_skill(related_id)
+                if candidate and skill_is_eligible(child, candidate, subject):
+                    related.append(candidate)
+                    seen.add(candidate.id)
+            if related:
+                rng.shuffle(related)
+                chosen = [skill]
+                index = 0
+                while len(chosen) < count:
+                    # Keep the selected skill present throughout the transfer
+                    # burst while contrasting it with related structures.
+                    chosen.append(related[index % len(related)])
+                    index += 1
+                    if len(chosen) < count:
+                        chosen.append(skill)
+                return chosen[:count]
+        return [skill] * count
 
     learner_is_gcse = pathways.is_gcse(settings)
     if learner_is_gcse:

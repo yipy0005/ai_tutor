@@ -20,6 +20,7 @@ from ..content import (
     SUBJECTS,
     gcse_skills_for,
     skills_for,
+    textbook,
     topic_tree,
 )
 from ..extensions import db
@@ -231,6 +232,9 @@ def home():
     enabled = pathways.subject_ids(settings)
     is_gcse = pathways.is_gcse(settings)
     primary_years = pathways.year_ids(settings)
+    year3_textbook_available = (
+        not is_gcse and "maths" in enabled and 3 in primary_years
+    )
     latest_year = max(primary_years)
     subject_cards = []
     for subject_id in enabled:
@@ -268,6 +272,7 @@ def home():
         due=scheduler.due_count(child.id),
         weak=scheduler.weak_skills(child.id, 3),
         pathway_is_gcse=is_gcse,
+        year3_textbook_available=year3_textbook_available,
         latest_year=latest_year,
         flame=rewards.streak_flame(child.streak_days),
         hat=rewards.equipped_art(child, "hat"),
@@ -303,6 +308,12 @@ def learn(subject: str):
         return redirect(url_for("kid.home"))
     if not pathways.is_gcse(settings) and subject == "gcse_maths":
         return redirect(url_for("kid.home"))
+    year3_textbook_available = (
+        subject == "maths"
+        and not pathways.is_gcse(settings)
+        and "maths" in pathways.subject_ids(settings)
+        and 3 in pathways.year_ids(settings)
+    )
     progress = scheduler.progress_map(child.id)
     groups = []
     if subject == "gcse_maths":
@@ -347,9 +358,150 @@ def learn(subject: str):
         subject=SUBJECTS[subject],
         groups=groups,
         tier=settings.gcse_tier if subject == "gcse_maths" else None,
+        year3_textbook_available=year3_textbook_available,
         latest_year=max(pathways.year_ids(settings)),
         blocked=quests.blocked_reason(child),
         state=quests.allowance(child),
+    )
+
+
+# ---------------------------------------------------------------------------
+# Year 3 Maths Guided Trail
+# ---------------------------------------------------------------------------
+
+
+def _year3_maths_textbook_available(child) -> bool:
+    settings = child.settings
+    return (
+        not pathways.is_gcse(settings)
+        and "maths" in pathways.subject_ids(settings)
+        and 3 in pathways.year_ids(settings)
+    )
+
+
+def _year3_maths_textbook_trail(child) -> dict:
+    return textbook.trail_view(
+        scheduler.progress_map(child.id),
+        spaced_days=quests.successful_practice_days(child.id),
+    )
+
+
+@bp.route("/textbook/year-3/maths")
+def year3_maths_textbook():
+    if (response := _require_child()) is not None:
+        return response
+
+    child = g.child
+    if not _year3_maths_textbook_available(child):
+        flash("The Year 3 Maths textbook is not in your current learning path.", "info")
+        return redirect(url_for("kid.home"))
+
+    trail = _year3_maths_textbook_trail(child)
+    return render_template(
+        "kid/textbook_map.html",
+        trail=trail,
+        blocked=quests.blocked_reason(child),
+        state=quests.allowance(child),
+        hat=rewards.equipped_art(child, "hat"),
+    )
+
+
+def _year3_maths_textbook_step_context(trail: dict, step_id: str):
+    ordered_steps = []
+    for unit_number, unit in enumerate(trail["units"], start=1):
+        for concept_number, concept in enumerate(unit["steps"], start=1):
+            ordered_steps.append(
+                {
+                    **concept,
+                    "unit_id": unit["id"],
+                    "unit_title": unit["title"],
+                    "unit_blurb": unit["blurb"],
+                    "unit_colour": unit["colour"],
+                    "unit_number": unit_number,
+                    "concept_number": concept_number,
+                }
+            )
+
+    current_index = next(
+        (index for index, step in enumerate(ordered_steps) if step["id"] == step_id),
+        None,
+    )
+    if current_index is None:
+        return None
+    return {
+        "step": ordered_steps[current_index],
+        "previous_step": ordered_steps[current_index - 1] if current_index else None,
+        "next_step": ordered_steps[current_index + 1]
+        if current_index + 1 < len(ordered_steps)
+        else None,
+        "total_steps": len(ordered_steps),
+    }
+
+
+@bp.route("/textbook/year-3/maths/<step_id>")
+def year3_maths_textbook_step(step_id: str):
+    if (response := _require_child()) is not None:
+        return response
+
+    child = g.child
+    if not _year3_maths_textbook_available(child):
+        flash("The Year 3 Maths textbook is not in your current learning path.", "info")
+        return redirect(url_for("kid.home"))
+
+    trail = _year3_maths_textbook_trail(child)
+    context = _year3_maths_textbook_step_context(trail, step_id)
+    if context is None:
+        flash("That textbook concept could not be found.", "info")
+        return redirect(url_for("kid.year3_maths_textbook"))
+
+    return render_template(
+        "kid/textbook_step.html",
+        trail=trail,
+        stages=textbook.lesson_stages(),
+        **context,
+        blocked=quests.blocked_reason(child),
+        state=quests.allowance(child),
+        hat=rewards.equipped_art(child, "hat"),
+    )
+
+
+@bp.route("/textbook/year-3/maths/<step_id>/<stage_slug>")
+def year3_maths_textbook_stage(step_id: str, stage_slug: str):
+    if (response := _require_child()) is not None:
+        return response
+
+    child = g.child
+    if not _year3_maths_textbook_available(child):
+        flash("The Year 3 Maths textbook is not in your current learning path.", "info")
+        return redirect(url_for("kid.home"))
+
+    trail = _year3_maths_textbook_trail(child)
+    context = _year3_maths_textbook_step_context(trail, step_id)
+    stage_list = textbook.lesson_stages()
+    stage_index = next(
+        (index for index, stage in enumerate(stage_list) if stage["slug"] == stage_slug),
+        None,
+    )
+    if context is None:
+        flash("That textbook concept could not be found.", "info")
+        return redirect(url_for("kid.year3_maths_textbook"))
+    if stage_index is None:
+        flash("That textbook lesson stage could not be found.", "info")
+        return redirect(url_for("kid.year3_maths_textbook_step", step_id=step_id))
+
+    return render_template(
+        "kid/textbook_stage.html",
+        trail=trail,
+        stages=stage_list,
+        stage=stage_list[stage_index],
+        previous_stage=stage_list[stage_index - 1] if stage_index else None,
+        next_stage=stage_list[stage_index + 1]
+        if stage_index + 1 < len(stage_list)
+        else None,
+        **context,
+        blocked=quests.blocked_reason(child),
+        state=quests.allowance(child),
+        hat=rewards.equipped_art(child, "hat"),
     )
 
 

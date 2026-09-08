@@ -139,6 +139,18 @@
     </div>
   </section>
 
+  {% if year3_textbook_available %}
+  <a class="textbook-spotlight" href="{{ url_for('kid.year3_maths_textbook') }}">
+    <div class="art-holder textbook-spotlight-art">{{ icon('icon-maths') }}</div>
+    <div class="grow">
+      <span class="textbook-kicker">Year 3 Maths · Guided Trail</span>
+      <h2>Open the live textbook</h2>
+      <p class="muted tiny">Learn each method, see it worked out, then drill it with fresh questions.</p>
+    </div>
+    <span class="textbook-arrow" aria-hidden="true">→</span>
+  </a>
+  {% endif %}
+
   <!-- ============ Tricky bits ============ -->
   {% if weak and not blocked %}
   <section class="card" aria-labelledby="weak-heading">

@@ -66,6 +66,11 @@ resource, not time.**
   minutes. Progress dots at the top mean the finish line is visible from the
   first question, which is what makes a short session feel finishable rather
   than open-ended.
+* **A live Year 3 Maths textbook.** The separate Guided Trail has eight units
+  and 41 small teaching steps. Each step explains a method, shows a worked
+  example and launches warm-up, build or prove drills. Every drill returns to
+  the same server-marked generated question engine, so the textbook provides
+  structure without creating a second progress system.
 * **One thing on screen.** No competing buttons, no side panels. Tap targets are
   at least 56px, the primary action is at least 74px.
 * **Pictures, not just words.** Clock faces, place-value blocks, coins, fraction

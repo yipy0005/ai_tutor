@@ -391,6 +391,7 @@ def main() -> int:
     from tutor import create_app, db
     from tutor.config import Config
     from tutor.content import SKILLS_BY_ID
+    from tutor.content.textbook import validate_textbook
     from tutor.models import Child, Quest, QuestQuestion, SkillProgress
     from tutor.services import profiles
 
@@ -697,10 +698,15 @@ def main() -> int:
     # ------------------------------------------------------------------
     print("\nChild pages")
     # ------------------------------------------------------------------
+    textbook_problems = validate_textbook()
+    check("Year 3 textbook map is complete", not textbook_problems, textbook_problems)
     learner_markup: dict[str, str] = {}
     for label, url in [
         ("home", "/home"),
         ("maths", "/learn/maths"),
+        ("year 3 textbook", "/textbook/year-3/maths"),
+        ("year 3 textbook concept", "/textbook/year-3/maths/compare-order-1000"),
+        ("year 3 textbook stage", "/textbook/year-3/maths/compare-order-1000/see"),
         ("english", "/learn/english"),
         ("science", "/learn/science"),
         ("badges", "/badges"),
@@ -710,13 +716,35 @@ def main() -> int:
     ]:
         response = client.get(url)
         check(f"GET {url} ({label})", response.status_code == 200, response.status_code)
-        if url in {"/home", "/learn/maths", "/badges", "/me"}:
+        if url in {"/home", "/learn/maths", "/textbook/year-3/maths", "/textbook/year-3/maths/compare-order-1000", "/textbook/year-3/maths/compare-order-1000/see", "/badges", "/me"}:
             markup = response.get_data(as_text=True)
             learner_markup[url] = markup
             check(f"{url} includes the safe-area viewport", 'viewport-fit=cover' in markup)
             check(f"{url} includes learner chrome", 'class="topbar"' in markup and 'class="tabbar"' in markup)
             if url == "/home":
                 check("home navigation marks the active page", 'aria-current="page"' in markup)
+            if url == "/textbook/year-3/maths":
+                check("textbook shows all eight units", markup.count('class="textbook-unit ') == 8, markup.count('class="textbook-unit '))
+                check("textbook shows all 41 mapped steps", markup.count('class="textbook-map-step ') == 41, markup.count('class="textbook-map-step '))
+                check("textbook map links every concept", markup.count('class="btn small ghost textbook-map-open"') == 41, markup.count('class="btn small ghost textbook-map-open"'))
+                check("textbook map has a clear start-here action", 'year-3/maths/hundreds-tens-ones' in markup and 'Start learning' in markup)
+                check("textbook map keeps lesson panels off the index", 'data-textbook-stage' not in markup and 'data-textbook-visual' not in markup)
+            if url == "/textbook/year-3/maths/compare-order-1000":
+                check("textbook concept page lists seven stages", markup.count('class="textbook-stage-copy"') == 7, markup.count('class="textbook-stage-copy"'))
+                check("textbook concept page links its first stage", '/compare-order-1000/remember' in markup)
+                check("textbook concept page keeps stage content off the index", 'data-textbook-visual' not in markup and 'class="textbook-guided"' not in markup)
+                check("textbook concept page has concept navigation", 'class="textbook-concept-nav"' in markup and 'Previous concept' in markup and 'Next concept' in markup)
+            if url == "/textbook/year-3/maths/compare-order-1000/see":
+                check("textbook stage page renders one stage card", markup.count('class="textbook-stage-card ') == 1, markup.count('class="textbook-stage-card '))
+                check("textbook stage page renders its representation", markup.count('data-textbook-visual=') == 1, markup.count('data-textbook-visual='))
+                check("textbook stage page has stage navigation", 'class="textbook-stage-nav"' in markup and 'Previous stage' in markup and 'Next stage' in markup)
+
+    for stage_number, stage_slug in enumerate(("remember", "see", "watch", "try", "spot", "choose", "think-practise"), start=1):
+        stage_url = f"/textbook/year-3/maths/compare-order-1000/{stage_slug}"
+        response = client.get(stage_url)
+        markup = response.get_data(as_text=True)
+        check(f"GET {stage_url} renders", response.status_code == 200, response.status_code)
+        check(f"{stage_slug} stage identifies its position", f"Stage {stage_number} of 7" in markup)
 
     response = client.get("/pick", follow_redirects=False)
     check(
@@ -959,9 +987,61 @@ def main() -> int:
         if ok:
             client.post(f"/api/quest/{data['quest_id']}/abandon", json={}, headers=headers)
 
+    profile_cases = [
+        ("warm_up", []),
+        ("build", []),
+        ("prove", ["m3.calc.add-3digit"]),
+    ]
+    for profile, related in profile_cases:
+        body = {
+            "mode": "skill",
+            "skill_id": "m3.calc.sub-3digit",
+            "practice_profile": profile,
+            "related_skill_ids": related,
+            "count": 4,
+        }
+        response = client.post("/api/quest/start", json=body, headers=headers)
+        data = response.get_json()
+        check(f"{profile} profile quest starts", response.status_code == 200 and data.get("quest_id"), data)
+        if data.get("quest_id"):
+            detail = client.get(f"/api/quest/{data['quest_id']}", headers=headers).get_json()
+            check(
+                f"{profile} profile is persisted",
+                detail.get("practice_profile") == profile,
+                detail.get("practice_profile"),
+            )
+            check(
+                f"{profile} profile keeps answers private",
+                all("answer" not in q for q in detail.get("questions", [])),
+            )
+            if profile == "warm_up":
+                with app.app_context():
+                    levels = [
+                        question.difficulty_level
+                        for question in db.session.scalars(
+                            db.select(QuestQuestion)
+                            .where(QuestQuestion.quest_id == data["quest_id"])
+                            .order_by(QuestQuestion.position)
+                        ).all()
+                    ]
+                check("warm up uses gentle question level", levels and all(level == 0 for level in levels), levels)
+            if profile == "prove":
+                skills = {q.get("skill_id") for q in detail.get("questions", [])}
+                check("prove profile mixes the related skill", skills == {"m3.calc.sub-3digit", "m3.calc.add-3digit"}, skills)
+            client.post(f"/api/quest/{data['quest_id']}/abandon", json={}, headers=headers)
+
+    response = client.post(
+        "/api/quest/start",
+        json={"mode": "skill", "skill_id": "m3.calc.sub-3digit", "practice_profile": "not-a-profile"},
+        headers=headers,
+    )
+    check("unknown practice profile rejected", response.status_code == 400, response.status_code)
+
     for subject in ("maths", "english", "science"):
         response = client.post(
-            "/api/quest/start", json={"subject": subject, "count": 5}, headers=headers
+            "/api/quest/start",
+            json={"subject": subject, "count": 4},
+            headers=headers,
         )
         data = response.get_json()
         check(f"{subject} quest starts", response.status_code == 200 and data.get("quest_id"), data)

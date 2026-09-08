@@ -142,11 +142,17 @@ TITLES = {
 }
 
 
-def quest_title(subject: str | None, mode: str, skill_id: str | None = None) -> str:
+def quest_title(
+    subject: str | None,
+    mode: str,
+    skill_id: str | None = None,
+    practice_profile: str = "standard",
+) -> str:
     if mode == "skill" and skill_id:
         skill = get_skill(skill_id)
         if skill:
-            return skill.name
+            label = scheduler.PRACTICE_PROFILES.get(practice_profile, {}).get("label")
+            return f"{skill.name} · {label}" if label and practice_profile != "standard" else skill.name
     if subject is None:
         return {"revision": "Big Recap", "ahead": "Challenge Quest",
                 "focus": "Tricky Bits"}.get(mode, "Daily Mix")
@@ -189,6 +195,8 @@ def start_quest(
     mode: str = "mixed",
     count: int | None = None,
     skill_id: str | None = None,
+    practice_profile: str = "standard",
+    related_skill_ids: list[str] | tuple[str, ...] | None = None,
     rng: random.Random | None = None,
 ) -> Quest:
     rng = rng or random.Random()
@@ -196,9 +204,18 @@ def start_quest(
     subject = subject_for_path(child, subject)
     target = count or settings.quest_length or 8
     target = max(MIN_QUEST, min(MAX_QUEST, int(target)))
+    if practice_profile not in scheduler.PRACTICE_PROFILES:
+        raise ValueError("Unknown practice profile.")
 
     skills = scheduler.pick_skills(
-        child, subject, mode=mode, count=target, skill_id=skill_id, rng=rng
+        child,
+        subject,
+        mode=mode,
+        count=target,
+        skill_id=skill_id,
+        practice_profile=practice_profile,
+        related_skill_ids=related_skill_ids,
+        rng=rng,
     )
     if not skills:
         raise ValueError("No skills are available with the current settings.")
@@ -207,8 +224,9 @@ def start_quest(
         child_id=child.id,
         subject=subject or "mixed",
         mode=mode,
+        practice_profile=practice_profile,
         skill_id=skill_id,
-        title=quest_title(subject, mode, skill_id),
+        title=quest_title(subject, mode, skill_id, practice_profile),
         target_count=len(skills),
     )
     db.session.add(quest)
@@ -216,9 +234,12 @@ def start_quest(
 
     progress = scheduler.progress_map(child.id)
     used_keys: set[str] = set()
+    profile_level = scheduler.PRACTICE_PROFILES[practice_profile]["level"]
 
     for position, skill in enumerate(skills):
         level = scheduler.level_for(progress.get(skill.id), settings)
+        if profile_level is not None:
+            level = profile_level
         question = draw_question(
             skill.id,
             rng,
@@ -226,6 +247,7 @@ def start_quest(
             avoid=used_keys,
             tier=settings.gcse_tier if skill.is_gcse else None,
             board=settings.gcse_board if skill.is_gcse else None,
+            practice_profile=practice_profile,
         )
         used_keys.add(question.get("item_key", ""))
         payload, solution = split_question(question)
@@ -245,6 +267,24 @@ def start_quest(
     return quest
 
 
+def successful_practice_days(child_id: int) -> dict[str, int]:
+    """Count distinct days with a correct answer for each learner skill."""
+    rows = db.session.execute(
+        select(QuestQuestion.skill_id, QuestQuestion.answered_at).join(
+            Quest, Quest.id == QuestQuestion.quest_id
+        ).where(
+            Quest.child_id == child_id,
+            QuestQuestion.is_correct.is_(True),
+            QuestQuestion.answered_at.is_not(None),
+        )
+    ).all()
+    days: dict[str, set[date]] = {}
+    for skill_id, answered_at in rows:
+        if answered_at is not None:
+            days.setdefault(skill_id, set()).add(answered_at.date())
+    return {skill_id: len(review_days) for skill_id, review_days in days.items()}
+
+
 def get_quest(child: Child, quest_id: int) -> Quest | None:
     quest = db.session.get(Quest, quest_id)
     if quest is None or quest.child_id != child.id or not quest_matches_path(child, quest):
@@ -261,6 +301,10 @@ def quest_payload(quest: Quest, child: Child) -> dict:
         "title": quest.title,
         "subject": quest.subject,
         "mode": quest.mode,
+        "practice_profile": quest.practice_profile or "standard",
+        "practice_label": scheduler.PRACTICE_PROFILES.get(
+            quest.practice_profile or "standard", scheduler.PRACTICE_PROFILES["standard"]
+        )["label"],
         "total": len(questions),
         "answered": quest.answered_count,
         "correct": quest.correct_count,

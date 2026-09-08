@@ -42,6 +42,13 @@
           </div>
         {% endif %}
       </div>
+    {% if year3_textbook_available %}
+      <a class="textbook-inline-link" href="{{ url_for('kid.year3_maths_textbook') }}">
+        <span class="art-holder">{{ icon('icon-maths') }}</span>
+        <span class="grow"><b>Open the Year 3 Maths textbook</b><small>Learn the method, then drill every step with fresh questions.</small></span>
+        <span aria-hidden="true">→</span>
+      </a>
+    {% endif %}
     {% endif %}
   </div>
 

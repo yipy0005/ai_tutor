@@ -60,12 +60,30 @@ def start():
     if mode not in VALID_MODES:
         mode = "mixed"
 
+    practice_profile = data.get("practice_profile") or "standard"
+    if practice_profile not in scheduler.PRACTICE_PROFILES:
+        return jsonify({"error": "Unknown practice profile."}), 400
+
+    related_skill_ids = data.get("related_skill_ids") or []
+    if not isinstance(related_skill_ids, list) or not all(
+        isinstance(skill_id, str) and skill_id for skill_id in related_skill_ids
+    ):
+        return jsonify({"error": "Related skills must be a list of skill ids."}), 400
+    if len(related_skill_ids) > 8:
+        return jsonify({"error": "Too many related skills."}), 400
+
     skill_id = data.get("skill_id") or None
     count = data.get("count")
 
     try:
         quest = quests.start_quest(
-            child, subject=subject, mode=mode, count=count, skill_id=skill_id
+            child,
+            subject=subject,
+            mode=mode,
+            count=count,
+            skill_id=skill_id,
+            practice_profile=practice_profile,
+            related_skill_ids=related_skill_ids,
         )
     except ValueError as exc:
         return jsonify({"error": str(exc)}), 400

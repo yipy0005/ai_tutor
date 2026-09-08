@@ -57,10 +57,14 @@ def ensure_compatibility_schema(uri: str) -> None:
         "assessment_json": "JSON",
         "difficulty_level": "INTEGER NOT NULL DEFAULT 1",
     }
+    quest_additions = {
+        "practice_profile": "VARCHAR(30) NOT NULL DEFAULT 'standard'",
+    }
     additions_by_table = {
         "parent_account": parent_additions,
         "learner_account": learner_additions,
         "settings": settings_additions,
+        "quest": quest_additions,
         "quest_question": question_additions,
     }
 
