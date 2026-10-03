@@ -288,6 +288,11 @@ class Settings(db.Model):
     allow_hints: Mapped[bool] = mapped_column(Boolean, default=True)
     second_chance: Mapped[bool] = mapped_column(Boolean, default=True)
     show_explanations: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Master switch for the GREAT framework. When False the learner sees no
+    # GREAT prompts and GREAT submissions/reviews are rejected; recorded data
+    # is kept. ``great_diagnostic`` is left untouched so turning GREAT back on
+    # restores the earlier mode.
+    great_enabled: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     # Evidence-based GREAT mode asks for stage responses which a parent can
     # review. It is off by default because it makes a quest longer.
     great_diagnostic: Mapped[bool] = mapped_column(Boolean, default=False)
@@ -318,6 +323,13 @@ class Settings(db.Model):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=now, onupdate=now)
 
     # -- Helpers -----------------------------------------------------------
+    @property
+    def great_mode(self) -> str:
+        """``off``, ``evidence`` or ``reflection``."""
+        if not self.great_enabled:
+            return "off"
+        return "evidence" if self.great_diagnostic else "reflection"
+
     def year_weights(self) -> dict[int, int]:
         """Normalised {year: weight} limited to the years a parent enabled."""
         enabled = {int(y) for y in (self.years_enabled or range(1, 7))}

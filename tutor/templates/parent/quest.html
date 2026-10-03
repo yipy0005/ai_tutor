@@ -2,6 +2,7 @@
 {% block title %}{{ quest.title }} review{% endblock %}
 
 {% block content %}
+{% set great_on = view_child.settings.great_enabled %}
 <div class="p-stack">
 
   <div>
@@ -157,10 +158,16 @@
                   {% if row.great_diagnostic.reviewed %}
                     <span class="p-tag good">Reviewed · {{ row.great_diagnostic.profile }} · {{ row.great_diagnostic.total }}/10</span>
                   {% else %}
+                    {% if great_on %}
                     <span class="p-tag warn">Awaiting parent review</span>
+                    {% else %}
+                    <span class="p-tag">Review paused · GREAT is off</span>
+                    {% endif %}
                   {% endif %}
                 </div>
+                {% if great_on %}
                 <p class="great-review-instruction">Score the child’s explanation for each stage, not whether the final answer was right: 0 = cannot independently, 1 = with a prompt or scaffold, 2 = independent evidence.</p>
+                {% endif %}
                 <div class="great-evidence-list">
                   {% for stage in row.great_diagnostic.stages %}
                     <div class="great-evidence-row">
@@ -175,6 +182,7 @@
                     </div>
                   {% endfor %}
                 </div>
+                {% if great_on %}
                 <form method="post" class="great-review-form" action="{{ url_for('parent.great_review', quest_id=quest.id) }}">
                   <input type="hidden" name="_csrf" value="{{ csrf_token() }}">
                   <input type="hidden" name="question_id" value="{{ row.id }}">
@@ -196,8 +204,9 @@
                   </div>
                   <button class="p-btn small" type="submit">{{ 'Update review' if row.great_diagnostic.reviewed else 'Save review' }}</button>
                 </form>
+                {% endif %}
               </div>
-            {% elif row.correct is not none and not row.great %}
+            {% elif great_on and row.correct is not none and not row.great %}
               <div style="margin-top:8px"><span class="p-tag new">No GREAT record</span></div>
             {% endif %}
             <div class="p-faint p-tiny" style="margin-top:5px">

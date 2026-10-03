@@ -45,6 +45,7 @@ def ensure_compatibility_schema(uri: str) -> None:
         "auth_nonce": "VARCHAR(64)",
     }
     settings_additions = {
+        "great_enabled": "BOOLEAN NOT NULL DEFAULT 1",
         "great_diagnostic": "BOOLEAN NOT NULL DEFAULT 0",
         "gcse_subject": "VARCHAR(30) NOT NULL DEFAULT 'gcse_maths'",
         "gcse_tier": "VARCHAR(20) NOT NULL DEFAULT 'off'",

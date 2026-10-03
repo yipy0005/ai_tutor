@@ -113,6 +113,7 @@
   </div>
 
   <!-- ===================== GREAT profiles ===================== -->
+  {% if overview.great_enabled %}
   <div class="p-card">
     <div class="p-card-head">
       <h2 class="p-grow">GREAT thinking profiles</h2>
@@ -261,6 +262,22 @@
       </div>
     {% endif %}
   </div>
+  {% else %}
+  <div class="p-card">
+    <div class="p-card-head">
+      <h2 class="p-grow">GREAT thinking profiles</h2>
+      <span class="p-tag">Off</span>
+    </div>
+    <div class="p-insight">
+      <span class="em">💭</span>
+      <div>
+        The GREAT framework is off for {{ view_child.name }}. No prompts are shown and no reviews are needed.
+        {% if overview.great_records %}{{ overview.great_records }} earlier record{{ '' if overview.great_records == 1 else 's' }} {{ 'is' if overview.great_records == 1 else 'are' }} kept and will return if you turn it on again.{% endif %}
+        <a href="{{ url_for('parent.settings_page') }}">Change in Settings</a>.
+      </div>
+    </div>
+  </div>
+  {% endif %}
 
   <!-- ===================== Curriculum coverage ===================== -->
   <div class="p-grid two">

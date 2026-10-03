@@ -37,8 +37,14 @@ MIN_QUEST = 4
 MAX_QUEST = 15
 
 
+def _great_off() -> dict:
+    return {"error": "The GREAT framework is turned off for this learner.", "great_off": True}
+
+
 def record_great(quest: Quest, question_id: int, scores: dict) -> dict:
     """Persist one explicit GREAT reflection without changing quiz scoring."""
+    if not quest.child.settings.great_enabled:
+        return _great_off()
     question = db.session.get(QuestQuestion, question_id)
     if question is None or question.quest_id != quest.id:
         return {"error": "That question is not part of this quest."}
@@ -307,6 +313,10 @@ def quest_payload(quest: Quest, child: Child) -> dict:
     """Everything the quest player needs, with no answers in it."""
     settings = child.settings
     questions = [q.public() for q in quest.questions]
+    if settings.great_mode == "off":
+        for entry in questions:
+            for key in ("great_assessed", "great_diagnostic_submitted", "great_visibility"):
+                entry.pop(key, None)
     payload = {
         "id": quest.id,
         "title": quest.title,
@@ -325,7 +335,9 @@ def quest_payload(quest: Quest, child: Child) -> dict:
             "allow_hints": settings.allow_hints,
             "second_chance": settings.second_chance,
             "show_explanations": settings.show_explanations,
-            "great_diagnostic": settings.great_diagnostic,
+            "great_mode": settings.great_mode,
+            "great_enabled": settings.great_enabled,
+            "great_diagnostic": settings.great_mode == "evidence",
             "sound": settings.sound_enabled,
             "animations": settings.animations_enabled,
             "read_aloud": settings.read_aloud,
@@ -596,6 +608,8 @@ def record_assessment_review(
 
 def record_great_diagnostic(quest: Quest, question_id: int, responses: dict) -> dict:
     """Store child evidence for later parent review, without assigning scores."""
+    if not quest.child.settings.great_enabled:
+        return _great_off()
     question = db.session.get(QuestQuestion, question_id)
     if question is None or question.quest_id != quest.id:
         return {"error": "That question is not part of this quest."}
@@ -628,6 +642,8 @@ def record_great_review(
         or not quest_matches_path(child, quest)
     ):
         return {"error": "That question is not part of this learner's quest."}
+    if not child.settings.great_enabled:
+        return _great_off()
 
     try:
         question.solution = great.review_diagnostic(question.solution, scores)

@@ -323,11 +323,6 @@
             <span class="d">A "give me a clue" button on every question.</span></span>
         </label>
         <label class="p-check">
-          <input type="checkbox" name="great_diagnostic" {{ 'checked' if s.great_diagnostic }}>
-          <span><span class="t">Evidence-based GREAT interview</span>
-            <span class="d">After each answer, collect what the child says for Given, Required, Link, Act and Test. A parent reviews the evidence and scores it — the child does not score themselves.</span></span>
-        </label>
-        <label class="p-check">
           <input type="checkbox" name="second_chance" {{ 'checked' if s.second_chance }}>
           <span><span class="t">One second chance</span>
             <span class="d">A wrong first answer gets a gentle nudge and another try before
@@ -339,6 +334,27 @@
             <span class="d">Explain the answer after each question. Worth keeping on — this is
               where most of the learning happens.</span></span>
         </label>
+      </div>
+    </fieldset>
+
+    <!-- ============ GREAT framework ============ -->
+    <fieldset class="p-set">
+      <legend>🧠 GREAT thinking framework</legend>
+      <div class="p-field">
+        <label for="great_mode">GREAT mode</label>
+        <select id="great_mode" name="great_mode">
+          {% for key, label in great_modes.items() %}
+            <option value="{{ key }}" {{ 'selected' if key == s.great_mode }}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <div class="help">
+          Self-reflection: after each answer the learner rates Given, Required, Link, Act and
+          Test themselves. Evidence interview: the learner writes what they did for each stage
+          and you score it 0–2. Off: no GREAT prompts or questions for this learner, nothing
+          extra to finish a quest, and no GREAT review queue or profile on your dashboard.
+          Turning it off keeps everything already recorded, and it comes back if you turn it on
+          again. Quizzes, XP and mastery are never affected.
+        </div>
       </div>
     </fieldset>
 

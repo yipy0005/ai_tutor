@@ -465,6 +465,7 @@ def settings_page():
         view_child=child,
         children=children,
         modes=profiles.DIFFICULTY_MODES,
+        great_modes=profiles.GREAT_MODES,
         gcse_tier_options=profiles.GCSE_TIER_OPTIONS,
         gcse_subject_options=profiles.GCSE_SUBJECT_OPTIONS,
         gcse_board_options=profiles.GCSE_BOARD_OPTIONS,

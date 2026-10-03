@@ -189,6 +189,7 @@ Suggested defaults are in brackets.
 | Difficulty | Gentle · Adaptive · Challenge *(Adaptive)* |
 | Focus skills | Reserved a slot in every quest |
 | Clues | On/off *(on)* |
+| GREAT thinking framework | Self-reflection · Evidence interview · Off *(Self-reflection)* |
 | One second chance | On/off *(on)* |
 | Explain the answer | On/off *(on)* |
 | Sound effects | On/off *(on)* |
@@ -203,6 +204,13 @@ Suggested defaults are in brackets.
 | A note on the home screen | Free text |
 | An agreed reward | Free text |
 | Parent account and PIN | Sign-in name plus a 4–8 digit PIN *(parent / 1234)* |
+
+The GREAT setting is per learner. Self-reflection has the learner rate their own
+thinking after each answer. Evidence interview has them write what they did for
+each stage, and a parent scores it. Off means no learner prompts and no parent
+review queue or dashboard call to action, and the server rejects GREAT
+submissions and reviews. Nothing is deleted: turning it back on restores earlier
+records. Quiz scoring, XP and mastery never depend on GREAT.
 
 Two worth explaining:
 
@@ -439,7 +447,7 @@ pixi run -e dev lint
 `pixi run smoke` runs against a throwaway database, so it never touches real
 progress. It covers first-run setup, every page, CSRF rejection, the full quest
 flow including the second chance and clues, every quest mode, subject and year
-filtering, the shop, settings persistence, focus-skill selection, the PIN gate
+filtering, the shop, settings persistence, the GREAT on/off switch and old-database upgrade, focus-skill selection, the PIN gate
 and its lockout, adding and deleting learners, quiet hours, the daily time
 limit, and every reset path — including that a rebuild is idempotent, that
 removing one session leaves the other subjects intact, that shop purchases are

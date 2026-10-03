@@ -47,6 +47,8 @@ def _activity_rows(child_id: int, since: date) -> list[DailyActivity]:
 
 def pending_great_interviews(child: Child) -> list[dict]:
     """Return submitted GREAT interviews still waiting for parent scores."""
+    if not child.settings.great_enabled:
+        return []
     path_quests = db.session.execute(
         select(Quest).where(Quest.child_id == child.id)
     ).scalars().all()
@@ -142,8 +144,10 @@ def overview(child: Child) -> dict:
     great_diagnostic_report = great.aggregate_diagnostics(great_diagnostics)
     great_diagnostic_report.update(
         {
-            "enabled": bool(settings.great_diagnostic),
-            "pending_interviews": pending_great_interviews,
+            "enabled": bool(settings.great_diagnostic and settings.great_enabled),
+            "pending_interviews": (
+                pending_great_interviews if settings.great_enabled else []
+            ),
             "answered": answered_for_great,
             "not_submitted": max(
                 0, answered_for_great - great_diagnostic_report["submitted"]
@@ -206,6 +210,9 @@ def overview(child: Child) -> dict:
             else 0,
         },
         "due_now": scheduler.due_count(child.id),
+        "great_enabled": settings.great_enabled,
+        "great_mode": settings.great_mode,
+        "great_records": great_report["assessed"] + great_diagnostic_report["submitted"],
         "great": great_report,
         "great_diagnostic": great_diagnostic_report,
     }

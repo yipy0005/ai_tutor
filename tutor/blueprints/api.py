@@ -129,6 +129,12 @@ def answer(quest_id: int):
     return jsonify(result), status
 
 
+def _great_status(result: dict) -> int:
+    if result.get("great_off"):
+        return 403
+    return 400 if result.get("error") else 200
+
+
 @bp.post("/quest/<int:quest_id>/great")
 def great_reflection(quest_id: int):
     if (problem := _need_child()) is not None:
@@ -143,7 +149,7 @@ def great_reflection(quest_id: int):
         return jsonify({"error": "Missing question id."}), 400
 
     result = quests.record_great(quest, question_id, data.get("scores"))
-    status = 400 if result.get("error") else 200
+    status = _great_status(result)
     return jsonify(result), status
 
 
@@ -154,6 +160,10 @@ def great_diagnostic(quest_id: int):
     quest = quests.get_quest(g.child, quest_id)
     if quest is None:
         return jsonify({"error": "Quest not found."}), 404
+    if not g.child.settings.great_enabled:
+        return jsonify(
+            {"error": "The GREAT framework is turned off for this learner.", "great_off": True}
+        ), 403
     if not g.child.settings.great_diagnostic:
         return jsonify({"error": "Evidence-based GREAT is not enabled."}), 403
 
@@ -163,7 +173,7 @@ def great_diagnostic(quest_id: int):
         return jsonify({"error": "Missing question id."}), 400
 
     result = quests.record_great_diagnostic(quest, question_id, data.get("responses"))
-    status = 400 if result.get("error") else 200
+    status = _great_status(result)
     return jsonify(result), status
 
 

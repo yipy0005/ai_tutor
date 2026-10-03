@@ -107,6 +107,11 @@ def legacy_schema_check() -> None:
         db.session.add(child)
         db.session.flush()
         db.session.add(Settings(child_id=child.id))
+        evidence_child = Child(name="Legacy Evidence", year_group=4)
+        db.session.add(evidence_child)
+        db.session.flush()
+        db.session.add(Settings(child_id=evidence_child.id, great_diagnostic=True))
+        evidence_child_id = evidence_child.id
         db.session.add(
             SkillProgress(
                 child_id=child.id,
@@ -121,6 +126,9 @@ def legacy_schema_check() -> None:
         child_id = child.id
 
     connection = sqlite3.connect(database)
+    connection.execute("ALTER TABLE settings DROP COLUMN great_enabled")
+    settings_columns = [row[1] for row in connection.execute("PRAGMA table_info(settings)")]
+    check("legacy fixture has no great_enabled column", "great_enabled" not in settings_columns)
     connection.execute(
         "CREATE TABLE parent_account ("
         "id INTEGER PRIMARY KEY, pin_hash VARCHAR(255) NOT NULL, "
@@ -137,6 +145,18 @@ def legacy_schema_check() -> None:
     with legacy_app.app_context():
         migrated_child = db.session.get(Child, child_id)
         migrated_parent = db.session.get(ParentAccount, 1)
+        migrated_plain = db.session.get(Child, child_id).settings
+        migrated_evidence = db.session.get(Child, evidence_child_id).settings
+        check(
+            "old database upgrades with GREAT behaviour unchanged",
+            migrated_plain.great_enabled is True
+            and migrated_evidence.great_enabled is True
+            and migrated_plain.great_diagnostic is False
+            and migrated_evidence.great_diagnostic is True
+            and migrated_plain.great_mode == "reflection"
+            and migrated_evidence.great_mode == "evidence",
+            f"{migrated_plain.great_mode}/{migrated_evidence.great_mode}",
+        )
         migrated_account = migrated_child.learner_account if migrated_child else None
         migrated_progress = db.session.execute(
             db.select(SkillProgress).where(SkillProgress.child_id == child_id)
@@ -1467,6 +1487,309 @@ def main() -> int:
         data={"_csrf": get_csrf(client), "login_name": "smoke", "pin": "2469"},
     )
 
+    # ------------------------------------------------------------------
+    print("\nGREAT framework switch")
+    # ------------------------------------------------------------------
+    from tutor.services import stats as stats_service
+
+    def smoke_child():
+        return db.session.get(Child, first_id)
+
+    def save_great_mode(mode: str | None, http=None, extra: dict | None = None):
+        http = http or client
+        form = {
+            "_csrf": get_csrf(http),
+            "allow_hints": "on",
+            "show_explanations": "on",
+            "second_chance": "on",
+            "sound_enabled": "on",
+        }
+        if mode is not None:
+            form["great_mode"] = mode
+        form.update(extra or {})
+        return http.post("/parent/settings", data=form, follow_redirects=True)
+
+    def great_flags():
+        with app.app_context():
+            settings = smoke_child().settings
+            return settings.great_enabled, settings.great_diagnostic
+
+    def start_great_quest(answer_first_only: bool = False):
+        started = client.post(
+            "/api/quest/start",
+            json={"mode": "mixed", "count": 4},
+            headers={"X-CSRF-Token": get_csrf(client)},
+        ).get_json()
+        gid = started["quest_id"]
+        detail = client.get(f"/api/quest/{gid}").get_json()
+        with app.app_context():
+            sols = {
+                row.id: row.solution or {}
+                for row in db.session.execute(
+                    db.select(QuestQuestion).where(QuestQuestion.quest_id == gid)
+                ).scalars().all()
+            }
+        answered = []
+        for question in detail["questions"]:
+            client.post(
+                f"/api/quest/{gid}/answer",
+                json=answer_body(
+                    question, sols[question["id"]].get("answer", ""), seconds=5,
+                    solution=sols[question["id"]],
+                ),
+                headers={"X-CSRF-Token": get_csrf(client)},
+            )
+            answered.append(question["id"])
+            if answer_first_only:
+                break
+        return gid, detail, answered
+
+    def first_scored_question(gid: int, candidates: list[int]) -> int | None:
+        with app.app_context():
+            for qid in candidates:
+                if db.session.get(QuestQuestion, qid).is_correct is not None:
+                    return qid
+        return None
+
+    def stored_solution(qid: int) -> dict:
+        with app.app_context():
+            return dict(db.session.get(QuestQuestion, qid).solution or {})
+
+    def scan_keys(value, prefix="great") -> list[str]:
+        found = []
+        if isinstance(value, dict):
+            for key, item in value.items():
+                if str(key).startswith(prefix):
+                    found.append(key)
+                found.extend(scan_keys(item, prefix))
+        elif isinstance(value, list):
+            for item in value:
+                found.extend(scan_keys(item, prefix))
+        return found
+
+    evidence_text = {
+        stage: f"Smoke evidence for stage {stage}" for stage in "GREAT"
+    }
+    all_scores = dict.fromkeys("GREAT", 2)
+    def review_form(qid: int) -> dict:
+        return {
+            "_csrf": get_csrf(client),
+            "question_id": qid,
+            **{f"score_{stage}": "2" for stage in "GREAT"},
+        }
+
+    with app.app_context():
+        original_limits = (
+            smoke_child().settings.daily_limit_minutes,
+            smoke_child().settings.subjects_enabled,
+            smoke_child().settings.years_enabled,
+        )
+        smoke_child().settings.daily_limit_minutes = 0
+        smoke_child().settings.subjects_enabled = ["maths", "english", "science"]
+        smoke_child().settings.years_enabled = [1, 2, 3]
+        db.session.commit()
+        check("default learner keeps GREAT enabled", smoke_child().settings.great_enabled is True)
+    check("parent settings page renders", client.get("/parent/settings").status_code == 200)
+
+    # 1. The setting persists through the parent form.
+    response = save_great_mode("evidence")
+    check("GREAT evidence mode saves", b"Settings saved" in response.data, response.status_code)
+    check("evidence mode stored", great_flags() == (True, True), great_flags())
+    check("settings summary shows evidence interview", b"Evidence interview" in response.data)
+    on_quest, on_detail, on_answered = start_great_quest()
+    on_qid = first_scored_question(on_quest, on_answered)
+    check("an answered, auto-marked question exists", on_qid is not None)
+    response = client.post(
+        f"/api/quest/{on_quest}/great-diagnostic",
+        json={"question_id": on_qid, "responses": evidence_text},
+        headers={"X-CSRF-Token": get_csrf(client)},
+    )
+    check("evidence submission works while GREAT is on", response.status_code == 200, response.get_json())
+    dashboard = client.get("/parent/")
+    check(
+        "dashboard shows the evidence review CTA while on",
+        b"Review next evidence interview" in dashboard.data,
+    )
+    response = save_great_mode("off")
+    check("GREAT off saves", b"Settings saved" in response.data, response.status_code)
+    check("off keeps the earlier evidence choice", great_flags() == (False, True), great_flags())
+    check(
+        "settings page selects Off",
+        b'<option value="off" selected>' in client.get("/parent/settings").data,
+    )
+    check("settings summary shows GREAT mode off", b"GREAT mode" in response.data and b"Off" in response.data)
+    save_great_mode(None)
+    check("form without great_mode leaves GREAT untouched", great_flags() == (False, True), great_flags())
+
+    # 2. Learner payload and pages carry no GREAT UI.
+    off_quest, off_detail, _ = start_great_quest(answer_first_only=True)
+    payload = client.get(f"/api/quest/{off_quest}").get_json()
+    check(
+        "payload reports GREAT off",
+        payload["options"].get("great_mode") == "off" and payload["options"].get("great_diagnostic") is False,
+        payload["options"],
+    )
+    check("payload questions have no GREAT keys", scan_keys(payload["questions"]) == [], scan_keys(payload["questions"]))
+    page = client.get(f"/play/{off_quest}")
+    check(
+        "play page has no GREAT UI",
+        page.status_code == 200
+        and b"great-check" not in page.data
+        and b"save-great" not in page.data
+        and b'id="great-diagnostic"' not in page.data
+        and b'"great_mode": "off"' in page.data.replace(b'":"', b'": "').replace(b'": "', b'": "'),
+        page.status_code,
+    )
+
+    # 3. With GREAT off a quest can be started, answered and finished.
+    finish_quest, finish_detail, _ = start_great_quest()
+    response = client.post(
+        f"/api/quest/{finish_quest}/finish", json={}, headers={"X-CSRF-Token": get_csrf(client)}
+    )
+    summary = response.get_json()
+    check(
+        "quest finishes with GREAT off",
+        response.status_code == 200 and "error" not in summary and summary.get("answered") == 4,
+        summary,
+    )
+    check("stars and XP are normal with GREAT off", summary.get("stars", -1) >= 0 and summary.get("xp", -1) >= 0, summary)
+    with app.app_context():
+        finished_row = db.session.get(Quest, finish_quest)
+        check("GREAT-off quest is marked finished", finished_row.finished_at is not None)
+        check(
+            "no GREAT data was required or written",
+            all(
+                "great" not in (row.solution or {}) and "great_diagnostic" not in (row.solution or {})
+                for row in finished_row.questions
+            ),
+        )
+
+    # 4. Learner endpoints reject GREAT submissions while off.
+    before = stored_solution(on_qid)
+    response = client.post(
+        f"/api/quest/{on_quest}/great",
+        json={"question_id": on_qid, "scores": all_scores},
+        headers={"X-CSRF-Token": get_csrf(client)},
+    )
+    check("self-reflection is rejected while off", response.status_code == 403 and response.get_json().get("great_off") is True, response.get_json())
+    response = client.post(
+        f"/api/quest/{on_quest}/great-diagnostic",
+        json={"question_id": on_qid, "responses": evidence_text},
+        headers={"X-CSRF-Token": get_csrf(client)},
+    )
+    check("evidence submission is rejected while off", response.status_code == 403 and response.get_json().get("great_off") is True, response.get_json())
+    after = stored_solution(on_qid)
+    check(
+        "earlier evidence is preserved and unchanged",
+        after == before and after["great_diagnostic"]["scores"] is None and "great" not in after,
+        after.get("great_diagnostic"),
+    )
+
+    # 5. Parent surfaces are hidden or inert.
+    response = client.post(
+        f"/parent/quest/{on_quest}/great-review", data=review_form(on_qid), follow_redirects=False
+    )
+    check(
+        "parent review is rejected while off",
+        response.status_code == 302 and f"/parent/quest/{on_quest}" in response.headers.get("Location", ""),
+        response.headers.get("Location"),
+    )
+    followed = client.post(
+        f"/parent/quest/{on_quest}/great-review", data=review_form(on_qid), follow_redirects=True
+    )
+    check("rejection explains GREAT is off", b"turned off" in followed.data)
+    check("review did not change stored scores", stored_solution(on_qid)["great_diagnostic"]["scores"] is None)
+    with app.app_context():
+        check("pending interview queue is empty while off", stats_service.pending_great_interviews(smoke_child()) == [])
+    dashboard = client.get("/parent/")
+    check("dashboard renders with GREAT off", dashboard.status_code == 200, dashboard.status_code)
+    check(
+        "dashboard hides the GREAT queue and CTA",
+        b"GREAT thinking profiles" in dashboard.data
+        and b"Review next evidence interview" not in dashboard.data
+        and b"great-pending-links" not in dashboard.data
+        and b"awaiting review" not in dashboard.data,
+    )
+    detail_page = client.get(f"/parent/quest/{on_quest}")
+    check("quest detail renders with GREAT off", detail_page.status_code == 200, detail_page.status_code)
+    check(
+        "quest detail hides review forms but keeps saved evidence",
+        b"great-review-form" not in detail_page.data
+        and b"Save review" not in detail_page.data
+        and b"Smoke evidence for stage G" in detail_page.data
+        and b"GREAT is off" in detail_page.data,
+    )
+
+    # 6. Turning it back on restores behaviour.
+    save_great_mode("evidence")
+    check("evidence mode restored", great_flags() == (True, True), great_flags())
+    check(
+        "CTA returns when turned back on",
+        b"Review next evidence interview" in client.get("/parent/").data,
+    )
+    check(
+        "review form returns when turned back on",
+        b"great-review-form" in client.get(f"/parent/quest/{on_quest}").data,
+    )
+    response = client.post(
+        f"/parent/quest/{on_quest}/great-review", data=review_form(on_qid), follow_redirects=True
+    )
+    check("parent review works again", b"GREAT evidence review saved." in response.data)
+    check("review scores stored", stored_solution(on_qid)["great_diagnostic"]["scores"] is not None)
+    again_quest, _, again_answered = start_great_quest(answer_first_only=True)
+    again_qid = first_scored_question(again_quest, again_answered)
+    response = client.post(
+        f"/api/quest/{again_quest}/great-diagnostic",
+        json={"question_id": again_qid, "responses": evidence_text},
+        headers={"X-CSRF-Token": get_csrf(client)},
+    )
+    check("learner evidence works again", response.status_code == 200, response.get_json())
+    check(
+        "payload reports evidence mode",
+        client.get(f"/api/quest/{again_quest}").get_json()["options"].get("great_mode") == "evidence",
+    )
+    save_great_mode("reflection")
+    check("reflection mode saved", great_flags() == (True, False), great_flags())
+    reflect_payload = client.get(f"/api/quest/{again_quest}").get_json()
+    check("payload reports reflection mode", reflect_payload["options"].get("great_mode") == "reflection")
+    response = client.post(
+        f"/api/quest/{again_quest}/great",
+        json={"question_id": again_qid, "scores": all_scores},
+        headers={"X-CSRF-Token": get_csrf(client)},
+    )
+    check("self-reflection works again", response.status_code == 200, response.get_json())
+    check("earlier evidence survives a mode change", "great_diagnostic" in stored_solution(again_qid))
+
+    # 7. The switch is per learner and owner-checked.
+    with app.app_context():
+        fourth_id_now = db.session.execute(
+            db.select(Child.id).where(Child.name == "Fourth")
+        ).scalar_one()
+    parent_two.post(
+        f"/parent/view/{fourth_id_now}", data={"_csrf": get_csrf(parent_two)}, follow_redirects=True
+    )
+    response = save_great_mode("off", http=parent_two)
+    check("second parent can switch their learner off", b"Settings saved" in response.data, response.status_code)
+    with app.app_context():
+        fourth_row = db.session.get(Child, fourth_id_now)
+        check("other learner is now off", fourth_row.settings.great_enabled is False)
+        check("first learner is unaffected", smoke_child().settings.great_enabled is True)
+    response = parent_two.post(
+        f"/parent/quest/{on_quest}/great-review",
+        data={"_csrf": get_csrf(parent_two), "question_id": on_qid,
+              **{f"score_{stage}": "0" for stage in "GREAT"}},
+        follow_redirects=True,
+    )
+    check("another parent still cannot review this quest", b"not part of this learner" in response.data)
+    save_great_mode("reflection")
+    check("first learner restored to the default mode", great_flags() == (True, False), great_flags())
+    with app.app_context():
+        (
+            smoke_child().settings.daily_limit_minutes,
+            smoke_child().settings.subjects_enabled,
+            smoke_child().settings.years_enabled,
+        ) = original_limits
+        db.session.commit()
     # ------------------------------------------------------------------
     print("\nClearing and resetting data")
     # ------------------------------------------------------------------

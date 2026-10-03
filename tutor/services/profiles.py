@@ -41,6 +41,11 @@ DIFFICULTY_MODES = {
     "adaptive": "Adaptive — match the questions to her level (recommended)",
     "challenge": "Challenge — push a bit harder",
 }
+GREAT_MODES = {
+    "reflection": "Self-reflection — learner rates their own thinking after each answer",
+    "evidence": "Evidence interview — learner explains each stage, you score it",
+    "off": "Off — no GREAT prompts, reviews or profiles",
+}
 GCSE_TIER_OPTIONS = {
     "off": "Primary — Years 1–6",
     "foundation": "Foundation",
@@ -616,7 +621,6 @@ def bootstrap_token_for_cli(*, rotate: bool = False) -> str:
 
 BOOLEAN_FIELDS = [
     "allow_hints",
-    "great_diagnostic",
     "second_chance",
     "show_explanations",
     "sound_enabled",
@@ -665,6 +669,11 @@ def apply_settings(settings: Settings, form) -> list[str]:
     mode = (form.get("difficulty_mode") or "").strip()
     if mode in DIFFICULTY_MODES:
         settings.difficulty_mode = mode
+    great_mode = (form.get("great_mode") or "").strip()
+    if great_mode in GREAT_MODES:
+        settings.great_enabled = great_mode != "off"
+        if great_mode != "off":
+            settings.great_diagnostic = great_mode == "evidence"
 
     subject = (form.get("gcse_subject") or "").strip().lower()
     if subject in GCSE_SUBJECT_OPTIONS:
@@ -747,7 +756,10 @@ def settings_summary(settings: Settings) -> list[tuple[str, str]]:
         ("Weekly goal", f"{settings.weekly_quest_goal} quests"),
         (
             "GREAT mode",
-            "Evidence interview" if settings.great_diagnostic else "Self-reflection only",
+            {
+                "off": "Off",
+                "evidence": "Evidence interview",
+            }.get(settings.great_mode, "Self-reflection only"),
         ),
     ]
     if settings.gcse_tier in GCSE_TIERS:

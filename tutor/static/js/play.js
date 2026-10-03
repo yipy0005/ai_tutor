@@ -1021,6 +1021,11 @@
       question_id: question.id,
       responses: responses
     }).then(function (res) {
+      if (res.great_off) {
+        if (card) card.remove();
+        unlockNextAfterGreat();
+        return;
+      }
       if (res.error) {
         setGreatDiagnosticControls(card, false);
         var save = document.getElementById("save-great-diagnostic");
@@ -1079,6 +1084,12 @@
       question_id: question.id,
       scores: scores
     }).then(function (res) {
+      if (res.great_off) {
+        var offCard = document.getElementById("great-check");
+        if (offCard) offCard.remove();
+        unlockNextAfterGreat();
+        return;
+      }
       if (res.error) {
         button.disabled = false;
         greatStatus(res.error, true);
@@ -1270,10 +1281,12 @@
         art("scene-speaker") + "Say that again</button>"
       );
     }
-    lines.push(opts.great_diagnostic ? greatDiagnosticMarkup() : greatReflectionMarkup());
+    var greatMode = opts.great_mode || (opts.great_diagnostic ? "evidence" : "reflection");
+    if (greatMode === "evidence") lines.push(greatDiagnosticMarkup());
+    else if (greatMode !== "off") lines.push(greatReflectionMarkup());
     lines.push(
       '<button type="button" class="btn block ' + (res.correct ? "leaf" : "grape") +
-      '" id="next" disabled style="margin-top:14px">' +
+      '" id="next"' + (greatMode === "off" ? "" : " disabled") + ' style="margin-top:14px">' +
       (isLast ? "Finish 🎉" : "Next question →") + "</button>"
     );
 
