@@ -26,6 +26,8 @@ Then open **http://127.0.0.1:5001**. The first screen is an adult-only parent se
 
 For LAN or hosted first-run setup, keep the app behind HTTPS and use a bootstrap token. Run `pixi run bootstrap-token` on the server for a local token, or set `PARENT_BOOTSTRAP_TOKEN` through the deployment secret manager. Set `PARENT_SETUP_REQUIRE_TOKEN=1` for deployments that must always use the token gate. Never put the token in a URL, source file or normal server log. The token is consumed after successful setup; use `pixi run bootstrap-token -- --rotate` before setup if a local token is lost.
 
+A parent who has forgotten their PIN can be reset by whoever has shell access to the server: `pixi run reset-parent-pin -- --list` shows the parent names, and `pixi run reset-parent-pin -- --login-name NAME` asks for a new PIN at a hidden prompt. Existing sessions for that parent are signed out; learner accounts are untouched.
+
 The learner uses their own credentials on every sign-in; learner profiles cannot be selected or switched from the learner app.
 
 The default parent account is **parent**. Use **Parent → Create another parent

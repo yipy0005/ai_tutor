@@ -45,6 +45,10 @@ depends-on = ["init-db", "seed"]
 description = "Print or rotate the setup token for token-gated initial parent setup."
 cmd = "python -m scripts.bootstrap_token"
 
+[tasks.reset-parent-pin]
+description = "Reset a parent's PIN from the server: pixi run reset-parent-pin -- --login-name NAME (or --list)."
+cmd = "python -m scripts.reset_parent_pin"
+
 [tasks.dev]
 description = "Run the app with the Flask development server."
 cmd = "flask --app tutor:create_app run --debug --host 127.0.0.1 --port 5001"
